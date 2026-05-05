@@ -1,12 +1,57 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>davidwbean.com</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>David Bean</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Playfair+Display:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h1>Hello Emily</h1>
-    <p>Site under construction.</p>
+
+  <nav>
+    <span class="nav-name">David Bean</span>
+    <ul class="nav-links">
+      <li><a href="index.html">About</a></li>
+      <li><a href="resume.html">Resume</a></li>
+      <li><a href="cv.html">CV</a></li>
+      <li><a href="projects.html">Projects</a></li>
+      <li><a href="gallery.html">Gallery</a></li>
+    </ul>
+  </nav>
+
+  <!-- Bio & Headshot -->
+  <section class="hero">
+    <div class="hero-photo-placeholder">Photo</div>
+    <div class="hero-text">
+      <h1>David Bean</h1>
+      <p class="tagline">Researcher · Data Scientist · Artist</p>
+      <p>
+        Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod
+        tempor incididunt ut labore et dolore magna aliqua. Replace this with a
+        short bio — a few sentences about your research focus, background, and
+        what drives your work.
+      </p>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- Butterfly Visualization -->
+  <section class="viz-section">
+    <h2>Monarch Butterfly Sightings</h2>
+    <p class="viz-subtitle">An interactive look at migration patterns across North America</p>
+    <div class="viz-container" id="butterfly-chart">
+      <!-- Vega-Altair chart loads here -->
+    </div>
+    <a href="projects.html" class="btn-primary">See My Projects</a>
+  </section>
+
+  <footer>
+    <p>David Bean &mdash; davidwbean.com</p>
+  </footer>
+
 </body>
 </html>
