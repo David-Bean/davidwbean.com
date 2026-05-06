@@ -53,7 +53,7 @@
     <script>
       fetch("butterfly_chart.json")
         .then(r => r.json())
-        .then(spec => vegaEmbed("#butterfly-chart", spec, {renderer: "svg", actions: false}));
+        .then(spec => vegaEmbed("#butterfly-chart", spec, {renderer: "canvas", actions: false}));
     </script>
     <a href="projects.html" class="btn-primary">See My Projects</a>
   </section>
