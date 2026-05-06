@@ -210,7 +210,7 @@
 
       let maskHoles = null;
       let lonMin, lonMax, latMin, latMax;
-      let mapDataW, mapDataH; // actual map data dimensions from spec
+      let mapDataW, mapDataH;
       let projScale, projTx, projTy;
 
       function buildProjection() {
@@ -223,7 +223,6 @@
         const mxMax = Math.max(...corners.map(c => c[0]));
         const myMin = Math.min(...corners.map(c => c[1]));
         const myMax = Math.max(...corners.map(c => c[1]));
-        // Fit to the map's actual data dimensions, matching what Vega does
         projScale = Math.min(mapDataW / (mxMax - mxMin), mapDataH / (myMax - myMin));
         projTx = mapDataW / 2 - (mxMin + mxMax) / 2 * projScale;
         projTy = mapDataH / 2 - (myMin + myMax) / 2 * projScale;
@@ -241,26 +240,18 @@
 
         const toRad = Math.PI / 180;
         function toPixel(lon, lat) {
-          // Clamp to map bounds so ring vertices never project outside the visible area,
-          // preventing evenodd topology breaks at the clip boundary
-          lon = Math.max(lonMin - 2, Math.min(lonMax + 2, lon));
-          lat = Math.max(latMin - 1, Math.min(latMax + 1, lat));
+          lon = Math.max(lonMin, Math.min(lonMax, lon));
+          lat = Math.max(latMin, Math.min(latMax, lat));
           const mx = lon * toRad;
           const my = -Math.log(Math.tan(Math.PI / 4 + lat * toRad / 2));
           return [pad.left + mx * projScale + projTx, pad.top + my * projScale + projTy];
         }
 
-
         ctx.save();
-        // Hard clip to exact map data area — prevents off-canvas rings from
-        // breaking evenodd topology and from bleeding into the line charts below
-        // Clip to map section (stops bleed into line charts below)
         ctx.beginPath();
         ctx.rect(0, 0, canvas.width, pad.top + mapDataH + 60);
         ctx.clip();
 
-        // Outer boundary of the mask — edit these lon/lat coordinates to
-        // control exactly where the visible area cuts off.
         const MASK_BOUNDARY = [
           [lonMin, latMin], [lonMin, latMax], [lonMax, latMax], [lonMax, latMin], [lonMin, latMin]
         ];
@@ -286,6 +277,7 @@
         ctx.strokeStyle = 'black';
         ctx.lineWidth = 1.5;
         ctx.stroke();
+
         ctx.restore();
       }
 
@@ -316,7 +308,7 @@
           // (with margin). Rings entirely outside cause canvas clipping artifacts.
           const margin = 5;
           maskHoles = rawPolys
-            .map(poly => poly[0])
+            .flatMap(poly => poly) // include inner rings (covers interior water bodies)
             .filter(ring => ring.some(([ln, la]) =>
               ln >= lonMin - margin && ln <= lonMax + margin &&
               la >= latMin - margin && la <= latMax + margin
