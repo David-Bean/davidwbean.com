@@ -11,6 +11,7 @@
   <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
   <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
   <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
 </head>
 <body>
 
@@ -93,7 +94,7 @@
         if (vegaView) {
           vegaView.signal('year_select_param', year);
           vegaView.signal('week_select_param', week);
-          vegaView.runAsync();
+          vegaView.runAsync().then(() => drawUSMask(vegaView));
         }
 
         // Move handle
@@ -207,13 +208,127 @@
         return spec;
       }
 
-      // Load chart, strip built-in Vega controls, fix MM-DD dates, then start
-      fetch("butterfly_chart.json")
-        .then(r => r.json())
-        .then(spec => {
+      let maskHoles = null;
+      let lonMin, lonMax, latMin, latMax;
+      let mapDataW, mapDataH; // actual map data dimensions from spec
+      let projScale, projTx, projTy;
+
+      function buildProjection() {
+        const toRad = Math.PI / 180;
+        function merc(ln, la) {
+          return [ln * toRad, -Math.log(Math.tan(Math.PI / 4 + la * toRad / 2))];
+        }
+        const corners = [[lonMin,latMin],[lonMin,latMax],[lonMax,latMin],[lonMax,latMax]].map(([ln,la]) => merc(ln,la));
+        const mxMin = Math.min(...corners.map(c => c[0]));
+        const mxMax = Math.max(...corners.map(c => c[0]));
+        const myMin = Math.min(...corners.map(c => c[1]));
+        const myMax = Math.max(...corners.map(c => c[1]));
+        // Fit to the map's actual data dimensions, matching what Vega does
+        projScale = Math.min(mapDataW / (mxMax - mxMin), mapDataH / (myMax - myMin));
+        projTx = mapDataW / 2 - (mxMin + mxMax) / 2 * projScale;
+        projTy = mapDataH / 2 - (myMin + myMax) / 2 * projScale;
+      }
+
+      function drawUSMask(view) {
+        if (!maskHoles) return;
+        const canvas = view._renderer && view._renderer._canvas;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+
+        const rawPad = view.padding();
+        const pad = typeof rawPad === 'number'
+          ? {top: rawPad, bottom: rawPad, left: rawPad, right: rawPad} : rawPad;
+
+        const toRad = Math.PI / 180;
+        function toPixel(lon, lat) {
+          // Clamp to map bounds so ring vertices never project outside the visible area,
+          // preventing evenodd topology breaks at the clip boundary
+          lon = Math.max(lonMin - 2, Math.min(lonMax + 2, lon));
+          lat = Math.max(latMin - 1, Math.min(latMax + 1, lat));
+          const mx = lon * toRad;
+          const my = -Math.log(Math.tan(Math.PI / 4 + lat * toRad / 2));
+          return [pad.left + mx * projScale + projTx, pad.top + my * projScale + projTy];
+        }
+
+
+        ctx.save();
+        // Hard clip to exact map data area — prevents off-canvas rings from
+        // breaking evenodd topology and from bleeding into the line charts below
+        // Clip to map section (stops bleed into line charts below)
+        ctx.beginPath();
+        ctx.rect(0, 0, canvas.width, pad.top + mapDataH + 60);
+        ctx.clip();
+
+        // Outer boundary of the mask — edit these lon/lat coordinates to
+        // control exactly where the visible area cuts off.
+        const MASK_BOUNDARY = [
+          [lonMin, latMin], [lonMin, latMax], [lonMax, latMax], [lonMax, latMin], [lonMin, latMin]
+        ];
+        ctx.beginPath();
+        const [bx0, by0] = toPixel(MASK_BOUNDARY[0][0], MASK_BOUNDARY[0][1]);
+        ctx.moveTo(bx0, by0);
+        for (let i = 1; i < MASK_BOUNDARY.length; i++) {
+          const [bx, by] = toPixel(MASK_BOUNDARY[i][0], MASK_BOUNDARY[i][1]);
+          ctx.lineTo(bx, by);
+        }
+        ctx.closePath();
+        for (const ring of maskHoles) {
+          const [x0, y0] = toPixel(ring[0][0], ring[0][1]);
+          ctx.moveTo(x0, y0);
+          for (let i = 1; i < ring.length; i++) {
+            const [x, y] = toPixel(ring[i][0], ring[i][1]);
+            ctx.lineTo(x, y);
+          }
+          ctx.closePath();
+        }
+        ctx.fillStyle = '#f5f0e8';
+        ctx.fill('evenodd');
+        ctx.strokeStyle = 'black';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      // Load chart and world topojson in parallel
+      Promise.all([
+        fetch("butterfly_chart.json").then(r => r.json()),
+        fetch("https://cdn.jsdelivr.net/npm/world-atlas@2/land-50m.json").then(r => r.json())
+      ]).then(([spec, worldTopo]) => {
+          // Precompute lon/lat range and map dimensions for projection fitting
+          const tempKey = Object.keys(spec.datasets).find(k => spec.datasets[k][0] && 'Lon' in spec.datasets[k][0]);
+          const tempData = spec.datasets[tempKey];
+          lonMin = Math.min(...tempData.map(d => d.Lon));
+          lonMax = Math.max(...tempData.map(d => d.Lon));
+          latMin = Math.min(...tempData.map(d => d.Lat));
+          latMax = Math.max(...tempData.map(d => d.Lat));
+          mapDataW = spec.vconcat[0].width;
+          mapDataH = spec.vconcat[0].height;
+          buildProjection();
+
+          // Extract all land polygon outer rings — used as holes so only ocean is masked
+          const land = topojson.feature(worldTopo, worldTopo.objects.land);
+          const landFeature = land.type === "FeatureCollection" ? land.features[0] : land;
+          const landGeom = landFeature.geometry;
+          const rawPolys = landGeom.type === "Polygon"
+            ? [landGeom.coordinates]
+            : landGeom.coordinates;
+          // Only keep rings that have vertices within the chart's geographic extent
+          // (with margin). Rings entirely outside cause canvas clipping artifacts.
+          const margin = 5;
+          maskHoles = rawPolys
+            .map(poly => poly[0])
+            .filter(ring => ring.some(([ln, la]) =>
+              ln >= lonMin - margin && ln <= lonMax + margin &&
+              la >= latMin - margin && la <= latMax + margin
+            ));
+
           if (spec.params) {
             spec.params = spec.params.map(p => { const {bind, ...rest} = p; return rest; });
           }
+          spec.config = spec.config || {};
+          spec.config.background = "#f5f0e8";
+          spec.config.view = Object.assign(spec.config.view || {}, {stroke: null});
+
           return vegaEmbed("#butterfly-chart", fixDatasets(fixSpec(spec)), {renderer: "canvas", actions: false});
         })
         .then(result => {
