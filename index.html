@@ -49,12 +49,181 @@
   <section class="viz-section">
     <h2>Monarch Butterfly Sightings</h2>
     <p class="viz-subtitle">An interactive look at migration patterns across North America</p>
+
+    <div class="scrubber-wrap">
+      <div class="scrubber-track" id="scrubber-track">
+        <div class="scrubber-segment" data-year="2002">2002</div>
+        <div class="scrubber-segment" data-year="2007">2007</div>
+        <div class="scrubber-segment" data-year="2012">2012</div>
+        <div class="scrubber-segment" data-year="2017">2017</div>
+        <div class="scrubber-handle" id="scrubber-handle">
+          <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 256 256" fill="currentColor">
+            <path d="M104,60a12,12,0,1,1-12-12A12,12,0,0,1,104,60Zm60,12a12,12,0,1,0-12-12A12,12,0,0,0,164,72ZM92,116a12,12,0,1,0,12,12A12,12,0,0,0,92,128Zm72,0a12,12,0,1,0,12,12A12,12,0,0,0,164,128ZM92,184a12,12,0,1,0,12,12A12,12,0,0,0,92,196Zm72,0a12,12,0,1,0,12,12A12,12,0,0,0,164,196Z"/>
+          </svg>
+        </div>
+      </div>
+      <button class="scrubber-play-btn" id="scrubber-play-btn" title="Pause"></button>
+    </div>
+
     <div class="viz-container" id="butterfly-chart"></div>
+
     <script>
+      const YEARS = [2002, 2007, 2012, 2017];
+      const WEEKS = 51;
+      const TOTAL_STEPS = YEARS.length * WEEKS;
+      const MS_PER_YEAR = 5000;
+      const STEP_INTERVAL = (MS_PER_YEAR * YEARS.length) / TOTAL_STEPS;
+
+      let vegaView = null;
+      let currentStep = 0;
+      let autoTimer = null;
+      let userControlled = false;
+
+      function stepToYearWeek(step) {
+        const yearIdx = Math.min(Math.floor(step / WEEKS), YEARS.length - 1);
+        const week = (step % WEEKS) + 1;
+        return { year: YEARS[yearIdx], week, yearIdx };
+      }
+
+      function applyStep(step) {
+        currentStep = Math.max(0, Math.min(step, TOTAL_STEPS - 1));
+        const { year, week, yearIdx } = stepToYearWeek(currentStep);
+
+        // Update Vega signals
+        if (vegaView) {
+          vegaView.signal('year_select_param', year);
+          vegaView.signal('week_select_param', week);
+          vegaView.runAsync();
+        }
+
+        // Move handle
+        const pct = currentStep / (TOTAL_STEPS - 1);
+        document.getElementById('scrubber-handle').style.left = `calc(${pct * 100}% - 12px)`;
+
+        // Highlight active segment
+        document.querySelectorAll('.scrubber-segment').forEach((el, i) => {
+          el.classList.toggle('active', i === yearIdx);
+        });
+      }
+
+      function startAutoplay() {
+        autoTimer = setInterval(() => {
+          if (currentStep >= TOTAL_STEPS - 1) {
+            clearInterval(autoTimer);
+            setPlayState(false);
+            return;
+          }
+          applyStep(currentStep + 1);
+        }, STEP_INTERVAL);
+      }
+
+      // Scrubber drag interaction
+      const track = document.getElementById('scrubber-track');
+
+      function posToStep(clientX) {
+        const rect = track.getBoundingClientRect();
+        const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+        return Math.round(pct * (TOTAL_STEPS - 1));
+      }
+
+      const playBtn = document.getElementById('scrubber-play-btn');
+
+      const ICON_PAUSE = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 256 256" fill="currentColor"><path d="M216,48V208a16,16,0,0,1-16,16H160a16,16,0,0,1-16-16V48a16,16,0,0,1,16-16h40A16,16,0,0,1,216,48Zm-96-16H80A16,16,0,0,0,64,48V208a16,16,0,0,0,16,16h40a16,16,0,0,0,16-16V48A16,16,0,0,0,120,32Z"/></svg>`;
+      const ICON_PLAY  = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 256 256" fill="currentColor"><path d="M240,128a15.74,15.74,0,0,1-7.6,13.51L88.32,229.65a16,16,0,0,1-16.2.3A15.86,15.86,0,0,1,64,216.13V39.87a15.86,15.86,0,0,1,8.12-13.82,16,16,0,0,1,16.2.3L232.4,114.49A15.74,15.74,0,0,1,240,128Z"/></svg>`;
+
+      function setPlayState(playing) {
+        playBtn.innerHTML = playing ? ICON_PAUSE : ICON_PLAY;
+        playBtn.title = playing ? 'Pause' : 'Resume autoplay';
+      }
+
+      function onInteractionStart(e) {
+        if (!userControlled) {
+          userControlled = true;
+          clearInterval(autoTimer);
+          setPlayState(false);
+        }
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        applyStep(posToStep(clientX));
+
+        const onMove = ev => {
+          const x = ev.touches ? ev.touches[0].clientX : ev.clientX;
+          applyStep(posToStep(x));
+        };
+        const onUp = () => {
+          window.removeEventListener('mousemove', onMove);
+          window.removeEventListener('touchmove', onMove);
+          window.removeEventListener('mouseup', onUp);
+          window.removeEventListener('touchend', onUp);
+        };
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('touchmove', onMove);
+        window.addEventListener('mouseup', onUp);
+        window.addEventListener('touchend', onUp);
+      }
+
+      track.addEventListener('mousedown', onInteractionStart);
+      track.addEventListener('touchstart', onInteractionStart);
+
+      playBtn.addEventListener('click', () => {
+        if (autoTimer) {
+          clearInterval(autoTimer);
+          autoTimer = null;
+          userControlled = true;
+          setPlayState(false);
+        } else {
+          userControlled = false;
+          if (currentStep >= TOTAL_STEPS - 1) currentStep = 0;
+          setPlayState(true);
+          startAutoplay();
+        }
+      });
+
+      // "01-07" strings aren't valid ISO dates — browsers parse them inconsistently.
+      // Convert all MM-DD values to "2000-MM-DD" so temporal parsing is reliable.
+      const MMDD_RE = /^\d{2}-\d{2}$/;
+      function fixMMDD(v) { return (typeof v === 'string' && MMDD_RE.test(v)) ? '2000-' + v : v; }
+
+      function fixSpec(obj) {
+        if (Array.isArray(obj)) return obj.map(fixSpec);
+        if (obj && typeof obj === 'object') {
+          // Deduplicate and fix domain values
+          if (obj.scale && Array.isArray(obj.scale.domain)) {
+            obj.scale.domain = [...new Set(obj.scale.domain.map(fixMMDD))];
+          }
+          return Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, fixSpec(v)]));
+        }
+        return obj;
+      }
+
+      // Also fix MM-DD values embedded in datasets
+      function fixDatasets(spec) {
+        if (!spec.datasets) return spec;
+        for (const name in spec.datasets) {
+          spec.datasets[name] = spec.datasets[name].map(row => {
+            if ('MM-DD' in row) row['MM-DD'] = fixMMDD(row['MM-DD']);
+            return row;
+          });
+        }
+        return spec;
+      }
+
+      // Load chart, strip built-in Vega controls, fix MM-DD dates, then start
       fetch("butterfly_chart.json")
         .then(r => r.json())
-        .then(spec => vegaEmbed("#butterfly-chart", spec, {renderer: "canvas", actions: false}));
+        .then(spec => {
+          if (spec.params) {
+            spec.params = spec.params.map(p => { const {bind, ...rest} = p; return rest; });
+          }
+          return vegaEmbed("#butterfly-chart", fixDatasets(fixSpec(spec)), {renderer: "canvas", actions: false});
+        })
+        .then(result => {
+          vegaView = result.view;
+          applyStep(0);
+          setPlayState(true);
+          startAutoplay();
+        });
     </script>
+
     <a href="projects.html" class="btn-primary">See My Projects</a>
   </section>
 

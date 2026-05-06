@@ -140,7 +140,7 @@ nav {
 /* ── Visualization section ─────────────────────────────────── */
 .viz-section {
   padding: 5rem 2rem;
-  max-width: var(--max-width);
+  max-width: 1200px;
   margin: 0 auto;
   text-align: center;
 }
@@ -167,6 +167,7 @@ nav {
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow-x: auto;
 }
 
 .btn-primary {
@@ -184,6 +185,84 @@ nav {
 .btn-primary:hover {
   background: var(--accent);
   color: var(--nav-bg);
+}
+
+/* ── Scrubber ──────────────────────────────────────────────── */
+.scrubber-wrap {
+  margin-bottom: 1.5rem;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.scrubber-track {
+  position: relative;
+  display: flex;
+  flex: 1;
+  height: 40px;
+  border-radius: 6px;
+  overflow: visible;
+  cursor: pointer;
+}
+
+.scrubber-play-btn {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid var(--nav-bg);
+  background: transparent;
+  color: var(--nav-bg);
+  font-size: 0.85rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, color 0.2s;
+  padding-left: 2px;
+}
+
+.scrubber-play-btn:hover {
+  background: var(--nav-bg);
+  color: var(--accent);
+}
+
+.scrubber-segment {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-head);
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+  color: var(--nav-bg);
+  opacity: 0.7;
+  transition: opacity 0.2s;
+}
+
+.scrubber-segment:nth-child(odd)  { background: var(--nav-bg); color: var(--accent); }
+.scrubber-segment:nth-child(even) { background: var(--accent); color: var(--nav-bg); }
+.scrubber-segment:first-child { border-radius: 6px 0 0 6px; }
+.scrubber-segment:last-child  { border-radius: 0 6px 6px 0; }
+.scrubber-segment.active { opacity: 1; font-weight: 600; filter: brightness(1.15); }
+
+.scrubber-handle {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  background: var(--nav-bg);
+  border: 2px solid var(--bg);
+  border-radius: 50%;
+  pointer-events: none;
+  transition: left 0.1s linear;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
 }
 
 /* ── Generic content page ──────────────────────────────────── */
