@@ -283,12 +283,8 @@
         fetch("https://cdn.jsdelivr.net/npm/world-atlas@2/land-50m.json").then(r => r.json())
       ]).then(([spec, worldTopo]) => {
           // Precompute lon/lat range and map dimensions for projection fitting
-          const tempKey = Object.keys(spec.datasets).find(k => spec.datasets[k][0] && 'Lon' in spec.datasets[k][0]);
-          const tempData = spec.datasets[tempKey];
-          lonMin = Math.min(...tempData.map(d => d.Lon));
-          lonMax = Math.max(...tempData.map(d => d.Lon));
-          latMin = Math.min(...tempData.map(d => d.Lat));
-          latMax = Math.max(...tempData.map(d => d.Lat));
+          lonMin = -126; lonMax = -59;
+          latMin = 8;    latMax = 55;
           mapDataW = spec.vconcat[0].width;
           mapDataH = spec.vconcat[0].height;
           buildProjection();
