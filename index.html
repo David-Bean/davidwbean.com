@@ -257,11 +257,11 @@
         const topExt = 0.025 * mapDataH;
         ctx.save();
         ctx.beginPath();
-        ctx.rect(0, -topExt, canvas.width, pad.top + mapDataH + 60 - topExt);
+        ctx.rect(0, -topExt, pad.left + mapDataW, pad.top + mapDataH + 60 - topExt);
         ctx.clip();
 
         ctx.beginPath();
-        ctx.rect(0, -topExt, canvas.width, pad.top + mapDataH + 60 - topExt);
+        ctx.rect(0, -topExt, pad.left + mapDataW, pad.top + mapDataH + 60 - topExt);
         for (const ring of maskHoles) {
           const [x0, y0] = toPixel(ring[0][0], ring[0][1]);
           ctx.moveTo(x0, y0);
