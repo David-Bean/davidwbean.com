@@ -254,22 +254,14 @@
           return [pad.left + mx * projScale + projTx, pad.top + my * projScale + projTy];
         }
 
+        const topExt = 0.025 * mapDataH;
         ctx.save();
         ctx.beginPath();
-        ctx.rect(0, 0, canvas.width, pad.top + mapDataH + 60);
+        ctx.rect(0, -topExt, canvas.width, pad.top + mapDataH + 60 - topExt);
         ctx.clip();
 
-        const MASK_BOUNDARY = [
-          [lonMin, latMin], [lonMin, latMax], [lonMax, latMax], [lonMax, latMin], [lonMin, latMin]
-        ];
         ctx.beginPath();
-        const [bx0, by0] = toPixel(MASK_BOUNDARY[0][0], MASK_BOUNDARY[0][1]);
-        ctx.moveTo(bx0, by0);
-        for (let i = 1; i < MASK_BOUNDARY.length; i++) {
-          const [bx, by] = toPixel(MASK_BOUNDARY[i][0], MASK_BOUNDARY[i][1]);
-          ctx.lineTo(bx, by);
-        }
-        ctx.closePath();
+        ctx.rect(0, -topExt, canvas.width, pad.top + mapDataH + 60 - topExt);
         for (const ring of maskHoles) {
           const [x0, y0] = toPixel(ring[0][0], ring[0][1]);
           ctx.moveTo(x0, y0);
@@ -281,9 +273,6 @@
         }
         ctx.fillStyle = '#f5f0e8';
         ctx.fill('evenodd');
-        ctx.strokeStyle = 'black';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
 
         ctx.restore();
       }
