@@ -163,11 +163,10 @@ nav {
   border-radius: 8px;
   padding: 2rem;
   margin-bottom: 2.5rem;
-  min-height: 480px;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow-x: auto;
+  overflow: hidden;
 }
 
 .btn-primary {
@@ -360,4 +359,12 @@ footer {
   .gallery-grid { columns: 2; }
 
   .nav-links { gap: 1rem; }
+
+  .viz-section {
+    padding: 3rem 0.75rem;
+  }
+
+  .viz-container {
+    padding: 0.75rem;
+  }
 }

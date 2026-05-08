@@ -86,6 +86,7 @@
       let currentStep = 0;
       let autoTimer = null;
       let userControlled = false;
+      let originalSpec = null;
 
       function stepToYearWeek(step) {
         const yearIdx = Math.min(Math.floor(step / WEEKS), YEARS.length - 1);
@@ -97,18 +98,15 @@
         currentStep = Math.max(0, Math.min(step, TOTAL_STEPS - 1));
         const { year, week, yearIdx } = stepToYearWeek(currentStep);
 
-        // Update Vega signals
         if (vegaView) {
           vegaView.signal('year_select_param', year);
           vegaView.signal('week_select_param', week);
           vegaView.runAsync().then(() => drawUSMask(vegaView));
         }
 
-        // Move handle
         const pct = currentStep / (TOTAL_STEPS - 1);
         document.getElementById('scrubber-handle').style.left = `calc(${pct * 100}% - 12px)`;
 
-        // Highlight active segment
         document.querySelectorAll('.scrubber-segment').forEach((el, i) => {
           el.classList.toggle('active', i === yearIdx);
         });
@@ -118,6 +116,7 @@
         autoTimer = setInterval(() => {
           if (currentStep >= TOTAL_STEPS - 1) {
             clearInterval(autoTimer);
+            autoTimer = null;
             setPlayState(false);
             return;
           }
@@ -148,6 +147,7 @@
         if (!userControlled) {
           userControlled = true;
           clearInterval(autoTimer);
+          autoTimer = null;
           setPlayState(false);
         }
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -194,7 +194,6 @@
       function fixSpec(obj) {
         if (Array.isArray(obj)) return obj.map(fixSpec);
         if (obj && typeof obj === 'object') {
-          // Deduplicate and fix domain values
           if (obj.scale && Array.isArray(obj.scale.domain)) {
             obj.scale.domain = [...new Set(obj.scale.domain.map(fixMMDD))];
           }
@@ -203,7 +202,6 @@
         return obj;
       }
 
-      // Also fix MM-DD values embedded in datasets
       function fixDatasets(spec) {
         if (!spec.datasets) return spec;
         for (const name in spec.datasets) {
@@ -277,30 +275,78 @@
         ctx.restore();
       }
 
+      // Compute available pixel width inside .viz-container (accounts for its padding)
+      function getAvailableWidth() {
+        const el = document.getElementById('butterfly-chart');
+        const containerPad = 64; // .viz-container padding: 2rem each side
+        return Math.max(300, el.offsetWidth - containerPad);
+      }
+
+      // Deep-copy originalSpec and scale all chart dimensions to fit the current container
+      function buildResponsiveSpec() {
+        const spec = JSON.parse(JSON.stringify(originalSpec));
+        const availW = getAvailableWidth();
+        const scale = Math.min(1, availW / 1000);
+        const mapW  = Math.round(availW);
+        const mapH  = Math.round(680 * scale);
+        const subW  = Math.floor((availW - 20) / 2); // 20px hconcat spacing
+        const subH  = Math.round(210 * scale);
+
+        spec.vconcat[0].width  = mapW;
+        spec.vconcat[0].height = mapH;
+        spec.vconcat[1].hconcat[0].width  = subW;
+        spec.vconcat[1].hconcat[0].height = subH;
+        spec.vconcat[1].hconcat[1].width  = subW;
+        spec.vconcat[1].hconcat[1].height = subH;
+
+        return { spec, mapW, mapH };
+      }
+
+      async function doEmbed() {
+        const wasPlaying = !!autoTimer;
+        if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+        if (vegaView)  { vegaView.finalize(); vegaView = null; }
+
+        const { spec, mapW, mapH } = buildResponsiveSpec();
+        mapDataW = mapW;
+        mapDataH = mapH;
+        buildProjection();
+
+        const savedStep = currentStep;
+        const result = await vegaEmbed("#butterfly-chart", fixDatasets(fixSpec(spec)), {renderer: "canvas", actions: false});
+        vegaView = result.view;
+        applyStep(savedStep);
+
+        if (wasPlaying && savedStep < TOTAL_STEPS - 1) {
+          setPlayState(true);
+          startAutoplay();
+        }
+      }
+
+      // Debounce resize so we don't re-embed on every pixel change
+      let resizeTimer = null;
+      window.addEventListener('resize', () => {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(doEmbed, 200);
+      });
+
       // Load chart and world topojson in parallel
       Promise.all([
         fetch("butterfly_chart.json").then(r => r.json()),
         fetch("https://cdn.jsdelivr.net/npm/world-atlas@2/land-50m.json").then(r => r.json())
       ]).then(([spec, worldTopo]) => {
-          // Precompute lon/lat range and map dimensions for projection fitting
           lonMin = -126; lonMax = -59;
           latMin = 8;    latMax = 55;
-          mapDataW = spec.vconcat[0].width;
-          mapDataH = spec.vconcat[0].height;
-          buildProjection();
 
-          // Extract all land polygon outer rings — used as holes so only ocean is masked
           const land = topojson.feature(worldTopo, worldTopo.objects.land);
           const landFeature = land.type === "FeatureCollection" ? land.features[0] : land;
           const landGeom = landFeature.geometry;
           const rawPolys = landGeom.type === "Polygon"
             ? [landGeom.coordinates]
             : landGeom.coordinates;
-          // Only keep rings that have vertices within the chart's geographic extent
-          // (with margin). Rings entirely outside cause canvas clipping artifacts.
           const margin = 5;
           maskHoles = rawPolys
-            .flatMap(poly => poly) // include inner rings (covers interior water bodies)
+            .flatMap(poly => poly)
             .filter(ring => ring.some(([ln, la]) =>
               ln >= lonMin - margin && ln <= lonMax + margin &&
               la >= latMin - margin && la <= latMax + margin
@@ -313,11 +359,10 @@
           spec.config.background = "#f5f0e8";
           spec.config.view = Object.assign(spec.config.view || {}, {stroke: null});
 
-          return vegaEmbed("#butterfly-chart", fixDatasets(fixSpec(spec)), {renderer: "canvas", actions: false});
+          originalSpec = spec;
+          return doEmbed();
         })
-        .then(result => {
-          vegaView = result.view;
-          applyStep(0);
+        .then(() => {
           setPlayState(true);
           startAutoplay();
         });
