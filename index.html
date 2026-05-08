@@ -286,10 +286,11 @@
       function buildResponsiveSpec() {
         const spec = JSON.parse(JSON.stringify(originalSpec));
         const availW = getAvailableWidth();
-        const scale = Math.min(1, availW / 1000);
-        const mapW  = Math.round(availW);
+        const CHART_MAX_W = 850; // ~15% smaller than original 1000px
+        const mapW  = Math.round(Math.min(availW, CHART_MAX_W));
+        const scale = mapW / 1000;
         const mapH  = Math.round(680 * scale);
-        const subW  = Math.floor((availW - 20) / 2); // 20px hconcat spacing
+        const subW  = Math.floor((mapW - 20) / 2); // 20px hconcat spacing
         const subH  = Math.round(210 * scale);
 
         spec.vconcat[0].width  = mapW;
