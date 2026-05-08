@@ -69,6 +69,7 @@ as decisions get made later.
 - [x] Add vega-embed to the page via CDN script tag
 - [x] Write the ~5 lines of JS to load and render the spec
 - [x] Slim down chart data — extracted all inline datasets to data/*.json, loaded by URL. Spec went from 27.8MB to 10KB.
+- [x] Fix monarch visualization scaling — chart now resizes responsively to fit any viewport; re-embeds on window resize with correct mask projection
 - [ ] Redesign the chart for the final version — current POC is functional but visually rough, needs a proper polish pass to fit the site aesthetic
 - [ ] Choose a temperature color scale with three zones: too cold (white/black), butterfly-active range (blue or green?), too hot (orange) — the current single-gradient doesn't communicate the "Goldilocks" reading
 - [ ] Style the container so it fits the page layout
