@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Monarch Butterfly Sightings — David Bean</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Playfair+Display:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
+</head>
+<body>
+
+  <nav>
+    <span class="nav-name">David Bean</span>
+    <ul class="nav-links">
+      <li><a href="index.html">About</a></li>
+      <li><a href="resume.html">Resume</a></li>
+      <li><a href="cv.html">CV</a></li>
+      <li><a href="projects.html">Projects</a></li>
+      <li><a href="gallery.html">Gallery</a></li>
+    </ul>
+  </nav>
+
+  <section class="viz-section">
+    <h2>Monarch Butterfly Sightings</h2>
+    <p class="viz-subtitle">
+      Each year, monarch butterflies make one of the longest migrations in the insect world —
+      traveling thousands of miles between their overwintering grounds in central Mexico and
+      their summer breeding range across North America. This chart overlays weekly temperature
+      data with reported monarch sightings across four representative years, letting you watch
+      the migration unfold week by week and see how shifting temperatures track with the
+      butterflies' movement north in spring and south in fall.
+    </p>
+
+    <div class="bfly-wrap">
+      <div id="bfly-map"></div>
+
+      <div class="bfly-scrubber">
+        <input type="range" id="bfly-week-input" min="1" max="51" value="26">
+        <div class="bfly-scrubber-meta">
+          <span id="bfly-week-label">Week 26</span>
+          <select id="bfly-year-select">
+            <option value="2002">2002</option>
+            <option value="2007">2007</option>
+            <option value="2012">2012</option>
+            <option value="2017" selected>2017</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="bfly-lines">
+        <div id="bfly-line-lat"></div>
+        <div id="bfly-line-temp"></div>
+      </div>
+    </div>
+
+  </section>
+
+  <footer>
+    <p>David Bean &mdash; davidwbean.com</p>
+  </footer>
+
+<script>
+// ── State ────────────────────────────────────────────────────
+const YEARS = [2002, 2007, 2012, 2017];
+const LON_EXTENT = [-126, -59];
+const LAT_EXTENT = [8, 55];
+
+let state = { week: 26, year: 2017 };
+let worldLand = null;
+let temps = [];
+
+// ── Placeholder sighting dots (12 locations that drift north by week) ─
+function fakeSightings(week) {
+  const baseLats = [19, 22, 25, 28, 30, 32, 34, 36, 38, 40, 42, 44];
+  const lons     = [-99, -97, -95, -100, -98, -96, -94, -98, -96, -94, -92, -90];
+  const drift = (week / 51) * 22;
+  return baseLats.map((lat, i) => ({
+    lon: lons[i],
+    lat: Math.min(LAT_EXTENT[1] - 1, lat + drift)
+  }));
+}
+
+// ── Synthetic lat series per year (simple sine-ish curve) ───
+function latSeries(year) {
+  return d3.range(1, 52).map(w => ({
+    week: w,
+    lat: 20 + 22 * Math.sin((w - 5) / 51 * Math.PI) + (YEARS.indexOf(year) * 1.5)
+  }));
+}
+
+// ── MAP ──────────────────────────────────────────────────────
+function drawMap() {
+  const el = document.getElementById('bfly-map');
+  const W  = el.clientWidth;
+  if (!W || !worldLand) return;
+
+  const aspectRatio = 0.6;
+  const H = Math.round(W * aspectRatio);
+
+  d3.select(el).select('svg').remove();
+  const svg = d3.select(el).append('svg')
+    .attr('width', W)
+    .attr('height', H);
+
+  const proj = d3.geoMercator()
+    .fitExtent([[10, 10], [W - 10, H - 10]],
+      { type: 'Feature', geometry: {
+        type: 'Polygon',
+        coordinates: [[ [LON_EXTENT[0], LAT_EXTENT[0]], [LON_EXTENT[1], LAT_EXTENT[0]],
+                        [LON_EXTENT[1], LAT_EXTENT[1]], [LON_EXTENT[0], LAT_EXTENT[1]],
+                        [LON_EXTENT[0], LAT_EXTENT[0]] ]]
+      }});
+
+  const path = d3.geoPath(proj);
+
+  svg.append('rect').attr('width', W).attr('height', H).attr('fill', '#cfe2f3');
+
+  svg.append('path')
+    .datum(topojson.feature(worldLand, worldLand.objects.land))
+    .attr('d', path)
+    .attr('fill', '#e8e0d0')
+    .attr('stroke', '#b0a898')
+    .attr('stroke-width', 0.5);
+
+  const dots = fakeSightings(state.week);
+  svg.selectAll('circle')
+    .data(dots)
+    .join('circle')
+    .attr('cx', d => proj([d.lon, d.lat])[0])
+    .attr('cy', d => proj([d.lon, d.lat])[1])
+    .attr('r', Math.max(3, W / 120))
+    .attr('fill', '#4C78A8')
+    .attr('stroke', 'white')
+    .attr('stroke-width', 1)
+    .attr('opacity', 0.85);
+}
+
+// ── LINE CHARTS ──────────────────────────────────────────────
+function getMargin(W) {
+  const fs = Math.min(10, Math.max(6, Math.round(W * 0.055)));
+  return {
+    top:    fs + 6,
+    right:  4,
+    bottom: fs + 10,
+    left:   Math.round(fs * 3.5),
+  };
+}
+
+function getTicks(W) {
+  return W < 150 ? 3 : W < 250 ? 4 : 5;
+}
+
+function getTickFontSize(W) {
+  return `${Math.min(10, Math.max(6, Math.round(W * 0.055)))}px`;
+}
+
+function lineChartWidth() {
+  const map   = document.getElementById('bfly-map');
+  const lines = document.querySelector('.bfly-lines');
+  if (!map || !lines) return 0;
+  const gap = parseFloat(getComputedStyle(lines).gap) || 0;
+  return Math.floor((map.getBoundingClientRect().width - gap) / 2);
+}
+
+function drawLatChart() {
+  const el = document.getElementById('bfly-line-lat');
+  const W  = lineChartWidth();
+  if (!W) return;
+  const H = Math.round(W * 0.55);
+  const MARGIN = getMargin(W);
+
+  d3.select(el).select('svg').remove();
+  const svg = d3.select(el).append('svg').attr('width', W).attr('height', H);
+  const g = svg.append('g').attr('transform', `translate(${MARGIN.left},${MARGIN.top})`);
+  const iW = W - MARGIN.left - MARGIN.right;
+  const iH = H - MARGIN.top  - MARGIN.bottom;
+
+  const x = d3.scaleLinear().domain([1, 51]).range([0, iW]);
+  const y = d3.scaleLinear().domain([15, 50]).range([iH, 0]);
+  const line = d3.line().x(d => x(d.week)).y(d => y(d.lat)).curve(d3.curveCatmullRom);
+
+  const ticks = getTicks(W);
+  const fontSize = getTickFontSize(W);
+  g.append('g').attr('transform', `translate(0,${iH})`).call(d3.axisBottom(x).ticks(ticks).tickSize(3)).selectAll('text').attr('font-size', fontSize);
+  g.append('g').call(d3.axisLeft(y).ticks(ticks).tickSize(3)).selectAll('text').attr('font-size', fontSize);
+
+  YEARS.forEach(yr => {
+    g.append('path')
+      .datum(latSeries(yr))
+      .attr('fill', 'none')
+      .attr('stroke', yr === state.year ? '#ed8796' : '#666')
+      .attr('stroke-width', yr === state.year ? 2 : 1)
+      .attr('opacity', yr === state.year ? 1 : 0.2)
+      .attr('d', line);
+  });
+
+  g.append('line')
+    .attr('x1', x(state.week)).attr('x2', x(state.week))
+    .attr('y1', 0).attr('y2', iH)
+    .attr('stroke', '#ed8796').attr('stroke-width', 1).attr('stroke-dasharray', '3,3');
+
+  svg.append('text')
+    .attr('x', MARGIN.left).attr('y', MARGIN.top - 4)
+    .attr('font-size', fontSize).attr('fill', '#6b6f85')
+    .text('7-day mean latitude');
+}
+
+function drawTempChart() {
+  const el = document.getElementById('bfly-line-temp');
+  const W  = lineChartWidth();
+  if (!W || !temps.length) return;
+  const H = Math.round(W * 0.55);
+  const MARGIN = getMargin(W);
+
+  d3.select(el).select('svg').remove();
+  const svg = d3.select(el).append('svg').attr('width', W).attr('height', H);
+  const g = svg.append('g').attr('transform', `translate(${MARGIN.left},${MARGIN.top})`);
+  const iW = W - MARGIN.left - MARGIN.right;
+  const iH = H - MARGIN.top  - MARGIN.bottom;
+
+  const x = d3.scaleLinear().domain([0, 51]).range([0, iW]);
+  const y = d3.scaleLinear().domain([10, 80]).range([iH, 0]);
+  const line = d3.line().x(d => x(d.week)).y(d => y(d.weekly_avg)).curve(d3.curveCatmullRom);
+
+  const ticks = getTicks(W);
+  const fontSize = getTickFontSize(W);
+  g.append('g').attr('transform', `translate(0,${iH})`).call(d3.axisBottom(x).ticks(ticks).tickSize(3)).selectAll('text').attr('font-size', fontSize);
+  g.append('g').call(d3.axisLeft(y).ticks(ticks).tickSize(3)).selectAll('text').attr('font-size', fontSize);
+
+  YEARS.forEach(yr => {
+    const data = temps.filter(d => d.year === yr);
+    g.append('path')
+      .datum(data)
+      .attr('fill', 'none')
+      .attr('stroke', yr === state.year ? '#ed8796' : '#666')
+      .attr('stroke-width', yr === state.year ? 2 : 1)
+      .attr('opacity', yr === state.year ? 1 : 0.2)
+      .attr('d', line);
+  });
+
+  g.append('line')
+    .attr('x1', x(state.week)).attr('x2', x(state.week))
+    .attr('y1', 0).attr('y2', iH)
+    .attr('stroke', '#ed8796').attr('stroke-width', 1).attr('stroke-dasharray', '3,3');
+
+  svg.append('text')
+    .attr('x', MARGIN.left).attr('y', MARGIN.top - 4)
+    .attr('font-size', fontSize).attr('fill', '#6b6f85')
+    .text('Weekly temp °F');
+}
+
+function redrawAll() {
+  drawMap();
+  drawLatChart();
+  drawTempChart();
+}
+
+// ── Scrubber & year selector ─────────────────────────────────
+document.getElementById('bfly-week-input').addEventListener('input', e => {
+  state.week = +e.target.value;
+  document.getElementById('bfly-week-label').textContent = `Week ${state.week}`;
+  redrawAll();
+});
+
+document.getElementById('bfly-year-select').addEventListener('change', e => {
+  state.year = +e.target.value;
+  redrawAll();
+});
+
+// ── ResizeObserver ───────────────────────────────────────────
+let resizeTimer = null;
+const ro = new ResizeObserver(() => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(redrawAll, 100);
+});
+ro.observe(document.querySelector('.bfly-wrap'));
+
+// ── Load data & init ─────────────────────────────────────────
+Promise.all([
+  fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/land-50m.json').then(r => r.json()),
+  fetch('data/weekly_temperatures.json').then(r => r.json()),
+]).then(([world, tempData]) => {
+  worldLand = world;
+  temps = tempData;
+  redrawAll();
+});
+</script>
+
+</body>
+</html>

@@ -41,19 +41,19 @@ Reviewed `butterfly_chart.json`. Key design details:
 
 ---
 
-### [ ] 2. Create the Eleventy partial shell and page scaffolding
-Before any chart code is written, create the file structure:
-- `src/_includes/butterfly-chart.njk` — all chart HTML, SVG containers, and JS will live here
-- `src/butterfly.njk` — dedicated page that simply `{% include "butterfly-chart.njk" %}`
-- Add `{% include "butterfly-chart.njk" %}` to `src/index.njk` at the desired location
+### [x] 2. Create the page scaffolding
+Before any chart code is written, establish the file structure:
+- `butterfly.html` — dedicated standalone page for the v2 chart
+- Add a `<div id="butterfly-chart"></div>` placeholder in `index.html` at the desired location
 
-This establishes the component architecture from the start so nothing needs to be refactored later.
+No changes to any other existing pages or files.
 
-### [ ] 4. Design responsive container layout
+### [x] 4. Design responsive container layout
 Define the HTML/CSS layout for the visualization page.
-- Desktop: map + scrubber + side-by-side line charts
-- Mobile: map + scrubber + stacked line charts
-- Use CSS flexbox/grid so D3 reads container size dynamically — no hardcoded widths
+- Desktop: map + scrubber + side-by-side line charts (60% max-width)
+- Mobile: map + scrubber + side-by-side line charts (70% max-width, reduced gap)
+- CSS flexbox; D3 reads container size at draw time via getBoundingClientRect — no hardcoded widths
+- Proportional margins, tick counts, and font sizes all derived from chart width at render time
 
 ### [ ] 5. Build geographic map with temperature dots
 D3 SVG map with Mercator projection. THREE layers in order:
