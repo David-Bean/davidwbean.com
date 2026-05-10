@@ -20,6 +20,7 @@ Reviewed `butterfly_chart.json`. Key design details:
 
 **Map layers:**
 - Temperature grid: geoshape, `oranges` color scheme, domain [32, 100]°F, opacity 0.25, pointRadius ~13
+- Mask layer: Scales identically with the other two layers. Covers the ocean and gives clean coast lines
 - Sighting circles: color `#4C78A8`, white stroke 1.5px, size 80, opacity 1
 
 **Line chart — Left (rolling mean latitude):**
