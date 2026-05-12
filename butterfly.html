@@ -94,6 +94,21 @@ let temps = [];
 let tempGrid = [];
 let monarchSightings = [];
 
+// ── Cached map handles (rebuilt only on resize) ──────────────
+let mapSvg        = null;
+let tempLayer     = null;
+let sightLayer    = null;
+let cachedProj    = null;
+let cachedTempBase = null;
+let cachedSightR  = null;
+let projectedGrid = [];   // { row: originalRow, p: [x,y], latFrac }
+
+const tempColor = d3.scaleSequential(d3.interpolateOranges).domain([32, 100]);
+const hexPts = (cx, cy, r) => d3.range(6).map(i => {
+  const a = Math.PI / 3 * i;
+  return `${cx + r * Math.cos(a)},${cy + r * Math.sin(a)}`;
+}).join(' ');
+
 // ── Synthetic lat series per year (simple sine-ish curve) ───
 function latSeries(year) {
   return d3.range(1, 52).map(w => ({
@@ -102,8 +117,8 @@ function latSeries(year) {
   }));
 }
 
-// ── MAP ──────────────────────────────────────────────────────
-function drawMap() {
+// ── MAP — static tier (resize / init only) ───────────────────
+function buildStatic() {
   const el = document.getElementById('bfly-map');
   const W  = el.clientWidth;
   if (!W || !worldLand) return;
@@ -111,21 +126,29 @@ function drawMap() {
   const H = Math.round(W * 0.6);
 
   d3.select(el).select('svg').remove();
-  const svg = d3.select(el).append('svg').attr('width', W).attr('height', H);
+  mapSvg = d3.select(el).append('svg').attr('width', W).attr('height', H);
 
-  // Direct center/scale/translate gives full control over what's visible.
   // center: lon/lat of the SVG midpoint — -90° lon, 38° lat = central migration corridor
-  // scale: higher = more zoomed in; tune MAP_SCALE to adjust
-  const MAP_SCALE = W * 0.65;
-  const proj = d3.geoMercator()
+  cachedProj = d3.geoMercator()
     .center([-90, 38])
-    .scale(MAP_SCALE)
+    .scale(W * 0.65)
     .translate([W / 2, H / 2]);
 
-  const pathGen = d3.geoPath(proj);
+  cachedTempBase = Math.max(2, W * 6.5 / 1000);
+  cachedSightR   = Math.max(3, W * 5 / 1000);
 
-  // 1. Land fill
-  svg.append('g')
+  // Pre-project all grid points once; keep reference to original row for week lookup
+  projectedGrid = tempGrid.map(d => {
+    const p = cachedProj([d.Lon, d.Lat]);
+    if (!p) return null;
+    const latFrac = (d.Lat - LAT_EXTENT[0]) / (LAT_EXTENT[1] - LAT_EXTENT[0]);
+    return { row: d, p, latFrac };
+  }).filter(Boolean);
+
+  const pathGen = d3.geoPath(cachedProj);
+
+  // 1. Land fill (static)
+  mapSvg.append('g')
     .selectAll('path')
     .data(worldLand.features)
     .join('path')
@@ -133,53 +156,11 @@ function drawMap() {
     .attr('fill', '#e8e0d0')
     .attr('stroke', 'none');
 
-  // 3. Temperature heat map (ocean mask above will cover dots over water)
-  const defs = svg.append('defs');
+  // 2. Temp dot placeholder — sits between land and ocean mask
+  tempLayer = mapSvg.append('g').attr('data-shape', '');
 
-  const tempColor   = d3.scaleSequential(d3.interpolateOranges).domain([32, 100]);
-  const tempDotBase = Math.max(2, W * 6.5 / 1000);
-  const tempData    = tempGrid
-    .filter(d => d.year === state.year)
-    .map(d => {
-      const p = proj([d.Lon, d.Lat]);
-      if (!p) return null;
-      const latFrac = (d.Lat - LAT_EXTENT[0]) / (LAT_EXTENT[1] - LAT_EXTENT[0]);
-      const r = tempDotBase * (1 + Math.pow(Math.max(0, latFrac), state.latGamma) * state.latScale);
-      return { p, t: +d[state.week], r };
-    })
-    .filter(Boolean);
-
-  const hexPts = (cx, cy, r) => d3.range(6).map(i => {
-    const a = Math.PI / 3 * i;
-    return `${cx + r * Math.cos(a)},${cy + r * Math.sin(a)}`;
-  }).join(' ');
-
-  const shapeG = svg.append('g');
-  if (state.shape === 'hex') {
-    shapeG.selectAll('polygon')
-      .data(tempData)
-      .join('polygon')
-      .attr('points', d => hexPts(d.p[0], d.p[1], d.r))
-      .attr('fill', d => isNaN(d.t) ? 'none' : tempColor(d.t))
-      .attr('fill-opacity', state.opacity);
-  } else if (state.shape === 'circle') {
-    shapeG.selectAll('circle')
-      .data(tempData)
-      .join('circle')
-      .attr('cx', d => d.p[0]).attr('cy', d => d.p[1]).attr('r', d => d.r)
-      .attr('fill', d => isNaN(d.t) ? 'none' : tempColor(d.t))
-      .attr('fill-opacity', state.opacity);
-  } else {
-    shapeG.selectAll('rect')
-      .data(tempData)
-      .join('rect')
-      .attr('x', d => d.p[0] - d.r).attr('y', d => d.p[1] - d.r)
-      .attr('width', d => d.r * 2).attr('height', d => d.r * 2)
-      .attr('fill', d => isNaN(d.t) ? 'none' : tempColor(d.t))
-      .attr('fill-opacity', state.opacity);
-  }
-
-  // 4. Ocean mask: page-background rect with land punched out, hiding temp dots over water
+  // 3. Ocean mask (static)
+  const defs = mapSvg.append('defs');
   const oceanMask = defs.append('mask').attr('id', 'bfly-ocean-mask');
   oceanMask.append('rect').attr('width', W).attr('height', H).attr('fill', 'white');
   oceanMask.append('g')
@@ -189,26 +170,87 @@ function drawMap() {
     .attr('d', pathGen)
     .attr('fill', 'black');
 
-  svg.append('rect')
+  mapSvg.append('rect')
     .attr('width', W).attr('height', H)
     .attr('fill', '#f5f0e8')
     .attr('mask', 'url(#bfly-ocean-mask)');
 
-  // 5. Monarch sighting circles
+  // 4. Sighting placeholder — on top of ocean mask
+  sightLayer = mapSvg.append('g');
 
-  const sightingR = Math.max(3, W * 5 / 1000);
-  const sightings = monarchSightings.filter(d => d.week === state.week && d.year === state.year);
+  updateDynamic();
+}
 
-  svg.append('g')
-    .selectAll('circle')
+// ── MAP — dynamic tier (data state changes) ──────────────────
+function updateTempDots() {
+  if (!tempLayer || !cachedProj) return;
+
+  const tempData = projectedGrid
+    .filter(d => d.row.year === state.year)
+    .map(d => ({
+      p: d.p,
+      t: +d.row[state.week],
+      r: cachedTempBase * (1 + Math.pow(Math.max(0, d.latFrac), state.latGamma) * state.latScale),
+    }));
+
+  // Different element types can't be reused by D3 join — clear on shape change
+  if (tempLayer.attr('data-shape') !== state.shape) {
+    tempLayer.selectAll('*').remove();
+    tempLayer.attr('data-shape', state.shape);
+  }
+
+  if (state.shape === 'hex') {
+    tempLayer.selectAll('polygon')
+      .data(tempData)
+      .join('polygon')
+      .attr('points', d => hexPts(d.p[0], d.p[1], d.r))
+      .attr('fill', d => isNaN(d.t) ? 'none' : tempColor(d.t))
+      .attr('fill-opacity', state.opacity);
+  } else if (state.shape === 'circle') {
+    tempLayer.selectAll('circle')
+      .data(tempData)
+      .join('circle')
+      .attr('cx', d => d.p[0]).attr('cy', d => d.p[1]).attr('r', d => d.r)
+      .attr('fill', d => isNaN(d.t) ? 'none' : tempColor(d.t))
+      .attr('fill-opacity', state.opacity);
+  } else {
+    tempLayer.selectAll('rect')
+      .data(tempData)
+      .join('rect')
+      .attr('x', d => d.p[0] - d.r).attr('y', d => d.p[1] - d.r)
+      .attr('width', d => d.r * 2).attr('height', d => d.r * 2)
+      .attr('fill', d => isNaN(d.t) ? 'none' : tempColor(d.t))
+      .attr('fill-opacity', state.opacity);
+  }
+}
+
+function updateSightings() {
+  if (!sightLayer || !cachedProj) return;
+
+  const sightings = monarchSightings
+    .filter(d => d.week === state.week && d.year === state.year)
+    .map(d => { const p = cachedProj([d.longitude, d.latitude]); return p ? { p } : null; })
+    .filter(Boolean);
+
+  sightLayer.selectAll('circle')
     .data(sightings)
     .join('circle')
-    .attr('cx', d => { const p = proj([d.longitude, d.latitude]); return p ? p[0] : -999; })
-    .attr('cy', d => { const p = proj([d.longitude, d.latitude]); return p ? p[1] : -999; })
-    .attr('r', sightingR)
+    .attr('cx', d => d.p[0])
+    .attr('cy', d => d.p[1])
+    .attr('r', cachedSightR)
     .attr('fill', '#4C78A8')
     .attr('stroke', 'white')
     .attr('stroke-width', 1.5);
+}
+
+function updateDynamic() {
+  updateTempDots();
+  updateSightings();
+}
+
+function updateOpacity() {
+  if (!tempLayer) return;
+  tempLayer.selectAll('polygon, circle, rect').attr('fill-opacity', state.opacity);
 }
 
 // ── LINE CHARTS ──────────────────────────────────────────────
@@ -326,7 +368,7 @@ function drawTempChart() {
 }
 
 function redrawAll() {
-  drawMap();
+  buildStatic();  // rebuilds static layers + calls updateDynamic()
   drawLatChart();
   drawTempChart();
 }
@@ -335,35 +377,39 @@ function redrawAll() {
 document.getElementById('bfly-week-input').addEventListener('input', e => {
   state.week = +e.target.value;
   document.getElementById('bfly-week-label').textContent = `Week ${state.week}`;
-  redrawAll();
+  updateDynamic();   // no static rebuild needed
+  drawLatChart();
+  drawTempChart();
 });
 
 document.getElementById('bfly-year-select').addEventListener('change', e => {
   state.year = +e.target.value;
-  redrawAll();
+  updateDynamic();   // no static rebuild needed
+  drawLatChart();
+  drawTempChart();
 });
 
 document.getElementById('bfly-latscale-input').addEventListener('input', e => {
   state.latScale = +e.target.value;
   document.getElementById('bfly-latscale-label').textContent = `Lat scale: ${state.latScale.toFixed(2)}`;
-  drawMap();
+  updateTempDots();  // only dot sizes change
 });
 
 document.getElementById('bfly-latgamma-input').addEventListener('input', e => {
   state.latGamma = +e.target.value;
   document.getElementById('bfly-latgamma-label').textContent = `Curve: ${state.latGamma.toFixed(2)}`;
-  drawMap();
+  updateTempDots();  // only dot sizes change
 });
 
 document.getElementById('bfly-shape-select').addEventListener('change', e => {
   state.shape = e.target.value;
-  drawMap();
+  updateTempDots();  // clears and rebuilds dot elements
 });
 
 document.getElementById('bfly-opacity-input').addEventListener('input', e => {
   state.opacity = +e.target.value;
   document.getElementById('bfly-opacity-label').textContent = `Opacity: ${state.opacity.toFixed(2)}`;
-  drawMap();
+  updateOpacity();   // just sets fill-opacity on existing elements
 });
 
 
