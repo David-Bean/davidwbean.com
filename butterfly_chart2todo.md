@@ -55,18 +55,35 @@ Define the HTML/CSS layout for the visualization page.
 - CSS flexbox; D3 reads container size at draw time via getBoundingClientRect — no hardcoded widths
 - Proportional margins, tick counts, and font sizes all derived from chart width at render time
 
-### [ ] 5. Build geographic map with temperature dots
+### [~] 5. Build geographic map with temperature dots
 D3 SVG map with Mercator projection. THREE layers in order:
-1. Temperature grid dots: geoshape at Lon/Lat, `oranges` color scale domain [32, 100]°F, opacity 0.25, pointRadius ~13
-2. **Ocean mask** (middle): TopoJSON/GeoJSON ocean or inverse-land polygon rendered over the temp layer to hide ocean areas. Must share the same projection and scale as all other layers — built in from the start, not added later.
+1. Temperature grid dots: geoshape at Lon/Lat, `oranges` color scale domain [32, 100]°F, per-element `fill-opacity`, pointRadius ~13
+2. **Ocean mask** (middle): inverse-land rect with SVG `<mask>`, rendered over the temp layer to hide ocean areas.
 3. Monarch sighting circles: color `#4C78A8`, white stroke 1.5px, size 80, opacity 1
 
 Filter layers 1 and 3 by: `week == week_select_param AND year == year_select_param`.
-All three layers must scale identically. Use `ResizeObserver` + `draw(width, height)` for responsive re-render.
+All three layers scale identically. `ResizeObserver` + `buildStatic()` for responsive re-render.
+
+**Rendering architecture — static/dynamic split:**
+
+Map render is split into two tiers for performance:
+
+- `buildStatic()` — runs on resize and init only. Renders land fill and ocean mask (the expensive `d3.geoPath` calls). Pre-projects all temp grid points into `projectedGrid` and caches projection, dot base size, and sighting radius. Creates empty `<g>` placeholders for temp and sighting layers, then calls `updateDynamic()`.
+- `updateTempDots()` — rebinds data on existing elements, recomputes `r` from cached `latFrac` values. No path generation, no DOM teardown.
+- `updateSightings()` — filters sightings and rebinds circle data.
+- `updateOpacity()` — sets `fill-opacity` on existing elements only. Near-instant.
+
+Opacity is applied per-element (`fill-opacity`) rather than on the group, so overlapping dots compound naturally — dense clusters appear more saturated, matching Vega-Lite's behavior.
+
+**Controls added (tuning sliders — may be removed once values are locked in):**
+- Lat scale (0–2, default 0.75): scales dot radius growth with latitude
+- Curve/gamma (0.1–3, default 0.5): controls the shape of the latitude ramp
+- Shape selector: hexagon / circle / square
+- Opacity (0–1, default 1.0): per-element fill-opacity
 
 **Debugging log — "entire world visible" problem:**
 
-Two distinct issues encountered and partially resolved:
+Two distinct issues encountered and resolved:
 
 **Issue A — Wrong land polygons rendering (other continents showing)**
 - `land-50m.json` (`objects.land`) is a merged world MultiPolygon — can't filter it by region, and renders the entire world's land fill even when the projection is zoomed to North America.
