@@ -48,6 +48,26 @@
             <option value="2017" selected>2017</option>
           </select>
         </div>
+        <input type="range" id="bfly-latscale-input" min="0" max="2" step="0.05" value="0.75">
+        <div class="bfly-scrubber-meta">
+          <span id="bfly-latscale-label">Lat scale: 0.75</span>
+        </div>
+        <input type="range" id="bfly-latgamma-input" min="0.1" max="3" step="0.05" value="0.5">
+        <div class="bfly-scrubber-meta">
+          <span id="bfly-latgamma-label">Curve: 0.50</span>
+        </div>
+        <div class="bfly-scrubber-meta">
+          <label for="bfly-shape-select">Shape:</label>
+          <select id="bfly-shape-select">
+            <option value="hex" selected>Hexagon</option>
+            <option value="circle">Circle</option>
+            <option value="square">Square</option>
+          </select>
+        </div>
+        <input type="range" id="bfly-opacity-input" min="0" max="1" step="0.05" value="1">
+        <div class="bfly-scrubber-meta">
+          <span id="bfly-opacity-label">Opacity: 1.00</span>
+        </div>
       </div>
 
       <div class="bfly-lines">
@@ -68,7 +88,7 @@ const YEARS = [2002, 2007, 2012, 2017];
 const LON_EXTENT = [-126, -59];
 const LAT_EXTENT = [8, 55];
 
-let state = { week: 26, year: 2017 };
+let state = { week: 26, year: 2017, latScale: 0.75, latGamma: 0.5, shape: 'hex', opacity: 1.0 };
 let worldLand = null;
 let temps = [];
 let tempGrid = [];
@@ -104,10 +124,7 @@ function drawMap() {
 
   const pathGen = d3.geoPath(proj);
 
-  // 1. Ocean background
-  svg.append('rect').attr('width', W).attr('height', H).attr('fill', '#cfe2f3');
-
-  // 2. Land fill behind data layers
+  // 1. Land fill
   svg.append('g')
     .selectAll('path')
     .data(worldLand.features)
@@ -116,25 +133,69 @@ function drawMap() {
     .attr('fill', '#e8e0d0')
     .attr('stroke', 'none');
 
-  // 3. Temperature heat map
-  const tempColor = d3.scaleSequential(d3.interpolateOranges).domain([32, 100]);
-  const tempDotR  = Math.max(4, W * 13 / 1000);
-  const tempData  = tempGrid
+  // 3. Temperature heat map (ocean mask above will cover dots over water)
+  const defs = svg.append('defs');
+
+  const tempColor   = d3.scaleSequential(d3.interpolateOranges).domain([32, 100]);
+  const tempDotBase = Math.max(2, W * 6.5 / 1000);
+  const tempData    = tempGrid
     .filter(d => d.year === state.year)
-    .map(d => { const p = proj([d.Lon, d.Lat]); return p ? { p, t: +d[state.week] } : null; })
+    .map(d => {
+      const p = proj([d.Lon, d.Lat]);
+      if (!p) return null;
+      const latFrac = (d.Lat - LAT_EXTENT[0]) / (LAT_EXTENT[1] - LAT_EXTENT[0]);
+      const r = tempDotBase * (1 + Math.pow(Math.max(0, latFrac), state.latGamma) * state.latScale);
+      return { p, t: +d[state.week], r };
+    })
     .filter(Boolean);
 
-  svg.append('g')
-    .attr('opacity', 0.25)
-    .selectAll('circle')
-    .data(tempData)
-    .join('circle')
-    .attr('cx', d => d.p[0])
-    .attr('cy', d => d.p[1])
-    .attr('r', tempDotR)
-    .attr('fill', d => isNaN(d.t) ? 'none' : tempColor(d.t));
+  const hexPts = (cx, cy, r) => d3.range(6).map(i => {
+    const a = Math.PI / 3 * i;
+    return `${cx + r * Math.cos(a)},${cy + r * Math.sin(a)}`;
+  }).join(' ');
 
-  // 4. Monarch sighting circles
+  const shapeG = svg.append('g');
+  if (state.shape === 'hex') {
+    shapeG.selectAll('polygon')
+      .data(tempData)
+      .join('polygon')
+      .attr('points', d => hexPts(d.p[0], d.p[1], d.r))
+      .attr('fill', d => isNaN(d.t) ? 'none' : tempColor(d.t))
+      .attr('fill-opacity', state.opacity);
+  } else if (state.shape === 'circle') {
+    shapeG.selectAll('circle')
+      .data(tempData)
+      .join('circle')
+      .attr('cx', d => d.p[0]).attr('cy', d => d.p[1]).attr('r', d => d.r)
+      .attr('fill', d => isNaN(d.t) ? 'none' : tempColor(d.t))
+      .attr('fill-opacity', state.opacity);
+  } else {
+    shapeG.selectAll('rect')
+      .data(tempData)
+      .join('rect')
+      .attr('x', d => d.p[0] - d.r).attr('y', d => d.p[1] - d.r)
+      .attr('width', d => d.r * 2).attr('height', d => d.r * 2)
+      .attr('fill', d => isNaN(d.t) ? 'none' : tempColor(d.t))
+      .attr('fill-opacity', state.opacity);
+  }
+
+  // 4. Ocean mask: page-background rect with land punched out, hiding temp dots over water
+  const oceanMask = defs.append('mask').attr('id', 'bfly-ocean-mask');
+  oceanMask.append('rect').attr('width', W).attr('height', H).attr('fill', 'white');
+  oceanMask.append('g')
+    .selectAll('path')
+    .data(worldLand.features)
+    .join('path')
+    .attr('d', pathGen)
+    .attr('fill', 'black');
+
+  svg.append('rect')
+    .attr('width', W).attr('height', H)
+    .attr('fill', '#f5f0e8')
+    .attr('mask', 'url(#bfly-ocean-mask)');
+
+  // 5. Monarch sighting circles
+
   const sightingR = Math.max(3, W * 5 / 1000);
   const sightings = monarchSightings.filter(d => d.week === state.week && d.year === state.year);
 
@@ -148,23 +209,6 @@ function drawMap() {
     .attr('fill', '#4C78A8')
     .attr('stroke', 'white')
     .attr('stroke-width', 1.5);
-
-  // 3. Ocean mask on top: blue rect with land punched out as transparent holes,
-  //    giving clean coastline edges
-  const defs = svg.append('defs');
-  const oceanMask = defs.append('mask').attr('id', 'bfly-ocean-mask');
-  oceanMask.append('rect').attr('width', W).attr('height', H).attr('fill', 'white');
-  oceanMask.append('g')
-    .selectAll('path')
-    .data(worldLand.features)
-    .join('path')
-    .attr('d', pathGen)
-    .attr('fill', 'black');
-
-  svg.append('rect')
-    .attr('width', W).attr('height', H)
-    .attr('fill', '#cfe2f3')
-    .attr('mask', 'url(#bfly-ocean-mask)');
 }
 
 // ── LINE CHARTS ──────────────────────────────────────────────
@@ -298,6 +342,30 @@ document.getElementById('bfly-year-select').addEventListener('change', e => {
   state.year = +e.target.value;
   redrawAll();
 });
+
+document.getElementById('bfly-latscale-input').addEventListener('input', e => {
+  state.latScale = +e.target.value;
+  document.getElementById('bfly-latscale-label').textContent = `Lat scale: ${state.latScale.toFixed(2)}`;
+  drawMap();
+});
+
+document.getElementById('bfly-latgamma-input').addEventListener('input', e => {
+  state.latGamma = +e.target.value;
+  document.getElementById('bfly-latgamma-label').textContent = `Curve: ${state.latGamma.toFixed(2)}`;
+  drawMap();
+});
+
+document.getElementById('bfly-shape-select').addEventListener('change', e => {
+  state.shape = e.target.value;
+  drawMap();
+});
+
+document.getElementById('bfly-opacity-input').addEventListener('input', e => {
+  state.opacity = +e.target.value;
+  document.getElementById('bfly-opacity-label').textContent = `Opacity: ${state.opacity.toFixed(2)}`;
+  drawMap();
+});
+
 
 // ── ResizeObserver ───────────────────────────────────────────
 let resizeTimer = null;
