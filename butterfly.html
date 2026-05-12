@@ -9,7 +9,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Playfair+Display:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
-  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
 </head>
 <body>
 
@@ -72,17 +71,8 @@ const LAT_EXTENT = [8, 55];
 let state = { week: 26, year: 2017 };
 let worldLand = null;
 let temps = [];
-
-// ── Placeholder sighting dots (12 locations that drift north by week) ─
-function fakeSightings(week) {
-  const baseLats = [19, 22, 25, 28, 30, 32, 34, 36, 38, 40, 42, 44];
-  const lons     = [-99, -97, -95, -100, -98, -96, -94, -98, -96, -94, -92, -90];
-  const drift = (week / 51) * 22;
-  return baseLats.map((lat, i) => ({
-    lon: lons[i],
-    lat: Math.min(LAT_EXTENT[1] - 1, lat + drift)
-  }));
-}
+let tempGrid = [];
+let monarchSightings = [];
 
 // ── Synthetic lat series per year (simple sine-ish curve) ───
 function latSeries(year) {
@@ -98,45 +88,83 @@ function drawMap() {
   const W  = el.clientWidth;
   if (!W || !worldLand) return;
 
-  const aspectRatio = 0.6;
-  const H = Math.round(W * aspectRatio);
+  const H = Math.round(W * 0.6);
 
   d3.select(el).select('svg').remove();
-  const svg = d3.select(el).append('svg')
-    .attr('width', W)
-    .attr('height', H);
+  const svg = d3.select(el).append('svg').attr('width', W).attr('height', H);
 
+  // Direct center/scale/translate gives full control over what's visible.
+  // center: lon/lat of the SVG midpoint — -90° lon, 38° lat = central migration corridor
+  // scale: higher = more zoomed in; tune MAP_SCALE to adjust
+  const MAP_SCALE = W * 0.65;
   const proj = d3.geoMercator()
-    .fitExtent([[10, 10], [W - 10, H - 10]],
-      { type: 'Feature', geometry: {
-        type: 'Polygon',
-        coordinates: [[ [LON_EXTENT[0], LAT_EXTENT[0]], [LON_EXTENT[1], LAT_EXTENT[0]],
-                        [LON_EXTENT[1], LAT_EXTENT[1]], [LON_EXTENT[0], LAT_EXTENT[1]],
-                        [LON_EXTENT[0], LAT_EXTENT[0]] ]]
-      }});
+    .center([-90, 38])
+    .scale(MAP_SCALE)
+    .translate([W / 2, H / 2]);
 
-  const path = d3.geoPath(proj);
+  const pathGen = d3.geoPath(proj);
 
+  // 1. Ocean background
   svg.append('rect').attr('width', W).attr('height', H).attr('fill', '#cfe2f3');
 
-  svg.append('path')
-    .datum(topojson.feature(worldLand, worldLand.objects.land))
-    .attr('d', path)
+  // 2. Land fill behind data layers
+  svg.append('g')
+    .selectAll('path')
+    .data(worldLand.features)
+    .join('path')
+    .attr('d', pathGen)
     .attr('fill', '#e8e0d0')
-    .attr('stroke', '#b0a898')
-    .attr('stroke-width', 0.5);
+    .attr('stroke', 'none');
 
-  const dots = fakeSightings(state.week);
-  svg.selectAll('circle')
-    .data(dots)
+  // 3. Temperature heat map
+  const tempColor = d3.scaleSequential(d3.interpolateOranges).domain([32, 100]);
+  const tempDotR  = Math.max(4, W * 13 / 1000);
+  const tempData  = tempGrid
+    .filter(d => d.year === state.year)
+    .map(d => { const p = proj([d.Lon, d.Lat]); return p ? { p, t: +d[state.week] } : null; })
+    .filter(Boolean);
+
+  svg.append('g')
+    .attr('opacity', 0.25)
+    .selectAll('circle')
+    .data(tempData)
     .join('circle')
-    .attr('cx', d => proj([d.lon, d.lat])[0])
-    .attr('cy', d => proj([d.lon, d.lat])[1])
-    .attr('r', Math.max(3, W / 120))
+    .attr('cx', d => d.p[0])
+    .attr('cy', d => d.p[1])
+    .attr('r', tempDotR)
+    .attr('fill', d => isNaN(d.t) ? 'none' : tempColor(d.t));
+
+  // 4. Monarch sighting circles
+  const sightingR = Math.max(3, W * 5 / 1000);
+  const sightings = monarchSightings.filter(d => d.week === state.week && d.year === state.year);
+
+  svg.append('g')
+    .selectAll('circle')
+    .data(sightings)
+    .join('circle')
+    .attr('cx', d => { const p = proj([d.longitude, d.latitude]); return p ? p[0] : -999; })
+    .attr('cy', d => { const p = proj([d.longitude, d.latitude]); return p ? p[1] : -999; })
+    .attr('r', sightingR)
     .attr('fill', '#4C78A8')
     .attr('stroke', 'white')
-    .attr('stroke-width', 1)
-    .attr('opacity', 0.85);
+    .attr('stroke-width', 1.5);
+
+  // 3. Ocean mask on top: blue rect with land punched out as transparent holes,
+  //    giving clean coastline edges
+  const defs = svg.append('defs');
+  const oceanMask = defs.append('mask').attr('id', 'bfly-ocean-mask');
+  oceanMask.append('rect').attr('width', W).attr('height', H).attr('fill', 'white');
+  oceanMask.append('g')
+    .selectAll('path')
+    .data(worldLand.features)
+    .join('path')
+    .attr('d', pathGen)
+    .attr('fill', 'black');
+
+  svg.append('rect')
+    .attr('width', W).attr('height', H)
+    .attr('fill', '#cfe2f3')
+    .attr('mask', 'url(#bfly-ocean-mask)');
 }
 
 // ── LINE CHARTS ──────────────────────────────────────────────
@@ -159,11 +187,11 @@ function getTickFontSize(W) {
 }
 
 function lineChartWidth() {
-  const map   = document.getElementById('bfly-map');
+  const wrap  = document.querySelector('.bfly-wrap');
   const lines = document.querySelector('.bfly-lines');
-  if (!map || !lines) return 0;
+  if (!wrap || !lines) return 0;
   const gap = parseFloat(getComputedStyle(lines).gap) || 0;
-  return Math.floor((map.getBoundingClientRect().width - gap) / 2);
+  return Math.floor((wrap.getBoundingClientRect().width - gap) / 2);
 }
 
 function drawLatChart() {
@@ -281,11 +309,15 @@ ro.observe(document.querySelector('.bfly-wrap'));
 
 // ── Load data & init ─────────────────────────────────────────
 Promise.all([
-  fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/land-50m.json').then(r => r.json()),
+  fetch('data/north-america.json').then(r => r.json()),
   fetch('data/weekly_temperatures.json').then(r => r.json()),
-]).then(([world, tempData]) => {
-  worldLand = world;
+  fetch('data/temperature_grid.json').then(r => r.json()),
+  fetch('data/monarch_sightings.json').then(r => r.json()),
+]).then(([worldData, tempData, gridData, sightingData]) => {
+  worldLand = worldData;
   temps = tempData;
+  tempGrid = gridData;
+  monarchSightings = sightingData;
   redrawAll();
 });
 </script>

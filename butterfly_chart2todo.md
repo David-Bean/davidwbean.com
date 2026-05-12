@@ -64,6 +64,23 @@ D3 SVG map with Mercator projection. THREE layers in order:
 Filter layers 1 and 3 by: `week == week_select_param AND year == year_select_param`.
 All three layers must scale identically. Use `ResizeObserver` + `draw(width, height)` for responsive re-render.
 
+**Debugging log — "entire world visible" problem:**
+
+Two distinct issues encountered and partially resolved:
+
+**Issue A — Wrong land polygons rendering (other continents showing)**
+- `land-50m.json` (`objects.land`) is a merged world MultiPolygon — can't filter it by region, and renders the entire world's land fill even when the projection is zoomed to North America.
+- `proj.clipExtent([[0, 0], [W, H]])` did NOT fix this — Mercator fill of global polygons still bleeds into the viewport.
+- Trying to filter `rawLand.geometry.coordinates` threw `TypeError: rawLand.geometry is undefined` because `topojson.feature` returns a FeatureCollection (no `.geometry` property) for this file.
+- SVG `<clipPath>` using a geographic bboxFeature projected through `d3.geoPath` caused the visualization to disappear entirely (suspected inverted clip from geographic winding convention).
+- **Fix that worked:** Switch to `countries-50m.json` and filter individual country features by centroid within `cx >= -170 && cx <= -40 && cy >= -10 && cy <= 90`. Only North American countries render. ✓
+
+**Issue B — Map scale still shows too much — UNRESOLVED**
+- After fixing Issue A, the map correctly shows only North American land shapes, but the visible area is too zoomed out (too much ocean visible around North America).
+- Root cause: SVG aspect ratio (0.6) is wider than North America's natural Mercator shape (~0.88 H/W), so `fitExtent` is height-constrained and leaves large ocean bands on the sides.
+- Attempted: derive aspect ratio from Mercator math so SVG matches the data extent exactly — user rejected.
+- **Next to try:** find an approach the user approves of to fill the viewport with North America at the right zoom level.
+
 ### [ ] 6. Build shared timeline scrubber
 A draggable range input or custom SVG scrubber controlling shared `currentTime`/`currentWeek` state.
 - On input, map dots + both line charts update simultaneously

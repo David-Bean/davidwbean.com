@@ -275,19 +275,23 @@
         ctx.restore();
       }
 
-      // Compute available pixel width inside .viz-container (accounts for its padding)
+      // Compute available inner width for the chart using viewport width minus
+      // computed padding on both .viz-section and .viz-container, so media-query
+      // padding changes are always reflected without DOM layout timing issues.
       function getAvailableWidth() {
-        const el = document.getElementById('butterfly-chart');
-        const containerPad = 64; // .viz-container padding: 2rem each side
-        return Math.max(300, el.offsetWidth - containerPad);
+        const sectionStyle    = window.getComputedStyle(document.querySelector('.viz-section'));
+        const containerStyle  = window.getComputedStyle(document.getElementById('butterfly-chart'));
+        const sectionHPad     = parseFloat(sectionStyle.paddingLeft)   + parseFloat(sectionStyle.paddingRight);
+        const containerHPad   = parseFloat(containerStyle.paddingLeft) + parseFloat(containerStyle.paddingRight);
+        const sectionW = Math.min(window.innerWidth, 1200); // matches .viz-section max-width
+        return Math.max(300, sectionW - sectionHPad - containerHPad);
       }
 
       // Deep-copy originalSpec and scale all chart dimensions to fit the current container
       function buildResponsiveSpec() {
         const spec = JSON.parse(JSON.stringify(originalSpec));
         const availW = getAvailableWidth();
-        const CHART_MAX_W = 850; // ~15% smaller than original 1000px
-        const mapW  = Math.round(Math.min(availW, CHART_MAX_W));
+        const mapW  = Math.round(availW * 0.61);
         const scale = mapW / 1000;
         const mapH  = Math.round(680 * scale);
         const subW  = Math.floor((mapW - 20) / 2); // 20px hconcat spacing
@@ -359,6 +363,14 @@
           spec.config = spec.config || {};
           spec.config.background = "#f5f0e8";
           spec.config.view = Object.assign(spec.config.view || {}, {stroke: null});
+
+          // Remove the map layer title — it adds a fixed-height title area above the
+          // data region that the canvas mask projection doesn't account for, causing
+          // misalignment that worsens as the chart scales down. The HTML <h2> above
+          // the chart already provides this label.
+          if (spec.vconcat[0] && spec.vconcat[0].layer) {
+            spec.vconcat[0].layer.forEach(layer => { delete layer.title; });
+          }
 
           originalSpec = spec;
           return doEmbed();
