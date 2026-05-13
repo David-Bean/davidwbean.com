@@ -34,45 +34,110 @@
       butterflies' movement north in spring and south in fall.
     </p>
 
-    <div class="bfly-wrap">
-      <div id="bfly-map"></div>
+    <div class="bfly-outer">
+      <div class="bfly-wrap">
+        <div id="bfly-map">
+          <button class="bfly-debug-toggle" id="bfly-debug-toggle" title="Debug controls">⚙</button>
+        </div>
 
-      <div class="bfly-scrubber">
-        <input type="range" id="bfly-week-input" min="1" max="51" value="26">
-        <div class="bfly-scrubber-meta">
-          <span id="bfly-week-label">Week 26</span>
-          <select id="bfly-year-select">
-            <option value="2002">2002</option>
-            <option value="2007">2007</option>
-            <option value="2012">2012</option>
-            <option value="2017" selected>2017</option>
-          </select>
+        <div class="bfly-scrubber">
+          <div class="scrubber-wrap">
+            <button class="scrubber-play-btn" id="bfly-play-btn" title="Play/pause">&#9654;</button>
+            <div class="scrubber-track" id="bfly-scrubber-track">
+              <div class="scrubber-segment">2002</div>
+              <div class="scrubber-segment">2007</div>
+              <div class="scrubber-segment">2012</div>
+              <div class="scrubber-segment">2017</div>
+              <div class="scrubber-handle" id="bfly-scrubber-handle"></div>
+            </div>
+          </div>
+          <div class="bfly-scrubber-meta">
+            <span id="bfly-week-label">2017 &mdash; Week 26</span>
+          </div>
         </div>
-        <input type="range" id="bfly-latscale-input" min="0" max="2" step="0.05" value="0.75">
-        <div class="bfly-scrubber-meta">
-          <span id="bfly-latscale-label">Lat scale: 0.75</span>
+
+        <div class="bfly-lines">
+          <div id="bfly-line-lat"></div>
+          <div id="bfly-line-temp"></div>
         </div>
-        <input type="range" id="bfly-latgamma-input" min="0.1" max="3" step="0.05" value="0.5">
-        <div class="bfly-scrubber-meta">
-          <span id="bfly-latgamma-label">Curve: 0.50</span>
+      </div>
+
+      <div class="bfly-debug-panel" id="bfly-debug-panel">
+        <div class="bfly-debug-header">
+          <span>Debug</span>
+          <button id="bfly-debug-close" title="Close">✕</button>
         </div>
-        <div class="bfly-scrubber-meta">
-          <label for="bfly-shape-select">Shape:</label>
+
+        <div class="bfly-debug-section-label">Points</div>
+
+        <div class="bfly-debug-row">
+          <label>Dot size</label>
+          <span id="bfly-dotsize-label">3.90</span>
+        </div>
+        <input type="range" id="bfly-dotsize-input" min="0.25" max="9.0" step="0.05" value="3.90">
+
+        <div class="bfly-debug-row">
+          <label>Lat scale</label>
+          <span id="bfly-latscale-label">0.00</span>
+        </div>
+        <input type="range" id="bfly-latscale-input" min="0" max="2" step="0.05" value="0.00">
+
+        <div class="bfly-debug-row">
+          <label>Curve</label>
+          <span id="bfly-latgamma-label">0.10</span>
+        </div>
+        <input type="range" id="bfly-latgamma-input" min="0.1" max="3" step="0.05" value="0.10">
+
+        <div class="bfly-debug-row">
+          <label for="bfly-shape-select">Shape</label>
           <select id="bfly-shape-select">
-            <option value="hex" selected>Hexagon</option>
+            <option value="hex" selected>Hex</option>
             <option value="circle">Circle</option>
             <option value="square">Square</option>
           </select>
         </div>
-        <input type="range" id="bfly-opacity-input" min="0" max="1" step="0.05" value="1">
-        <div class="bfly-scrubber-meta">
-          <span id="bfly-opacity-label">Opacity: 1.00</span>
-        </div>
-      </div>
 
-      <div class="bfly-lines">
-        <div id="bfly-line-lat"></div>
-        <div id="bfly-line-temp"></div>
+        <div class="bfly-debug-row">
+          <label>Opacity</label>
+          <span id="bfly-opacity-label">0.65</span>
+        </div>
+        <input type="range" id="bfly-opacity-input" min="0" max="1" step="0.05" value="0.65">
+
+        <div class="bfly-debug-row">
+          <label>Edge fade</label>
+          <span id="bfly-fadefmix-label">0.90</span>
+        </div>
+        <input type="range" id="bfly-fadefmix-input" min="0" max="1" step="0.05" value="0.90">
+
+        <hr class="bfly-debug-hr">
+
+        <div class="bfly-debug-section-label">Map</div>
+
+        <div class="bfly-debug-row">
+          <label>Scale</label>
+          <span id="bfly-mapscale-label">0.89</span>
+        </div>
+        <input type="range" id="bfly-mapscale-input" min="0.2" max="2.0" step="0.01" value="0.89">
+
+        <div class="bfly-debug-row">
+          <label>Pan lon</label>
+          <span id="bfly-maplon-label">-92.5</span>
+        </div>
+        <input type="range" id="bfly-maplon-input" min="-135" max="-55" step="0.5" value="-92.5">
+
+        <div class="bfly-debug-row">
+          <label>Pan lat</label>
+          <span id="bfly-maplat-label">37.0</span>
+        </div>
+        <input type="range" id="bfly-maplat-input" min="5" max="65" step="0.5" value="37.0">
+
+        <div class="bfly-debug-row">
+          <label>Aspect H/W</label>
+          <span id="bfly-mapaspect-label">0.74</span>
+        </div>
+        <input type="range" id="bfly-mapaspect-input" min="0.3" max="1.5" step="0.01" value="0.74">
+
+        <code id="bfly-map-values" class="bfly-debug-values">dotSize=3.90 latScale=0.00 curve=0.10 shape=hex opacity=0.65 fade=0.90&#10;scale=0.89 lon=-92.5 lat=37.0 aspect=0.74</code>
       </div>
     </div>
 
@@ -88,7 +153,8 @@ const YEARS = [2002, 2007, 2012, 2017];
 const LON_EXTENT = [-126, -59];
 const LAT_EXTENT = [8, 55];
 
-let state = { week: 26, year: 2017, latScale: 0.75, latGamma: 0.5, shape: 'hex', opacity: 1.0 };
+let state = { week: 26, year: 2017, dotSize: 3.90, latScale: 0.00, latGamma: 0.10, shape: 'hex', opacity: 0.65, fadeMix: 0.90,
+              mapScale: 0.89, mapCenterLon: -92.5, mapCenterLat: 37.0, mapAspect: 0.74 };
 let worldLand = null;
 let temps = [];
 let tempGrid = [];
@@ -123,15 +189,14 @@ function buildStatic() {
   const W  = el.clientWidth;
   if (!W || !worldLand) return;
 
-  const H = Math.round(W * 0.6);
+  const H = Math.round(W * state.mapAspect);
 
   d3.select(el).select('svg').remove();
   mapSvg = d3.select(el).append('svg').attr('width', W).attr('height', H);
 
-  // center: lon/lat of the SVG midpoint — -90° lon, 38° lat = central migration corridor
   cachedProj = d3.geoMercator()
-    .center([-90, 38])
-    .scale(W * 0.65)
+    .center([state.mapCenterLon, state.mapCenterLat])
+    .scale(W * state.mapScale)
     .translate([W / 2, H / 2]);
 
   cachedTempBase = Math.max(2, W * 6.5 / 1000);
@@ -161,6 +226,21 @@ function buildStatic() {
 
   // 3. Ocean mask (static)
   const defs = mapSvg.append('defs');
+
+  // Per-dot radial fade: transparent center → opaque rim
+  const fadeRg = defs.append('radialGradient')
+    .attr('id', 'bfly-fade-rg')
+    .attr('gradientUnits', 'objectBoundingBox')
+    .attr('cx', '0.5').attr('cy', '0.5').attr('r', '0.5');
+  fadeRg.append('stop').attr('offset', '0%').attr('stop-color', 'white');
+  fadeRg.append('stop').attr('offset', '100%').attr('stop-color', 'white').attr('stop-opacity', 1 - state.fadeMix);
+
+  const fadeMask = defs.append('mask')
+    .attr('id', 'bfly-dot-fade')
+    .attr('maskContentUnits', 'objectBoundingBox');
+  fadeMask.append('rect').attr('x', 0).attr('y', 0).attr('width', 1).attr('height', 1)
+    .attr('fill', 'url(#bfly-fade-rg)');
+
   const oceanMask = defs.append('mask').attr('id', 'bfly-ocean-mask');
   oceanMask.append('rect').attr('width', W).attr('height', H).attr('fill', 'white');
   oceanMask.append('g')
@@ -190,7 +270,7 @@ function updateTempDots() {
     .map(d => ({
       p: d.p,
       t: +d.row[state.week],
-      r: cachedTempBase * (1 + Math.pow(Math.max(0, d.latFrac), state.latGamma) * state.latScale),
+      r: cachedTempBase * state.dotSize * (1 + Math.pow(Math.max(0, d.latFrac), state.latGamma) * state.latScale),
     }));
 
   // Different element types can't be reused by D3 join — clear on shape change
@@ -205,14 +285,16 @@ function updateTempDots() {
       .join('polygon')
       .attr('points', d => hexPts(d.p[0], d.p[1], d.r))
       .attr('fill', d => isNaN(d.t) ? 'none' : tempColor(d.t))
-      .attr('fill-opacity', state.opacity);
+      .attr('fill-opacity', state.opacity)
+      .attr('mask', 'url(#bfly-dot-fade)');
   } else if (state.shape === 'circle') {
     tempLayer.selectAll('circle')
       .data(tempData)
       .join('circle')
       .attr('cx', d => d.p[0]).attr('cy', d => d.p[1]).attr('r', d => d.r)
       .attr('fill', d => isNaN(d.t) ? 'none' : tempColor(d.t))
-      .attr('fill-opacity', state.opacity);
+      .attr('fill-opacity', state.opacity)
+      .attr('mask', 'url(#bfly-dot-fade)');
   } else {
     tempLayer.selectAll('rect')
       .data(tempData)
@@ -220,7 +302,8 @@ function updateTempDots() {
       .attr('x', d => d.p[0] - d.r).attr('y', d => d.p[1] - d.r)
       .attr('width', d => d.r * 2).attr('height', d => d.r * 2)
       .attr('fill', d => isNaN(d.t) ? 'none' : tempColor(d.t))
-      .attr('fill-opacity', state.opacity);
+      .attr('fill-opacity', state.opacity)
+      .attr('mask', 'url(#bfly-dot-fade)');
   }
 }
 
@@ -373,45 +456,177 @@ function redrawAll() {
   drawTempChart();
 }
 
-// ── Scrubber & year selector ─────────────────────────────────
-document.getElementById('bfly-week-input').addEventListener('input', e => {
-  state.week = +e.target.value;
-  document.getElementById('bfly-week-label').textContent = `Week ${state.week}`;
-  updateDynamic();   // no static rebuild needed
-  drawLatChart();
-  drawTempChart();
+// ── Debug panel toggle ───────────────────────────────────────
+document.getElementById('bfly-debug-toggle').addEventListener('click', () => {
+  document.getElementById('bfly-debug-panel').classList.toggle('open');
+});
+document.getElementById('bfly-debug-close').addEventListener('click', () => {
+  document.getElementById('bfly-debug-panel').classList.remove('open');
 });
 
-document.getElementById('bfly-year-select').addEventListener('change', e => {
-  state.year = +e.target.value;
-  updateDynamic();   // no static rebuild needed
+// ── Combined year + week scrubber (4 years × 51 weeks = 204 positions) ──
+const TOTAL_POS = YEARS.length * 51;  // 204
+
+function posFromState() {
+  return YEARS.indexOf(state.year) * 51 + (state.week - 1);
+}
+
+function applyPosition(pos) {
+  pos = Math.max(0, Math.min(TOTAL_POS - 1, Math.round(pos)));
+  state.year = YEARS[Math.floor(pos / 51)];
+  state.week = (pos % 51) + 1;
+}
+
+function updateScrubberUI() {
+  const pos = posFromState();
+  document.getElementById('bfly-scrubber-handle').style.left = (pos / (TOTAL_POS - 1) * 100) + '%';
+  const yearIdx = YEARS.indexOf(state.year);
+  document.querySelectorAll('#bfly-scrubber-track .scrubber-segment').forEach((el, i) => {
+    el.classList.toggle('active', i === yearIdx);
+  });
+  document.getElementById('bfly-week-label').textContent = `${state.year} — Week ${state.week}`;
+}
+
+function setPosition(pos) {
+  applyPosition(pos);
+  updateScrubberUI();
+  updateDynamic();
   drawLatChart();
   drawTempChart();
+}
+
+const scrubberTrack = document.getElementById('bfly-scrubber-track');
+
+function posFromPointer(e) {
+  const rect = scrubberTrack.getBoundingClientRect();
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const f = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+  return f * (TOTAL_POS - 1);
+}
+
+let scrubbing = false;
+
+scrubberTrack.addEventListener('mousedown', e => { scrubbing = true; setPosition(posFromPointer(e)); });
+document.addEventListener('mousemove', e => { if (scrubbing) setPosition(posFromPointer(e)); });
+document.addEventListener('mouseup',   () => { scrubbing = false; });
+
+scrubberTrack.addEventListener('touchstart', e => {
+  e.preventDefault(); scrubbing = true; setPosition(posFromPointer(e));
+}, { passive: false });
+document.addEventListener('touchmove', e => {
+  if (!scrubbing) return; e.preventDefault(); setPosition(posFromPointer(e));
+}, { passive: false });
+document.addEventListener('touchend', () => { scrubbing = false; });
+
+// ── Play button — steps through all 204 positions ─────────────
+let playInterval = null;
+
+document.getElementById('bfly-play-btn').addEventListener('click', () => {
+  const btn = document.getElementById('bfly-play-btn');
+  if (playInterval) {
+    clearInterval(playInterval);
+    playInterval = null;
+    btn.innerHTML = '&#9654;';
+  } else {
+    let pos = posFromState();
+    if (pos >= TOTAL_POS - 1) pos = 0;
+    btn.innerHTML = '&#9646;&#9646;';
+    playInterval = setInterval(() => {
+      pos++;
+      setPosition(pos);
+      if (pos >= TOTAL_POS - 1) {
+        clearInterval(playInterval);
+        playInterval = null;
+        btn.innerHTML = '&#9654;';
+      }
+    }, 100);
+  }
+});
+
+function updateValuesDisplay() {
+  const s = state;
+  document.getElementById('bfly-map-values').textContent =
+    `dotSize=${s.dotSize.toFixed(2)} latScale=${s.latScale.toFixed(2)} curve=${s.latGamma.toFixed(2)} shape=${s.shape} opacity=${s.opacity.toFixed(2)} fade=${s.fadeMix.toFixed(2)}\n` +
+    `scale=${s.mapScale.toFixed(2)} lon=${s.mapCenterLon.toFixed(1)} lat=${s.mapCenterLat.toFixed(1)} aspect=${s.mapAspect.toFixed(2)}`;
+}
+
+document.getElementById('bfly-dotsize-input').addEventListener('input', e => {
+  state.dotSize = +e.target.value;
+  document.getElementById('bfly-dotsize-label').textContent = state.dotSize.toFixed(2);
+  updateTempDots();
+  updateValuesDisplay();
 });
 
 document.getElementById('bfly-latscale-input').addEventListener('input', e => {
   state.latScale = +e.target.value;
-  document.getElementById('bfly-latscale-label').textContent = `Lat scale: ${state.latScale.toFixed(2)}`;
-  updateTempDots();  // only dot sizes change
+  document.getElementById('bfly-latscale-label').textContent = state.latScale.toFixed(2);
+  updateTempDots();
+  updateValuesDisplay();
 });
 
 document.getElementById('bfly-latgamma-input').addEventListener('input', e => {
   state.latGamma = +e.target.value;
-  document.getElementById('bfly-latgamma-label').textContent = `Curve: ${state.latGamma.toFixed(2)}`;
-  updateTempDots();  // only dot sizes change
+  document.getElementById('bfly-latgamma-label').textContent = state.latGamma.toFixed(2);
+  updateTempDots();
+  updateValuesDisplay();
 });
 
 document.getElementById('bfly-shape-select').addEventListener('change', e => {
   state.shape = e.target.value;
-  updateTempDots();  // clears and rebuilds dot elements
+  updateTempDots();
+  updateValuesDisplay();
 });
 
 document.getElementById('bfly-opacity-input').addEventListener('input', e => {
   state.opacity = +e.target.value;
-  document.getElementById('bfly-opacity-label').textContent = `Opacity: ${state.opacity.toFixed(2)}`;
-  updateOpacity();   // just sets fill-opacity on existing elements
+  document.getElementById('bfly-opacity-label').textContent = state.opacity.toFixed(2);
+  updateOpacity();
+  updateValuesDisplay();
 });
 
+function updateFadeGradient() {
+  d3.select('#bfly-fade-rg').selectAll('stop').filter((d, i) => i === 1)
+    .attr('stop-opacity', 1 - state.fadeMix);
+}
+
+document.getElementById('bfly-fadefmix-input').addEventListener('input', e => {
+  state.fadeMix = +e.target.value;
+  document.getElementById('bfly-fadefmix-label').textContent = state.fadeMix.toFixed(2);
+  updateFadeGradient();
+  updateValuesDisplay();
+});
+
+// ── Map viewport tuning sliders ──────────────────────────────
+let mapTuneTimer = null;
+function rebuildMap() {
+  clearTimeout(mapTuneTimer);
+  mapTuneTimer = setTimeout(buildStatic, 80);
+  updateValuesDisplay();
+}
+
+document.getElementById('bfly-mapscale-input').addEventListener('input', e => {
+  state.mapScale = +e.target.value;
+  document.getElementById('bfly-mapscale-label').textContent = state.mapScale.toFixed(2);
+  rebuildMap();
+});
+
+document.getElementById('bfly-maplon-input').addEventListener('input', e => {
+  state.mapCenterLon = +e.target.value;
+  document.getElementById('bfly-maplon-label').textContent = state.mapCenterLon.toFixed(1);
+  rebuildMap();
+});
+
+document.getElementById('bfly-maplat-input').addEventListener('input', e => {
+  state.mapCenterLat = +e.target.value;
+  document.getElementById('bfly-maplat-label').textContent = state.mapCenterLat.toFixed(1);
+  rebuildMap();
+});
+
+document.getElementById('bfly-mapaspect-input').addEventListener('input', e => {
+  state.mapAspect = +e.target.value;
+  document.getElementById('bfly-mapaspect-label').textContent = state.mapAspect.toFixed(2);
+  rebuildMap();
+});
 
 // ── ResizeObserver ───────────────────────────────────────────
 let resizeTimer = null;
@@ -433,6 +648,7 @@ Promise.all([
   tempGrid = gridData;
   monarchSightings = sightingData;
   redrawAll();
+  updateScrubberUI();
 });
 </script>
 
