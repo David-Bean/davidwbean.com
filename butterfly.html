@@ -72,15 +72,15 @@
 
         <div class="bfly-debug-row">
           <label>Dot size</label>
-          <span id="bfly-dotsize-label">3.90</span>
+          <span id="bfly-dotsize-label">3.15</span>
         </div>
-        <input type="range" id="bfly-dotsize-input" min="0.25" max="9.0" step="0.05" value="3.90">
+        <input type="range" id="bfly-dotsize-input" min="0.25" max="9.0" step="0.05" value="3.15">
 
         <div class="bfly-debug-row">
           <label>Lat scale</label>
-          <span id="bfly-latscale-label">0.00</span>
+          <span id="bfly-latscale-label">0.55</span>
         </div>
-        <input type="range" id="bfly-latscale-input" min="0" max="2" step="0.05" value="0.00">
+        <input type="range" id="bfly-latscale-input" min="0" max="2" step="0.05" value="0.55">
 
         <div class="bfly-debug-row">
           <label>Curve</label>
@@ -115,9 +115,9 @@
 
         <div class="bfly-debug-row">
           <label>Scale</label>
-          <span id="bfly-mapscale-label">0.89</span>
+          <span id="bfly-mapscale-label">0.85</span>
         </div>
-        <input type="range" id="bfly-mapscale-input" min="0.2" max="2.0" step="0.01" value="0.89">
+        <input type="range" id="bfly-mapscale-input" min="0.2" max="2.0" step="0.01" value="0.85">
 
         <div class="bfly-debug-row">
           <label>Pan lon</label>
@@ -133,11 +133,11 @@
 
         <div class="bfly-debug-row">
           <label>Aspect H/W</label>
-          <span id="bfly-mapaspect-label">0.74</span>
+          <span id="bfly-mapaspect-label">0.82</span>
         </div>
-        <input type="range" id="bfly-mapaspect-input" min="0.3" max="1.5" step="0.01" value="0.74">
+        <input type="range" id="bfly-mapaspect-input" min="0.3" max="1.5" step="0.01" value="0.82">
 
-        <code id="bfly-map-values" class="bfly-debug-values">dotSize=3.90 latScale=0.00 curve=0.10 shape=hex opacity=0.65 fade=0.90&#10;scale=0.89 lon=-92.5 lat=37.0 aspect=0.74</code>
+        <code id="bfly-map-values" class="bfly-debug-values">dotSize=3.15 latScale=0.55 curve=0.10 shape=hex opacity=0.65 fade=0.90&#10;scale=0.85 lon=-92.5 lat=37.0 aspect=0.82</code>
       </div>
     </div>
 
@@ -153,8 +153,8 @@ const YEARS = [2002, 2007, 2012, 2017];
 const LON_EXTENT = [-126, -59];
 const LAT_EXTENT = [8, 55];
 
-let state = { week: 26, year: 2017, dotSize: 3.90, latScale: 0.00, latGamma: 0.10, shape: 'hex', opacity: 0.65, fadeMix: 0.90,
-              mapScale: 0.89, mapCenterLon: -92.5, mapCenterLat: 37.0, mapAspect: 0.74 };
+let state = { week: 26, year: 2017, dotSize: 3.15, latScale: 0.55, latGamma: 0.10, shape: 'hex', opacity: 0.65, fadeMix: 0.90,
+              mapScale: 0.85, mapCenterLon: -92.5, mapCenterLat: 37.0, mapAspect: 0.82 };
 let worldLand = null;
 let temps = [];
 let tempGrid = [];
