@@ -557,18 +557,29 @@ function posFromPointer(e) {
 }
 
 let scrubbing = false;
+const scrubberHandle = document.getElementById('bfly-scrubber-handle');
 
-scrubberTrack.addEventListener('mousedown', e => { scrubbing = true; setPosition(posFromPointer(e)); });
+function startScrub(e) {
+  scrubbing = true;
+  scrubberHandle.style.transition = 'none';
+  setPosition(posFromPointer(e));
+}
+function endScrub() {
+  scrubbing = false;
+  scrubberHandle.style.transition = '';
+}
+
+scrubberTrack.addEventListener('mousedown', startScrub);
 document.addEventListener('mousemove', e => { if (scrubbing) setPosition(posFromPointer(e)); });
-document.addEventListener('mouseup',   () => { scrubbing = false; });
+document.addEventListener('mouseup',   endScrub);
 
 scrubberTrack.addEventListener('touchstart', e => {
-  e.preventDefault(); scrubbing = true; setPosition(posFromPointer(e));
+  e.preventDefault(); startScrub(e);
 }, { passive: false });
 document.addEventListener('touchmove', e => {
   if (!scrubbing) return; e.preventDefault(); setPosition(posFromPointer(e));
 }, { passive: false });
-document.addEventListener('touchend', () => { scrubbing = false; });
+document.addEventListener('touchend', endScrub);
 
 // ── Play button — steps through all 204 positions ─────────────
 let playInterval = null;
