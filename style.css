@@ -213,6 +213,7 @@ nav {
   flex: 1;
   height: 40px;
   border-radius: 6px;
+  border: 2px solid var(--nav-bg);
   overflow: visible;
   cursor: pointer;
   touch-action: none;
@@ -222,9 +223,9 @@ nav {
   flex-shrink: 0;
   width: 36px;
   height: 36px;
-  border-radius: 50%;
+  border-radius: 6px;
   border: 2px solid var(--nav-bg);
-  background: transparent;
+  background: var(--accent);
   color: var(--nav-bg);
   font-size: 0.85rem;
   cursor: pointer;
@@ -247,17 +248,19 @@ nav {
   justify-content: center;
   font-family: var(--font-head);
   font-size: 0.85rem;
+  font-weight: 600;
   letter-spacing: 0.05em;
+  background: var(--accent);
   color: var(--nav-bg);
   opacity: 0.7;
   transition: opacity 0.2s;
 }
 
-.scrubber-segment:nth-child(odd)  { background: var(--nav-bg); color: var(--accent); }
+.scrubber-segment:nth-child(odd)  { background: var(--accent); color: var(--nav-bg); }
 .scrubber-segment:nth-child(even) { background: var(--accent); color: var(--nav-bg); }
-.scrubber-segment:first-child { border-radius: 6px 0 0 6px; }
-.scrubber-segment:last-child  { border-radius: 0 6px 6px 0; }
-.scrubber-segment.active { opacity: 1; font-weight: 600; filter: brightness(1.15); }
+.scrubber-segment:first-child { border-radius: 4px 0 0 4px; }
+.scrubber-segment:last-child  { border-radius: 0 4px 4px 0; }
+.scrubber-segment.active { opacity: 1; font-weight: 600; background: var(--nav-bg); color: var(--accent); }
 
 .scrubber-handle {
   position: absolute;
@@ -350,21 +353,24 @@ nav {
 .bfly-outer {
   display: flex;
   align-items: flex-start;
-  justify-content: center;
   gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 2rem;
+  max-width: 760px;
+  margin: 0 auto;
 }
 
 .bfly-wrap {
   width: 100%;
-  max-width: 60%;
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
 }
 
 @media (max-width: 680px) {
-  .bfly-wrap {
-    max-width: 70%;
+  .bfly-outer {
+    padding: 0.75rem;
   }
   .bfly-lines {
     gap: 0.25rem;
@@ -615,10 +621,11 @@ nav {
 }
 
 #bfly-week-label {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: flex-start;
-  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+}
+
+#bfly-week-display::before {
+  content: ' \2014  ';
 }
 
 .bfly-scrubber-meta select {
@@ -719,5 +726,16 @@ footer {
 
   nav.open .nav-links {
     display: flex;
+  }
+
+  #bfly-week-label {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-start;
+    line-height: 1.4;
+  }
+
+  #bfly-week-display::before {
+    content: '';
   }
 }

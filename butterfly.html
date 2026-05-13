@@ -60,7 +60,7 @@
               <button id="bfly-next-week" title="Next week">&#x25B6;</button>
               <button id="bfly-next-year" title="Next year">&#x23ED;</button>
             </div>
-            <span id="bfly-week-label"><span id="bfly-year-display">Year 2002</span><span id="bfly-week-display">Week 1</span></span>
+            <span id="bfly-week-label"><span id="bfly-year-display">Year 2002</span><span id="bfly-week-display">Week 01</span></span>
           </div>
         </div>
 
@@ -765,7 +765,7 @@ function updateScrubberUI() {
     el.classList.toggle('active', i === yearIdx);
   });
   document.getElementById('bfly-year-display').textContent = `Year ${state.year}`;
-  document.getElementById('bfly-week-display').textContent = `Week ${state.week}`;
+  document.getElementById('bfly-week-display').textContent = `Week ${String(state.week).padStart(2, '0')}`;
 }
 
 function setPosition(pos) {
