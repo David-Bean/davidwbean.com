@@ -556,6 +556,20 @@ nav {
   color: var(--text-muted);
 }
 
+.bfly-key-hint {
+  font-size: 0.72rem;
+  opacity: 0.55;
+}
+
+.bfly-key-hint kbd {
+  font-family: inherit;
+  font-size: 0.85em;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  padding: 0 3px;
+  line-height: 1.4;
+}
+
 .bfly-scrubber-meta select {
   font-family: var(--font-body);
   font-size: 0.85rem;
