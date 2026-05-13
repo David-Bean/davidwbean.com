@@ -177,10 +177,17 @@ let tempChart = null;
 
 // ── Pre-grouped data ─────────────────────────────────────────
 let tempByYear = {};
+let tempByYearWeek = {};
 let tempYears  = [];
 let latSeriesCache = {};
 
 const tempColor = d3.scaleSequential(d3.interpolateOranges).domain([32, 100]);
+
+function weekToDate(w) {
+  const d = new Date(2017, 0, 1);
+  d.setDate(d.getDate() + (w - 1) * 7);
+  return d;
+}
 const hexPts = (cx, cy, r) => d3.range(6).map(i => {
   const a = Math.PI / 3 * i;
   return `${cx + r * Math.cos(a)},${cy + r * Math.sin(a)}`;
@@ -199,16 +206,18 @@ function buildLatSeriesCache() {
   allYears.forEach(yr => {
     latSeriesCache[yr] = d3.range(1, 52).map(w => {
       const lats = byYearWeek[`${yr}_${w}`];
-      return lats ? { week: w, lat: d3.mean(lats) } : null;
-    }).filter(Boolean);
+      return { week: w, lat: lats ? d3.mean(lats) : null };
+    });
   });
 }
 
 function buildTempByYear() {
   tempByYear = {};
+  tempByYearWeek = {};
   temps.forEach(d => {
     if (!tempByYear[d.year]) tempByYear[d.year] = [];
     tempByYear[d.year].push(d);
+    tempByYearWeek[`${d.year}_${d.week}`] = d;
   });
   tempYears = Object.keys(tempByYear).map(Number).sort((a, b) => a - b);
 }
@@ -321,7 +330,7 @@ function buildStatic() {
   legG.append('rect')
     .attr('x', -4).attr('y', -(legFontSz + 6))
     .attr('width', legBarW + legTickW + 8).attr('height', legBarH + legFontSz + 16)
-    .attr('fill', 'white').attr('fill-opacity', 0.65).attr('rx', 3);
+    .attr('fill', 'none');
 
   legG.append('rect')
     .attr('width', legBarW).attr('height', legBarH)
@@ -453,19 +462,19 @@ function buildLatChart() {
   const iW = W - MARGIN.left - MARGIN.right;
   const iH = H - MARGIN.top  - MARGIN.bottom;
 
-  const x = d3.scaleLinear().domain([1, 51]).range([0, iW]);
+  const x = d3.scaleTime().domain([weekToDate(1), weekToDate(51)]).range([0, iW]);
   const y = d3.scaleLinear().domain([6, 55]).range([iH, 0]);
-  const line = d3.line().defined(d => d.lat != null).x(d => x(d.week)).y(d => y(d.lat)).curve(d3.curveCatmullRom);
+  const line = d3.line().defined(d => d.lat != null).x(d => x(weekToDate(d.week))).y(d => y(d.lat)).curve(d3.curveCatmullRom);
 
   const ticks = getTicks(W);
   const fontSize = getTickFontSize(W);
-  g.append('g').attr('transform', `translate(0,${iH})`).call(d3.axisBottom(x).ticks(ticks).tickSize(3)).selectAll('text').attr('font-size', fontSize);
+  g.append('g').attr('transform', `translate(0,${iH})`).call(d3.axisBottom(x).ticks(ticks).tickSize(3).tickFormat(d3.timeFormat('%b'))).selectAll('text').attr('font-size', fontSize);
   g.append('g').call(d3.axisLeft(y).ticks(ticks).tickSize(3)).selectAll('text').attr('font-size', fontSize);
 
   svg.append('text')
     .attr('x', MARGIN.left).attr('y', MARGIN.top - 4)
     .attr('font-size', fontSize).attr('fill', '#6b6f85')
-    .text('7-day mean latitude');
+    .text('Weekly mean latitude of Monarch Sightings');
 
   const latAllYrs = Object.keys(latSeriesCache).map(Number).sort((a, b) => a - b);
   const paths = {};
@@ -496,7 +505,7 @@ function updateLatChart() {
   // Keep selected year path and cursor on top
   g.node().appendChild(paths[state.year].node());
   g.node().appendChild(cursor.node());
-  cursor.attr('x1', x(state.week)).attr('x2', x(state.week));
+  cursor.attr('x1', x(weekToDate(state.week))).attr('x2', x(weekToDate(state.week)));
 }
 
 function buildTempChart() {
@@ -512,13 +521,13 @@ function buildTempChart() {
   const iW = W - MARGIN.left - MARGIN.right;
   const iH = H - MARGIN.top  - MARGIN.bottom;
 
-  const x = d3.scaleLinear().domain([0, 51]).range([0, iW]);
+  const x = d3.scaleTime().domain([weekToDate(1), weekToDate(51)]).range([0, iW]);
   const y = d3.scaleLinear().domain([10, 80]).range([iH, 0]);
-  const line = d3.line().x(d => x(d.week)).y(d => y(d.weekly_avg)).curve(d3.curveCatmullRom);
+  const line = d3.line().defined(d => d.weekly_avg != null).x(d => x(weekToDate(d.week))).y(d => y(d.weekly_avg)).curve(d3.curveCatmullRom);
 
   const ticks = getTicks(W);
   const fontSize = getTickFontSize(W);
-  g.append('g').attr('transform', `translate(0,${iH})`).call(d3.axisBottom(x).ticks(ticks).tickSize(3)).selectAll('text').attr('font-size', fontSize);
+  g.append('g').attr('transform', `translate(0,${iH})`).call(d3.axisBottom(x).ticks(ticks).tickSize(3).tickFormat(d3.timeFormat('%b'))).selectAll('text').attr('font-size', fontSize);
   g.append('g').call(d3.axisLeft(y).ticks(ticks).tickSize(3)).selectAll('text').attr('font-size', fontSize);
 
   svg.append('text')
@@ -543,7 +552,7 @@ function updateTempChart() {
 
   tempYears.forEach(yr => {
     const isSelected = yr === state.year;
-    const data = (tempByYear[yr] || []).filter(d => d.week <= state.week);
+    const data = d3.range(1, 52).filter(w => w <= state.week).map(w => tempByYearWeek[`${yr}_${w}`] || { week: w, weekly_avg: null });
     paths[yr].datum(data).attr('d', line)
       .attr('stroke', isSelected ? '#e45756' : '#4c78a8')
       .attr('stroke-width', isSelected ? 2 : 1)
@@ -553,7 +562,7 @@ function updateTempChart() {
   // Keep selected year path and cursor on top
   g.node().appendChild(paths[state.year].node());
   g.node().appendChild(cursor.node());
-  cursor.attr('x1', x(state.week)).attr('x2', x(state.week));
+  cursor.attr('x1', x(weekToDate(state.week))).attr('x2', x(weekToDate(state.week)));
 }
 
 function buildCharts() {
@@ -620,6 +629,7 @@ let scrubbing = false;
 const scrubberHandle = document.getElementById('bfly-scrubber-handle');
 
 function startScrub(e) {
+  stopPlay();
   scrubbing = true;
   scrubRect = scrubberTrack.getBoundingClientRect();
   scrubberHandle.style.transition = 'none';
@@ -673,18 +683,24 @@ document.addEventListener('keydown', e => {
     pos = prevIdx * 51 + (state.week - 1);
   } else return;
   e.preventDefault();
+  stopPlay();
   setPosition(pos);
 });
 
 // ── Play button — steps through all 204 positions ─────────────
 let playInterval = null;
 
+function stopPlay() {
+  if (!playInterval) return;
+  clearInterval(playInterval);
+  playInterval = null;
+  document.getElementById('bfly-play-btn').innerHTML = '&#9654;';
+}
+
 document.getElementById('bfly-play-btn').addEventListener('click', () => {
   const btn = document.getElementById('bfly-play-btn');
   if (playInterval) {
-    clearInterval(playInterval);
-    playInterval = null;
-    btn.innerHTML = '&#9654;';
+    stopPlay();
   } else {
     let pos = posFromState();
     if (pos >= TOTAL_POS - 1) pos = 0;
