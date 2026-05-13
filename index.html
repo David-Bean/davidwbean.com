@@ -8,10 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Playfair+Display:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
-  <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
-  <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
-  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
 </head>
 <body>
 
@@ -47,7 +44,6 @@
 
   <hr class="divider">
 
-  <!-- Butterfly Visualization -->
   <section class="viz-section">
     <h2>Monarch Butterfly Sightings</h2>
     <p class="viz-subtitle">
@@ -59,335 +55,1033 @@
       butterflies' movement north in spring and south in fall.
     </p>
 
-    <div class="scrubber-wrap">
-      <div class="scrubber-track" id="scrubber-track">
-        <div class="scrubber-segment" data-year="2002">2002</div>
-        <div class="scrubber-segment" data-year="2007">2007</div>
-        <div class="scrubber-segment" data-year="2012">2012</div>
-        <div class="scrubber-segment" data-year="2017">2017</div>
-        <div class="scrubber-handle" id="scrubber-handle">
-          <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 256 256" fill="currentColor">
-            <path d="M104,60a12,12,0,1,1-12-12A12,12,0,0,1,104,60Zm60,12a12,12,0,1,0-12-12A12,12,0,0,0,164,72ZM92,116a12,12,0,1,0,12,12A12,12,0,0,0,92,128Zm72,0a12,12,0,1,0,12,12A12,12,0,0,0,164,128ZM92,184a12,12,0,1,0,12,12A12,12,0,0,0,92,196Zm72,0a12,12,0,1,0,12,12A12,12,0,0,0,164,196Z"/>
-          </svg>
+    <div class="bfly-outer">
+      <div class="bfly-wrap">
+        <div id="bfly-map">
+          <button class="bfly-debug-toggle" id="bfly-debug-toggle" title="Debug controls">⚙</button>
+        </div>
+
+        <div class="bfly-scrubber">
+          <div class="scrubber-wrap">
+            <button class="scrubber-play-btn" id="bfly-play-btn" title="Play/pause">&#9654;</button>
+            <div class="scrubber-track" id="bfly-scrubber-track">
+              <div class="scrubber-segment">2002</div>
+              <div class="scrubber-segment">2007</div>
+              <div class="scrubber-segment">2012</div>
+              <div class="scrubber-segment">2017</div>
+              <div class="scrubber-handle" id="bfly-scrubber-handle"></div>
+            </div>
+          </div>
+          <div class="bfly-scrubber-meta">
+            <span class="bfly-key-hint"><kbd>&#8592;</kbd><kbd>&#8594;</kbd> step through weeks &nbsp;&middot;&nbsp; <kbd>&#8593;</kbd><kbd>&#8595;</kbd> jump between years</span>
+            <div class="scrubber-mobile-btns">
+              <button id="bfly-prev-year" title="Previous year">&#x23EE;</button>
+              <button id="bfly-prev-week" title="Previous week">&#x25C0;</button>
+              <button id="bfly-next-week" title="Next week">&#x25B6;</button>
+              <button id="bfly-next-year" title="Next year">&#x23ED;</button>
+            </div>
+            <span id="bfly-week-label"><span id="bfly-year-display">Year 2002</span><span id="bfly-week-display">Week 01</span></span>
+          </div>
+        </div>
+
+        <div class="bfly-lines">
+          <div id="bfly-line-lat"></div>
+          <div id="bfly-line-temp"></div>
         </div>
       </div>
-      <button class="scrubber-play-btn" id="scrubber-play-btn" title="Pause"></button>
+
+      <div class="bfly-debug-panel" id="bfly-debug-panel">
+        <div class="bfly-debug-header">
+          <span>Debug</span>
+          <button id="bfly-debug-close" title="Close">✕</button>
+        </div>
+
+        <div class="bfly-debug-section-label">Points: Temperature</div>
+
+        <div class="bfly-debug-row">
+          <label>Dot size</label>
+          <span id="bfly-dotsize-label">1.90</span>
+        </div>
+        <input type="range" id="bfly-dotsize-input" min="0.25" max="9.0" step="0.05" value="1.90">
+
+        <div class="bfly-debug-row">
+          <label>Lat scale</label>
+          <span id="bfly-latscale-label">1.55</span>
+        </div>
+        <input type="range" id="bfly-latscale-input" min="0" max="2" step="0.05" value="1.55">
+
+        <div class="bfly-debug-row">
+          <label>Curve</label>
+          <span id="bfly-latgamma-label">0.90</span>
+        </div>
+        <input type="range" id="bfly-latgamma-input" min="0.1" max="3" step="0.05" value="0.90">
+
+        <div class="bfly-debug-row">
+          <label for="bfly-shape-select">Shape</label>
+          <select id="bfly-shape-select">
+            <option value="hex" selected>Hex</option>
+            <option value="circle">Circle</option>
+            <option value="square">Square</option>
+            <option value="butterfly">Butterfly</option>
+          </select>
+        </div>
+
+        <div class="bfly-debug-row">
+          <label>Outline color</label>
+          <input type="color" id="bfly-stroke-color-input" value="#ffffff">
+        </div>
+
+        <div class="bfly-debug-row">
+          <label>Outline width</label>
+          <span id="bfly-stroke-width-label">0.00</span>
+        </div>
+        <input type="range" id="bfly-stroke-width-input" min="0" max="3" step="0.25" value="0">
+
+        <div class="bfly-debug-row">
+          <label>Custom fill</label>
+          <input type="checkbox" id="bfly-fill-override-input">
+          <input type="color" id="bfly-fill-color-input" value="#4c78a8">
+        </div>
+
+        <div class="bfly-debug-row">
+          <label for="bfly-palette-select">Palette</label>
+          <select id="bfly-palette-select">
+            <option value="oranges">Oranges</option>
+            <option value="rdylbu">RdYlBu</option>
+            <option value="spectral" selected>Spectral</option>
+            <option value="plasma">Plasma</option>
+            <option value="inferno">Inferno</option>
+          </select>
+        </div>
+
+        <div class="bfly-debug-row">
+          <label>Opacity</label>
+          <span id="bfly-opacity-label">0.45</span>
+        </div>
+        <input type="range" id="bfly-opacity-input" min="0" max="1" step="0.05" value="0.45">
+
+        <div class="bfly-debug-row">
+          <label>Edge fade</label>
+          <span id="bfly-fadefmix-label">0.80</span>
+        </div>
+        <input type="range" id="bfly-fadefmix-input" min="0" max="1" step="0.05" value="0.80">
+
+        <hr class="bfly-debug-hr">
+
+        <div class="bfly-debug-section-label">Points: Sightings</div>
+
+        <div class="bfly-debug-row">
+          <label for="bfly-sight-shape-select">Shape</label>
+          <select id="bfly-sight-shape-select">
+            <option value="circle" selected>Circle</option>
+            <option value="hex">Hex</option>
+            <option value="square">Square</option>
+            <option value="butterfly">Butterfly</option>
+          </select>
+        </div>
+
+        <div class="bfly-debug-row">
+          <label>Fill color</label>
+          <input type="color" id="bfly-sight-fill-input" value="#f6f5f4">
+        </div>
+
+        <div class="bfly-debug-row">
+          <label>Outline color</label>
+          <input type="color" id="bfly-sight-stroke-color-input" value="#1c71d8">
+        </div>
+
+        <div class="bfly-debug-row">
+          <label>Outline width</label>
+          <span id="bfly-sight-stroke-width-label">1.50</span>
+        </div>
+        <input type="range" id="bfly-sight-stroke-width-input" min="0" max="4" step="0.25" value="1.5">
+
+        <div class="bfly-debug-row">
+          <label>Size</label>
+          <span id="bfly-sight-size-label">1.25</span>
+        </div>
+        <input type="range" id="bfly-sight-size-input" min="0.25" max="4" step="0.25" value="1.25">
+
+        <hr class="bfly-debug-hr">
+
+        <div class="bfly-debug-section-label">Map</div>
+
+        <div class="bfly-debug-row">
+          <label>Scale</label>
+          <span id="bfly-mapscale-label">0.90</span>
+        </div>
+        <input type="range" id="bfly-mapscale-input" min="0.2" max="2.0" step="0.01" value="0.90">
+
+        <div class="bfly-debug-row">
+          <label>Pan lon</label>
+          <span id="bfly-maplon-label">-93.5</span>
+        </div>
+        <input type="range" id="bfly-maplon-input" min="-135" max="-55" step="0.5" value="-93.5">
+
+        <div class="bfly-debug-row">
+          <label>Pan lat</label>
+          <span id="bfly-maplat-label">39.0</span>
+        </div>
+        <input type="range" id="bfly-maplat-input" min="5" max="65" step="0.5" value="39.0">
+
+        <div class="bfly-debug-row">
+          <label>Aspect H/W</label>
+          <span id="bfly-mapaspect-label">0.70</span>
+        </div>
+        <input type="range" id="bfly-mapaspect-input" min="0.3" max="1.5" step="0.01" value="0.70">
+
+        <code id="bfly-map-values" class="bfly-debug-values">dotSize=1.90 latScale=1.55 curve=0.90 shape=hex&#10;palette=spectral opacity=0.45 fade=0.80 stroke=#ffffff strokeW=0.00 fillOverride=false fill=#4c78a8&#10;sightShape=circle sightFill=#f6f5f4 sightStroke=#1c71d8 sightStrokeW=1.50 sightSize=1.25&#10;mapScale=0.90 lon=-93.5 lat=39.0 aspect=0.70</code>
+      </div>
     </div>
 
-    <div class="viz-container" id="butterfly-chart"></div>
-
-    <script>
-      const YEARS = [2002, 2007, 2012, 2017];
-      const WEEKS = 51;
-      const TOTAL_STEPS = YEARS.length * WEEKS;
-      const MS_PER_YEAR = 5000;
-      const STEP_INTERVAL = (MS_PER_YEAR * YEARS.length) / TOTAL_STEPS;
-
-      let vegaView = null;
-      let currentStep = 0;
-      let autoTimer = null;
-      let userControlled = false;
-      let originalSpec = null;
-
-      function stepToYearWeek(step) {
-        const yearIdx = Math.min(Math.floor(step / WEEKS), YEARS.length - 1);
-        const week = (step % WEEKS) + 1;
-        return { year: YEARS[yearIdx], week, yearIdx };
-      }
-
-      function applyStep(step) {
-        currentStep = Math.max(0, Math.min(step, TOTAL_STEPS - 1));
-        const { year, week, yearIdx } = stepToYearWeek(currentStep);
-
-        if (vegaView) {
-          vegaView.signal('year_select_param', year);
-          vegaView.signal('week_select_param', week);
-          vegaView.runAsync().then(() => drawUSMask(vegaView));
-        }
-
-        const pct = currentStep / (TOTAL_STEPS - 1);
-        document.getElementById('scrubber-handle').style.left = `calc(${pct * 100}% - 12px)`;
-
-        document.querySelectorAll('.scrubber-segment').forEach((el, i) => {
-          el.classList.toggle('active', i === yearIdx);
-        });
-      }
-
-      function startAutoplay() {
-        autoTimer = setInterval(() => {
-          if (currentStep >= TOTAL_STEPS - 1) {
-            clearInterval(autoTimer);
-            autoTimer = null;
-            setPlayState(false);
-            return;
-          }
-          applyStep(currentStep + 1);
-        }, STEP_INTERVAL);
-      }
-
-      // Scrubber drag interaction
-      const track = document.getElementById('scrubber-track');
-
-      function posToStep(clientX) {
-        const rect = track.getBoundingClientRect();
-        const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-        return Math.round(pct * (TOTAL_STEPS - 1));
-      }
-
-      const playBtn = document.getElementById('scrubber-play-btn');
-
-      const ICON_PAUSE = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 256 256" fill="currentColor"><path d="M216,48V208a16,16,0,0,1-16,16H160a16,16,0,0,1-16-16V48a16,16,0,0,1,16-16h40A16,16,0,0,1,216,48Zm-96-16H80A16,16,0,0,0,64,48V208a16,16,0,0,0,16,16h40a16,16,0,0,0,16-16V48A16,16,0,0,0,120,32Z"/></svg>`;
-      const ICON_PLAY  = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 256 256" fill="currentColor"><path d="M240,128a15.74,15.74,0,0,1-7.6,13.51L88.32,229.65a16,16,0,0,1-16.2.3A15.86,15.86,0,0,1,64,216.13V39.87a15.86,15.86,0,0,1,8.12-13.82,16,16,0,0,1,16.2.3L232.4,114.49A15.74,15.74,0,0,1,240,128Z"/></svg>`;
-
-      function setPlayState(playing) {
-        playBtn.innerHTML = playing ? ICON_PAUSE : ICON_PLAY;
-        playBtn.title = playing ? 'Pause' : 'Resume autoplay';
-      }
-
-      function onInteractionStart(e) {
-        if (!userControlled) {
-          userControlled = true;
-          clearInterval(autoTimer);
-          autoTimer = null;
-          setPlayState(false);
-        }
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        applyStep(posToStep(clientX));
-
-        const onMove = ev => {
-          const x = ev.touches ? ev.touches[0].clientX : ev.clientX;
-          applyStep(posToStep(x));
-        };
-        const onUp = () => {
-          window.removeEventListener('mousemove', onMove);
-          window.removeEventListener('touchmove', onMove);
-          window.removeEventListener('mouseup', onUp);
-          window.removeEventListener('touchend', onUp);
-        };
-        window.addEventListener('mousemove', onMove);
-        window.addEventListener('touchmove', onMove);
-        window.addEventListener('mouseup', onUp);
-        window.addEventListener('touchend', onUp);
-      }
-
-      track.addEventListener('mousedown', onInteractionStart);
-      track.addEventListener('touchstart', onInteractionStart);
-
-      playBtn.addEventListener('click', () => {
-        if (autoTimer) {
-          clearInterval(autoTimer);
-          autoTimer = null;
-          userControlled = true;
-          setPlayState(false);
-        } else {
-          userControlled = false;
-          if (currentStep >= TOTAL_STEPS - 1) currentStep = 0;
-          setPlayState(true);
-          startAutoplay();
-        }
-      });
-
-      // "01-07" strings aren't valid ISO dates — browsers parse them inconsistently.
-      // Convert all MM-DD values to "2000-MM-DD" so temporal parsing is reliable.
-      const MMDD_RE = /^\d{2}-\d{2}$/;
-      function fixMMDD(v) { return (typeof v === 'string' && MMDD_RE.test(v)) ? '2000-' + v : v; }
-
-      function fixSpec(obj) {
-        if (Array.isArray(obj)) return obj.map(fixSpec);
-        if (obj && typeof obj === 'object') {
-          if (obj.scale && Array.isArray(obj.scale.domain)) {
-            obj.scale.domain = [...new Set(obj.scale.domain.map(fixMMDD))];
-          }
-          return Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, fixSpec(v)]));
-        }
-        return obj;
-      }
-
-      function fixDatasets(spec) {
-        if (!spec.datasets) return spec;
-        for (const name in spec.datasets) {
-          spec.datasets[name] = spec.datasets[name].map(row => {
-            if ('MM-DD' in row) row['MM-DD'] = fixMMDD(row['MM-DD']);
-            return row;
-          });
-        }
-        return spec;
-      }
-
-      let maskHoles = null;
-      let lonMin, lonMax, latMin, latMax;
-      let mapDataW, mapDataH;
-      let projScale, projTx, projTy;
-
-      function buildProjection() {
-        const toRad = Math.PI / 180;
-        function merc(ln, la) {
-          return [ln * toRad, -Math.log(Math.tan(Math.PI / 4 + la * toRad / 2))];
-        }
-        const corners = [[lonMin,latMin],[lonMin,latMax],[lonMax,latMin],[lonMax,latMax]].map(([ln,la]) => merc(ln,la));
-        const mxMin = Math.min(...corners.map(c => c[0]));
-        const mxMax = Math.max(...corners.map(c => c[0]));
-        const myMin = Math.min(...corners.map(c => c[1]));
-        const myMax = Math.max(...corners.map(c => c[1]));
-        projScale = Math.min(mapDataW / (mxMax - mxMin), mapDataH / (myMax - myMin));
-        projTx = mapDataW / 2 - (mxMin + mxMax) / 2 * projScale;
-        projTy = mapDataH / 2 - (myMin + myMax) / 2 * projScale;
-      }
-
-      function drawUSMask(view) {
-        if (!maskHoles) return;
-        const canvas = view._renderer && view._renderer._canvas;
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-
-        const rawPad = view.padding();
-        const pad = typeof rawPad === 'number'
-          ? {top: rawPad, bottom: rawPad, left: rawPad, right: rawPad} : rawPad;
-
-        const toRad = Math.PI / 180;
-        function toPixel(lon, lat) {
-          lon = Math.max(lonMin, Math.min(lonMax, lon));
-          lat = Math.max(latMin, Math.min(latMax, lat));
-          const mx = lon * toRad;
-          const my = -Math.log(Math.tan(Math.PI / 4 + lat * toRad / 2));
-          return [pad.left + mx * projScale + projTx, pad.top + my * projScale + projTy];
-        }
-
-        const topExt = 0.025 * mapDataH;
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(0, -topExt, pad.left + mapDataW, pad.top + mapDataH + 60 - topExt);
-        ctx.clip();
-
-        ctx.beginPath();
-        ctx.rect(0, -topExt, pad.left + mapDataW, pad.top + mapDataH + 60 - topExt);
-        for (const ring of maskHoles) {
-          const [x0, y0] = toPixel(ring[0][0], ring[0][1]);
-          ctx.moveTo(x0, y0);
-          for (let i = 1; i < ring.length; i++) {
-            const [x, y] = toPixel(ring[i][0], ring[i][1]);
-            ctx.lineTo(x, y);
-          }
-          ctx.closePath();
-        }
-        ctx.fillStyle = '#f5f0e8';
-        ctx.fill('evenodd');
-
-        ctx.restore();
-      }
-
-      // Compute available inner width for the chart using viewport width minus
-      // computed padding on both .viz-section and .viz-container, so media-query
-      // padding changes are always reflected without DOM layout timing issues.
-      function getAvailableWidth() {
-        const sectionStyle    = window.getComputedStyle(document.querySelector('.viz-section'));
-        const containerStyle  = window.getComputedStyle(document.getElementById('butterfly-chart'));
-        const sectionHPad     = parseFloat(sectionStyle.paddingLeft)   + parseFloat(sectionStyle.paddingRight);
-        const containerHPad   = parseFloat(containerStyle.paddingLeft) + parseFloat(containerStyle.paddingRight);
-        const sectionW = Math.min(window.innerWidth, 1200); // matches .viz-section max-width
-        return Math.max(300, sectionW - sectionHPad - containerHPad);
-      }
-
-      // Deep-copy originalSpec and scale all chart dimensions to fit the current container
-      function buildResponsiveSpec() {
-        const spec = JSON.parse(JSON.stringify(originalSpec));
-        const availW = getAvailableWidth();
-        const mapW  = Math.round(availW * 0.61);
-        const scale = mapW / 1000;
-        const mapH  = Math.round(680 * scale);
-        const subW  = Math.floor((mapW - 20) / 2); // 20px hconcat spacing
-        const subH  = Math.round(210 * scale);
-
-        spec.vconcat[0].width  = mapW;
-        spec.vconcat[0].height = mapH;
-        spec.vconcat[1].hconcat[0].width  = subW;
-        spec.vconcat[1].hconcat[0].height = subH;
-        spec.vconcat[1].hconcat[1].width  = subW;
-        spec.vconcat[1].hconcat[1].height = subH;
-
-        return { spec, mapW, mapH };
-      }
-
-      async function doEmbed() {
-        const wasPlaying = !!autoTimer;
-        if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
-        if (vegaView)  { vegaView.finalize(); vegaView = null; }
-
-        const { spec, mapW, mapH } = buildResponsiveSpec();
-        mapDataW = mapW;
-        mapDataH = mapH;
-        buildProjection();
-
-        const savedStep = currentStep;
-        const result = await vegaEmbed("#butterfly-chart", fixDatasets(fixSpec(spec)), {renderer: "canvas", actions: false});
-        vegaView = result.view;
-        applyStep(savedStep);
-
-        if (wasPlaying && savedStep < TOTAL_STEPS - 1) {
-          setPlayState(true);
-          startAutoplay();
-        }
-      }
-
-      // Debounce resize so we don't re-embed on every pixel change
-      let resizeTimer = null;
-      window.addEventListener('resize', () => {
-        clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(doEmbed, 200);
-      });
-
-      // Load chart and world topojson in parallel
-      Promise.all([
-        fetch("butterfly_chart.json").then(r => r.json()),
-        fetch("https://cdn.jsdelivr.net/npm/world-atlas@2/land-50m.json").then(r => r.json())
-      ]).then(([spec, worldTopo]) => {
-          lonMin = -126; lonMax = -59;
-          latMin = 8;    latMax = 55;
-
-          const land = topojson.feature(worldTopo, worldTopo.objects.land);
-          const landFeature = land.type === "FeatureCollection" ? land.features[0] : land;
-          const landGeom = landFeature.geometry;
-          const rawPolys = landGeom.type === "Polygon"
-            ? [landGeom.coordinates]
-            : landGeom.coordinates;
-          const margin = 5;
-          maskHoles = rawPolys
-            .flatMap(poly => poly)
-            .filter(ring => ring.some(([ln, la]) =>
-              ln >= lonMin - margin && ln <= lonMax + margin &&
-              la >= latMin - margin && la <= latMax + margin
-            ));
-
-          if (spec.params) {
-            spec.params = spec.params.map(p => { const {bind, ...rest} = p; return rest; });
-          }
-          spec.config = spec.config || {};
-          spec.config.background = "#f5f0e8";
-          spec.config.view = Object.assign(spec.config.view || {}, {stroke: null});
-
-          // Remove the map layer title — it adds a fixed-height title area above the
-          // data region that the canvas mask projection doesn't account for, causing
-          // misalignment that worsens as the chart scales down. The HTML <h2> above
-          // the chart already provides this label.
-          if (spec.vconcat[0] && spec.vconcat[0].layer) {
-            spec.vconcat[0].layer.forEach(layer => { delete layer.title; });
-          }
-
-          originalSpec = spec;
-          return doEmbed();
-        })
-        .then(() => {
-          setPlayState(true);
-          startAutoplay();
-        });
-    </script>
-
-    <a href="projects.html" class="btn-primary">See My Projects</a>
   </section>
 
   <footer>
     <p>David Bean &mdash; davidwbean.com</p>
   </footer>
+
+<script>
+// ── State ────────────────────────────────────────────────────
+const YEARS = [2002, 2007, 2012, 2017];
+const LON_EXTENT = [-126, -59];
+const LAT_EXTENT = [8, 55];
+
+let state = { week: 1, year: 2002, dotSize: 1.90, latScale: 1.55, latGamma: 0.90, shape: 'hex', palette: 'spectral', opacity: 0.45, fadeMix: 0.80,
+              dotStroke: '#ffffff', dotStrokeWidth: 0, dotFillOverride: false, dotFillColor: '#4c78a8',
+              sightFill: '#f6f5f4', sightStroke: '#1c71d8', sightStrokeWidth: 1.5, sightSize: 1.25, sightShape: 'circle',
+              mapScale: 0.90, mapCenterLon: -93.5, mapCenterLat: 39.0, mapAspect: 0.70 };
+let worldLand = null;
+let temps = [];
+let tempGrid = [];
+let monarchSightings = [];
+
+// ── Cached map handles (rebuilt only on resize) ──────────────
+let mapSvg         = null;
+let tempLayer      = null;
+let sightLayer     = null;
+let cachedProj     = null;
+let cachedTempBase = null;
+let cachedSightR   = null;
+let projectedGrid     = [];   // { row, p: [x,y], latFrac }
+let projectedSightings = {};  // { "year_week": [{p:[x,y]}, ...] }
+
+// ── Cached chart handles (rebuilt only on resize) ────────────
+let latChart  = null;  // { g, x, line, paths, cursor }
+let tempChart = null;
+
+// ── Pre-grouped data ─────────────────────────────────────────
+let tempByYear = {};
+let tempByYearWeek = {};
+let tempYears  = [];
+let latSeriesCache = {};
+
+const PALETTES = {
+  oranges:  () => d3.scaleSequential(d3.interpolateOranges).domain([32, 100]),
+  rdylbu:   () => d3.scaleDiverging(t => d3.interpolateRdYlBu(1 - t)).domain([32, 75, 100]),
+  spectral: () => d3.scaleDiverging(t => d3.interpolateSpectral(1 - t)).domain([32, 75, 100]),
+  plasma:   () => d3.scaleSequential(d3.interpolatePlasma).domain([32, 100]),
+  inferno:  () => d3.scaleSequential(d3.interpolateInferno).domain([32, 100]),
+};
+
+let tempColor = PALETTES.spectral();
+
+function weekToDate(w) {
+  const d = new Date(2017, 0, 1);
+  d.setDate(d.getDate() + (w - 1) * 7);
+  return d;
+}
+const hexPts = (cx, cy, r) => d3.range(6).map(i => {
+  const a = Math.PI / 3 * i;
+  return `${cx + r * Math.cos(a)},${cy + r * Math.sin(a)}`;
+}).join(' ');
+
+const butterflyPath = (cx, cy, r) => {
+  const x = +cx, y = +cy;
+  // Forewings: large, swept back, pointed apex; hindwings: smaller, rounded
+  return (
+    `M${x},${y}` +
+    // Right forewing — costal edge up to pointed apex, termen down, inner margin back
+    `C${x+r*.15},${y-r*1.05} ${x+r*1.3},${y-r*1.15} ${x+r*1.9},${y-r*.35}` +
+    `C${x+r*2.05},${y+r*.1} ${x+r*1.75},${y+r*.55} ${x+r*1.2},${y+r*.55}` +
+    `C${x+r*.7},${y+r*.5} ${x+r*.2},${y+r*.25} ${x},${y}` +
+    // Right hindwing — fans out from body, round outer tip, inner margin back
+    `C${x+r*.2},${y+r*.3} ${x+r*1.3},${y+r*.8} ${x+r*1.2},${y+r*1.3}` +
+    `C${x+r*1.0},${y+r*1.6} ${x+r*.2},${y+r*1.5} ${x+r*.1},${y+r*1.1}` +
+    `C${x+r*.05},${y+r*.8} ${x},${y+r*.4} ${x},${y}` +
+    // Left hindwing (mirror)
+    `C${x},${y+r*.4} ${x-r*.05},${y+r*.8} ${x-r*.1},${y+r*1.1}` +
+    `C${x-r*.2},${y+r*1.5} ${x-r*1.0},${y+r*1.6} ${x-r*1.2},${y+r*1.3}` +
+    `C${x-r*1.3},${y+r*.8} ${x-r*.2},${y+r*.3} ${x},${y}` +
+    // Left forewing (mirror)
+    `C${x-r*.2},${y+r*.25} ${x-r*.7},${y+r*.5} ${x-r*1.2},${y+r*.55}` +
+    `C${x-r*1.75},${y+r*.55} ${x-r*2.05},${y+r*.1} ${x-r*1.9},${y-r*.35}` +
+    `C${x-r*1.3},${y-r*1.15} ${x-r*.15},${y-r*1.05} ${x},${y}Z`
+  );
+};
+
+const YEAR_COLORS = { 2002: '#4c78a8', 2007: '#f58518', 2012: '#72b7b2', 2017: '#54a24b' };
+
+function buildLatSeriesCache() {
+  const byYearWeek = {};
+  monarchSightings.forEach(d => {
+    const key = `${d.year}_${d.week}`;
+    if (!byYearWeek[key]) byYearWeek[key] = [];
+    byYearWeek[key].push(d.latitude);
+  });
+  const allYears = [...new Set(monarchSightings.map(d => d.year))].sort((a, b) => a - b);
+  allYears.forEach(yr => {
+    latSeriesCache[yr] = d3.range(1, 52).map(w => {
+      const lats = byYearWeek[`${yr}_${w}`];
+      return { week: w, lat: lats ? d3.mean(lats) : null };
+    });
+  });
+}
+
+function buildTempByYear() {
+  tempByYear = {};
+  tempByYearWeek = {};
+  temps.forEach(d => {
+    if (!tempByYear[d.year]) tempByYear[d.year] = [];
+    tempByYear[d.year].push(d);
+    tempByYearWeek[`${d.year}_${d.week}`] = d;
+  });
+  tempYears = Object.keys(tempByYear).map(Number).sort((a, b) => a - b);
+}
+
+// ── MAP — static tier (resize / init only) ───────────────────
+function buildStatic() {
+  const el = document.getElementById('bfly-map');
+  const W  = el.clientWidth;
+  if (!W || !worldLand) return;
+
+  const H = Math.round(W * state.mapAspect);
+
+  d3.select(el).select('svg').remove();
+  mapSvg = d3.select(el).append('svg').attr('width', W).attr('height', H);
+
+  cachedProj = d3.geoMercator()
+    .center([state.mapCenterLon, state.mapCenterLat])
+    .scale(W * state.mapScale)
+    .translate([W / 2, H / 2]);
+
+  cachedTempBase = Math.max(2, W * 6.5 / 1000);
+  cachedSightR   = Math.max(3, W * 5 / 1000);
+
+  // Pre-project all grid points once; keep reference to original row for week lookup
+  projectedGrid = tempGrid.map(d => {
+    const p = cachedProj([d.Lon, d.Lat]);
+    if (!p) return null;
+    const latFrac = (d.Lat - LAT_EXTENT[0]) / (LAT_EXTENT[1] - LAT_EXTENT[0]);
+    return { row: d, p, latFrac };
+  }).filter(Boolean);
+
+  // Pre-project all sightings, grouped by year+week for O(1) lookup
+  projectedSightings = {};
+  monarchSightings.forEach(d => {
+    const p = cachedProj([d.longitude, d.latitude]);
+    if (!p) return;
+    const key = `${d.year}_${d.week}`;
+    if (!projectedSightings[key]) projectedSightings[key] = [];
+    projectedSightings[key].push({ p });
+  });
+
+  const pathGen = d3.geoPath(cachedProj);
+
+  // 1. Land fill (static)
+  mapSvg.append('g')
+    .selectAll('path')
+    .data(worldLand.features)
+    .join('path')
+    .attr('d', pathGen)
+    .attr('fill', '#e8e0d0')
+    .attr('stroke', 'none');
+
+  // 2. Temp dot placeholder — sits between land and ocean mask
+  tempLayer = mapSvg.append('g').attr('data-shape', '');
+
+  // 3. Ocean mask (static)
+  const defs = mapSvg.append('defs');
+
+  // Per-dot radial fade: transparent center → opaque rim
+  const fadeRg = defs.append('radialGradient')
+    .attr('id', 'bfly-fade-rg')
+    .attr('gradientUnits', 'objectBoundingBox')
+    .attr('cx', '0.5').attr('cy', '0.5').attr('r', '0.5');
+  fadeRg.append('stop').attr('offset', '0%').attr('stop-color', 'white');
+  fadeRg.append('stop').attr('offset', '100%').attr('stop-color', 'white').attr('stop-opacity', 1 - state.fadeMix);
+
+  const fadeMask = defs.append('mask')
+    .attr('id', 'bfly-dot-fade')
+    .attr('maskContentUnits', 'objectBoundingBox');
+  fadeMask.append('rect').attr('x', 0).attr('y', 0).attr('width', 1).attr('height', 1)
+    .attr('fill', 'url(#bfly-fade-rg)');
+
+  const oceanMask = defs.append('mask').attr('id', 'bfly-ocean-mask');
+  oceanMask.append('rect').attr('width', W).attr('height', H).attr('fill', 'white');
+  oceanMask.append('g')
+    .selectAll('path')
+    .data(worldLand.features)
+    .join('path')
+    .attr('d', pathGen)
+    .attr('fill', 'black');
+
+  mapSvg.append('rect')
+    .attr('width', W).attr('height', H)
+    .attr('fill', '#f5f0e8')
+    .attr('mask', 'url(#bfly-ocean-mask)');
+
+  // 4. Sighting placeholder — on top of ocean mask
+  sightLayer = mapSvg.append('g');
+
+  // 5. Temperature legend — vertical bar, right side of map
+  const legBarW   = Math.max(8, Math.round(W * 0.018));
+  const legBarH   = Math.round(H * 0.28);
+  const legFontSz = Math.max(7, Math.round(W * 0.018));
+  const legTickW  = Math.round(legFontSz * 2.8);  // room for "100" label
+  const legX      = W - legBarW - legTickW - 18;
+  const legY      = H - legBarH - 22;
+
+  defs.append('linearGradient')
+    .attr('id', 'bfly-leg-grad')
+    .attr('gradientUnits', 'objectBoundingBox')
+    .attr('x1', 0).attr('y1', 0).attr('x2', 0).attr('y2', 1)
+    .selectAll('stop')
+    .data(d3.range(0, 1.01, 0.1))
+    .join('stop')
+    .attr('offset', d => `${(d * 100).toFixed(0)}%`)
+    .attr('stop-color', d => tempColor(100 - d * 68));  // 100°F at top, 32°F at bottom
+
+  const legG = mapSvg.append('g').attr('transform', `translate(${legX},${legY})`);
+
+  legG.append('rect')
+    .attr('x', -4).attr('y', -(legFontSz + 6))
+    .attr('width', legBarW + legTickW + 8).attr('height', legBarH + legFontSz + 16)
+    .attr('fill', 'none');
+
+  legG.append('rect')
+    .attr('width', legBarW).attr('height', legBarH)
+    .attr('fill', 'url(#bfly-leg-grad)');
+
+  legG.append('g')
+    .attr('transform', `translate(${legBarW},0)`)
+    .call(d3.axisRight(d3.scaleLinear().domain([100, 32]).range([0, legBarH])).ticks(4).tickSize(3))
+    .call(g => g.select('.domain').remove())
+    .selectAll('text')
+    .attr('font-size', `${legFontSz}px`).attr('fill', '#444');
+
+  legG.append('text')
+    .attr('x', Math.round(legBarW / 2)).attr('y', -(legFontSz * 0.3))
+    .attr('text-anchor', 'middle')
+    .attr('font-size', `${legFontSz}px`).attr('fill', '#444')
+    .text('°F');
+
+  const y75 = (100 - 75) / (100 - 32) * legBarH + 5;
+  const arrowSize = Math.max(4, legFontSz * 0.7);
+  legG.append('polygon')
+    .attr('points', `-1,${y75} ${-(arrowSize + 1)},${y75 - arrowSize / 2} ${-(arrowSize + 1)},${y75 + arrowSize / 2}`)
+    .attr('fill', '#54a24b');
+  const textX = -(arrowSize + legFontSz * 0.5);
+  legG.append('text')
+    .attr('x', textX)
+    .attr('y', y75 + legFontSz * 0.35)
+    .attr('text-anchor', 'end')
+    .attr('font-size', `${legFontSz}px`).attr('fill', '#444')
+    .text('75°F / 24°C');
+  legG.append('text')
+    .attr('x', textX)
+    .attr('y', y75 + legFontSz * 1.55)
+    .attr('text-anchor', 'end')
+    .attr('font-size', `${legFontSz}px`).attr('fill', '#888')
+    .text('Peak Active');
+  legG.append('text')
+    .attr('x', textX)
+    .attr('y', y75 + legFontSz * 2.75)
+    .attr('text-anchor', 'end')
+    .attr('font-size', `${legFontSz}px`).attr('fill', '#888')
+    .text('Temperature');
+
+  updateDynamic();
+}
+
+// ── MAP — dynamic tier (data state changes) ──────────────────
+function updateTempDots() {
+  if (!tempLayer || !cachedProj) return;
+
+  const tempData = projectedGrid
+    .filter(d => d.row.year === state.year)
+    .map(d => ({
+      p: d.p,
+      t: +d.row[state.week],
+      r: cachedTempBase * state.dotSize * (1 + Math.pow(Math.max(0, d.latFrac), state.latGamma) * state.latScale),
+    }));
+
+  const dotFill = d => state.dotFillOverride ? state.dotFillColor : (isNaN(d.t) ? 'none' : tempColor(d.t));
+  const dotStroke = state.dotStrokeWidth > 0 ? state.dotStroke : 'none';
+  const applyStyle = sel => sel
+    .attr('fill-opacity', state.opacity)
+    .attr('stroke', dotStroke)
+    .attr('stroke-width', state.dotStrokeWidth)
+    .attr('mask', 'url(#bfly-dot-fade)');
+
+  // Different element types can't be reused by D3 join — clear on shape change
+  if (tempLayer.attr('data-shape') !== state.shape) {
+    tempLayer.selectAll('*').remove();
+    tempLayer.attr('data-shape', state.shape);
+  }
+
+  if (state.shape === 'hex') {
+    applyStyle(tempLayer.selectAll('polygon')
+      .data(tempData)
+      .join('polygon')
+      .attr('points', d => hexPts(d.p[0], d.p[1], d.r))
+      .attr('fill', dotFill));
+  } else if (state.shape === 'circle') {
+    applyStyle(tempLayer.selectAll('circle')
+      .data(tempData)
+      .join('circle')
+      .attr('cx', d => d.p[0]).attr('cy', d => d.p[1]).attr('r', d => d.r)
+      .attr('fill', dotFill));
+  } else if (state.shape === 'butterfly') {
+    applyStyle(tempLayer.selectAll('path')
+      .data(tempData)
+      .join('path')
+      .attr('d', d => butterflyPath(d.p[0], d.p[1], d.r))
+      .attr('fill', dotFill));
+  } else {
+    applyStyle(tempLayer.selectAll('rect')
+      .data(tempData)
+      .join('rect')
+      .attr('x', d => d.p[0] - d.r).attr('y', d => d.p[1] - d.r)
+      .attr('width', d => d.r * 2).attr('height', d => d.r * 2)
+      .attr('fill', dotFill));
+  }
+}
+
+function updateSightings() {
+  if (!sightLayer) return;
+  const sightings = projectedSightings[`${state.year}_${state.week}`] || [];
+  const r = cachedSightR * state.sightSize;
+  const stroke = state.sightStrokeWidth > 0 ? state.sightStroke : 'none';
+
+  if (sightLayer.attr('data-shape') !== state.sightShape) {
+    sightLayer.selectAll('*').remove();
+    sightLayer.attr('data-shape', state.sightShape);
+  }
+
+  const applyStyle = sel => sel
+    .attr('fill', state.sightFill)
+    .attr('stroke', stroke)
+    .attr('stroke-width', state.sightStrokeWidth);
+
+  if (state.sightShape === 'circle') {
+    applyStyle(sightLayer.selectAll('circle')
+      .data(sightings).join('circle')
+      .attr('cx', d => d.p[0]).attr('cy', d => d.p[1]).attr('r', r));
+  } else if (state.sightShape === 'hex') {
+    applyStyle(sightLayer.selectAll('polygon')
+      .data(sightings).join('polygon')
+      .attr('points', d => hexPts(d.p[0], d.p[1], r)));
+  } else if (state.sightShape === 'square') {
+    applyStyle(sightLayer.selectAll('rect')
+      .data(sightings).join('rect')
+      .attr('x', d => d.p[0] - r).attr('y', d => d.p[1] - r)
+      .attr('width', r * 2).attr('height', r * 2));
+  } else if (state.sightShape === 'butterfly') {
+    applyStyle(sightLayer.selectAll('path')
+      .data(sightings).join('path')
+      .attr('d', d => butterflyPath(d.p[0], d.p[1], r)));
+  }
+}
+
+function updateDynamic() {
+  updateTempDots();
+  updateSightings();
+}
+
+function updateOpacity() {
+  if (!tempLayer) return;
+  tempLayer.selectAll('polygon, circle, rect, path').attr('fill-opacity', state.opacity);
+}
+
+// ── LINE CHARTS ──────────────────────────────────────────────
+function getMargin(W) {
+  const fs = Math.min(10, Math.max(6, Math.round(W * 0.055)));
+  return {
+    top:    fs + 6,
+    right:  4,
+    bottom: fs + 10,
+    left:   Math.round(fs * 3.5),
+  };
+}
+
+function getTicks(W) {
+  return W < 150 ? 3 : W < 250 ? 4 : 5;
+}
+
+function getTickFontSize(W) {
+  return `${Math.min(10, Math.max(6, Math.round(W * 0.055)))}px`;
+}
+
+function lineChartWidth() {
+  const wrap  = document.querySelector('.bfly-wrap');
+  const lines = document.querySelector('.bfly-lines');
+  if (!wrap || !lines) return 0;
+  const gap = parseFloat(getComputedStyle(lines).gap) || 0;
+  return Math.floor((wrap.getBoundingClientRect().width - gap) / 2);
+}
+
+function buildLatChart() {
+  const el = document.getElementById('bfly-line-lat');
+  const W  = lineChartWidth();
+  if (!W) return;
+  const H = Math.round(W * 0.55);
+  const MARGIN = getMargin(W);
+
+  d3.select(el).select('svg').remove();
+  const svg = d3.select(el).append('svg').attr('width', W).attr('height', H);
+  const g = svg.append('g').attr('transform', `translate(${MARGIN.left},${MARGIN.top})`);
+  const iW = W - MARGIN.left - MARGIN.right;
+  const iH = H - MARGIN.top  - MARGIN.bottom;
+
+  const x = d3.scaleTime().domain([weekToDate(1), weekToDate(51)]).range([0, iW]);
+  const y = d3.scaleLinear().domain([6, 55]).range([iH, 0]);
+  const line = d3.line().defined(d => d.lat != null).x(d => x(weekToDate(d.week))).y(d => y(d.lat)).curve(d3.curveCatmullRom);
+
+  const ticks = getTicks(W);
+  const fontSize = getTickFontSize(W);
+  g.append('g').attr('transform', `translate(0,${iH})`).call(d3.axisBottom(x).ticks(ticks).tickSize(3).tickFormat(d3.timeFormat('%b'))).selectAll('text').attr('font-size', fontSize);
+  g.append('g').call(d3.axisLeft(y).ticks(ticks).tickSize(3)).selectAll('text').attr('font-size', fontSize);
+
+  svg.append('text')
+    .attr('x', MARGIN.left).attr('y', MARGIN.top - 4)
+    .attr('font-size', fontSize).attr('fill', '#6b6f85')
+    .text('Weekly mean latitude of Monarch Sightings');
+
+  const latAllYrs = Object.keys(latSeriesCache).map(Number).sort((a, b) => a - b);
+  const paths = {};
+  latAllYrs.forEach(yr => { paths[yr] = g.append('path').attr('fill', 'none').attr('d', ''); });
+
+  const cursor = g.append('line')
+    .attr('y1', 0).attr('y2', iH)
+    .attr('stroke', '#e45756').attr('stroke-width', 1).attr('stroke-dasharray', '3,3');
+
+  latChart = { g, x, line, paths, cursor };
+  updateLatChart();
+}
+
+function updateLatChart() {
+  if (!latChart) return;
+  const { g, x, line, paths, cursor } = latChart;
+  const latAllYrs = Object.keys(latSeriesCache).map(Number).sort((a, b) => a - b);
+
+  latAllYrs.forEach(yr => {
+    const isSelected = yr === state.year;
+    const data = (latSeriesCache[yr] || []).filter(d => d.week <= state.week && d.week !== 1);
+    paths[yr].datum(data).attr('d', line)
+      .attr('stroke', isSelected ? '#e45756' : '#4c78a8')
+      .attr('stroke-width', isSelected ? 2 : 1)
+      .attr('opacity', isSelected ? 1 : 0.3);
+  });
+
+  // Keep selected year path and cursor on top
+  g.node().appendChild(paths[state.year].node());
+  g.node().appendChild(cursor.node());
+  cursor.attr('x1', x(weekToDate(state.week))).attr('x2', x(weekToDate(state.week)));
+}
+
+function buildTempChart() {
+  const el = document.getElementById('bfly-line-temp');
+  const W  = lineChartWidth();
+  if (!W || !temps.length) return;
+  const H = Math.round(W * 0.55);
+  const MARGIN = getMargin(W);
+
+  d3.select(el).select('svg').remove();
+  const svg = d3.select(el).append('svg').attr('width', W).attr('height', H);
+  const g = svg.append('g').attr('transform', `translate(${MARGIN.left},${MARGIN.top})`);
+  const iW = W - MARGIN.left - MARGIN.right;
+  const iH = H - MARGIN.top  - MARGIN.bottom;
+
+  const x = d3.scaleTime().domain([weekToDate(1), weekToDate(51)]).range([0, iW]);
+  const y = d3.scaleLinear().domain([10, 80]).range([iH, 0]);
+  const line = d3.line().defined(d => d.weekly_avg != null).x(d => x(weekToDate(d.week))).y(d => y(d.weekly_avg)).curve(d3.curveCatmullRom);
+
+  const ticks = getTicks(W);
+  const fontSize = getTickFontSize(W);
+  g.append('g').attr('transform', `translate(0,${iH})`).call(d3.axisBottom(x).ticks(ticks).tickSize(3).tickFormat(d3.timeFormat('%b'))).selectAll('text').attr('font-size', fontSize);
+  g.append('g').call(d3.axisLeft(y).ticks(ticks).tickSize(3)).selectAll('text').attr('font-size', fontSize);
+
+  svg.append('text')
+    .attr('x', MARGIN.left).attr('y', MARGIN.top - 4)
+    .attr('font-size', fontSize).attr('fill', '#6b6f85')
+    .text('Weekly temp °F');
+
+  const paths = {};
+  tempYears.forEach(yr => { paths[yr] = g.append('path').attr('fill', 'none').attr('d', ''); });
+
+  const cursor = g.append('line')
+    .attr('y1', 0).attr('y2', iH)
+    .attr('stroke', '#e45756').attr('stroke-width', 1).attr('stroke-dasharray', '3,3');
+
+  tempChart = { g, x, line, paths, cursor };
+  updateTempChart();
+}
+
+function updateTempChart() {
+  if (!tempChart) return;
+  const { g, x, line, paths, cursor } = tempChart;
+
+  tempYears.forEach(yr => {
+    const isSelected = yr === state.year;
+    const data = d3.range(1, 52).filter(w => w <= state.week).map(w => tempByYearWeek[`${yr}_${w}`] || { week: w, weekly_avg: null });
+    paths[yr].datum(data).attr('d', line)
+      .attr('stroke', isSelected ? '#e45756' : '#4c78a8')
+      .attr('stroke-width', isSelected ? 2 : 1)
+      .attr('opacity', isSelected ? 1 : 0.3);
+  });
+
+  // Keep selected year path and cursor on top
+  g.node().appendChild(paths[state.year].node());
+  g.node().appendChild(cursor.node());
+  cursor.attr('x1', x(weekToDate(state.week))).attr('x2', x(weekToDate(state.week)));
+}
+
+function buildCharts() {
+  buildLatChart();
+  buildTempChart();
+}
+
+function redrawAll() {
+  buildStatic();  // rebuilds static layers + calls updateDynamic()
+  buildCharts();
+}
+
+// ── Debug panel toggle ───────────────────────────────────────
+document.getElementById('bfly-debug-toggle').addEventListener('click', () => {
+  document.getElementById('bfly-debug-panel').classList.toggle('open');
+});
+document.getElementById('bfly-debug-close').addEventListener('click', () => {
+  document.getElementById('bfly-debug-panel').classList.remove('open');
+});
+
+// ── Combined year + week scrubber (4 years × 51 weeks = 204 positions) ──
+const TOTAL_POS = YEARS.length * 51;  // 204
+
+function posFromState() {
+  return YEARS.indexOf(state.year) * 51 + (state.week - 1);
+}
+
+function applyPosition(pos) {
+  pos = Math.max(0, Math.min(TOTAL_POS - 1, Math.round(pos)));
+  state.year = YEARS[Math.floor(pos / 51)];
+  state.week = (pos % 51) + 1;
+}
+
+function updateScrubberUI() {
+  const pos = posFromState();
+  document.getElementById('bfly-scrubber-handle').style.left = (pos / (TOTAL_POS - 1) * 100) + '%';
+  const yearIdx = YEARS.indexOf(state.year);
+  document.querySelectorAll('#bfly-scrubber-track .scrubber-segment').forEach((el, i) => {
+    el.classList.toggle('active', i === yearIdx);
+  });
+  document.getElementById('bfly-year-display').textContent = `Year ${state.year}`;
+  document.getElementById('bfly-week-display').textContent = `Week ${String(state.week).padStart(2, '0')}`;
+}
+
+function setPosition(pos) {
+  applyPosition(pos);
+  updateScrubberUI();
+  updateDynamic();
+  updateLatChart();
+  updateTempChart();
+}
+
+const scrubberTrack = document.getElementById('bfly-scrubber-track');
+
+let scrubRect = null;
+
+function posFromPointer(e) {
+  const rect = scrubRect || scrubberTrack.getBoundingClientRect();
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const f = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+  return f * (TOTAL_POS - 1);
+}
+
+let scrubbing = false;
+const scrubberHandle = document.getElementById('bfly-scrubber-handle');
+
+function startScrub(e) {
+  stopPlay();
+  scrubbing = true;
+  scrubRect = scrubberTrack.getBoundingClientRect();
+  scrubberHandle.style.transition = 'none';
+  setPosition(posFromPointer(e));
+}
+function endScrub() {
+  scrubbing = false;
+  scrubRect = null;
+  scrubberHandle.style.transition = '';
+}
+
+let rafPending = false;
+let pendingPos = 0;
+
+scrubberTrack.addEventListener('mousedown', startScrub);
+document.addEventListener('mousemove', e => {
+  if (!scrubbing) return;
+  pendingPos = posFromPointer(e);
+  if (!rafPending) {
+    rafPending = true;
+    requestAnimationFrame(() => { setPosition(pendingPos); rafPending = false; });
+  }
+});
+document.addEventListener('mouseup', endScrub);
+
+scrubberTrack.addEventListener('touchstart', e => {
+  e.preventDefault(); startScrub(e);
+}, { passive: false });
+document.addEventListener('touchmove', e => {
+  if (!scrubbing) return;
+  e.preventDefault();
+  pendingPos = posFromPointer(e);
+  if (!rafPending) {
+    rafPending = true;
+    requestAnimationFrame(() => { setPosition(pendingPos); rafPending = false; });
+  }
+}, { passive: false });
+document.addEventListener('touchend', endScrub);
+
+// ── Keyboard navigation ──────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  let pos = posFromState();
+  if      (e.key === 'ArrowRight') pos = Math.min(TOTAL_POS - 1, pos + 1);
+  else if (e.key === 'ArrowLeft')  pos = Math.max(0, pos - 1);
+  else if (e.key === 'ArrowUp') {
+    const nextIdx = Math.min(YEARS.length - 1, YEARS.indexOf(state.year) + 1);
+    pos = nextIdx * 51 + (state.week - 1);
+  } else if (e.key === 'ArrowDown') {
+    const prevIdx = Math.max(0, YEARS.indexOf(state.year) - 1);
+    pos = prevIdx * 51 + (state.week - 1);
+  } else return;
+  e.preventDefault();
+  stopPlay();
+  setPosition(pos);
+});
+
+// ── Mobile step buttons ──────────────────────────────────────
+document.getElementById('bfly-prev-week').addEventListener('click', () => { stopPlay(); setPosition(Math.max(0, posFromState() - 1)); });
+document.getElementById('bfly-next-week').addEventListener('click', () => { stopPlay(); setPosition(Math.min(TOTAL_POS - 1, posFromState() + 1)); });
+document.getElementById('bfly-prev-year').addEventListener('click', () => { stopPlay(); setPosition(Math.max(0, posFromState() - 51)); });
+document.getElementById('bfly-next-year').addEventListener('click', () => { stopPlay(); setPosition(Math.min(TOTAL_POS - 1, posFromState() + 51)); });
+
+// ── Play button — steps through all 204 positions ─────────────
+let playInterval = null;
+
+function stopPlay() {
+  if (!playInterval) return;
+  clearInterval(playInterval);
+  playInterval = null;
+  document.getElementById('bfly-play-btn').innerHTML = '&#9654;';
+}
+
+document.getElementById('bfly-play-btn').addEventListener('click', () => {
+  const btn = document.getElementById('bfly-play-btn');
+  if (playInterval) {
+    stopPlay();
+  } else {
+    let pos = posFromState();
+    if (pos >= TOTAL_POS - 1) pos = 0;
+    btn.innerHTML = '&#9646;&#9646;';
+    playInterval = setInterval(() => {
+      pos++;
+      setPosition(pos);
+      if (pos >= TOTAL_POS - 1) {
+        clearInterval(playInterval);
+        playInterval = null;
+        btn.innerHTML = '&#9654;';
+      }
+    }, 100);
+  }
+});
+
+function updateValuesDisplay() {
+  const s = state;
+  document.getElementById('bfly-map-values').textContent =
+    `dotSize=${s.dotSize.toFixed(2)} latScale=${s.latScale.toFixed(2)} curve=${s.latGamma.toFixed(2)} shape=${s.shape}\n` +
+    `palette=${s.palette} opacity=${s.opacity.toFixed(2)} fade=${s.fadeMix.toFixed(2)} stroke=${s.dotStroke} strokeW=${s.dotStrokeWidth.toFixed(2)} fillOverride=${s.dotFillOverride} fill=${s.dotFillColor}\n` +
+    `sightShape=${s.sightShape} sightFill=${s.sightFill} sightStroke=${s.sightStroke} sightStrokeW=${s.sightStrokeWidth.toFixed(2)} sightSize=${s.sightSize.toFixed(2)}\n` +
+    `mapScale=${s.mapScale.toFixed(2)} lon=${s.mapCenterLon.toFixed(1)} lat=${s.mapCenterLat.toFixed(1)} aspect=${s.mapAspect.toFixed(2)}`;
+}
+
+document.getElementById('bfly-dotsize-input').addEventListener('input', e => {
+  state.dotSize = +e.target.value;
+  document.getElementById('bfly-dotsize-label').textContent = state.dotSize.toFixed(2);
+  updateTempDots();
+  updateValuesDisplay();
+});
+
+document.getElementById('bfly-latscale-input').addEventListener('input', e => {
+  state.latScale = +e.target.value;
+  document.getElementById('bfly-latscale-label').textContent = state.latScale.toFixed(2);
+  updateTempDots();
+  updateValuesDisplay();
+});
+
+document.getElementById('bfly-latgamma-input').addEventListener('input', e => {
+  state.latGamma = +e.target.value;
+  document.getElementById('bfly-latgamma-label').textContent = state.latGamma.toFixed(2);
+  updateTempDots();
+  updateValuesDisplay();
+});
+
+document.getElementById('bfly-shape-select').addEventListener('change', e => {
+  state.shape = e.target.value;
+  updateTempDots();
+  updateValuesDisplay();
+});
+
+document.getElementById('bfly-stroke-color-input').addEventListener('input', e => {
+  state.dotStroke = e.target.value;
+  updateTempDots();
+  updateValuesDisplay();
+});
+
+document.getElementById('bfly-stroke-width-input').addEventListener('input', e => {
+  state.dotStrokeWidth = +e.target.value;
+  document.getElementById('bfly-stroke-width-label').textContent = state.dotStrokeWidth.toFixed(2);
+  updateTempDots();
+  updateValuesDisplay();
+});
+
+document.getElementById('bfly-fill-override-input').addEventListener('change', e => {
+  state.dotFillOverride = e.target.checked;
+  updateTempDots();
+  updateValuesDisplay();
+});
+
+document.getElementById('bfly-fill-color-input').addEventListener('input', e => {
+  state.dotFillColor = e.target.value;
+  if (state.dotFillOverride) updateTempDots();
+  updateValuesDisplay();
+});
+
+document.getElementById('bfly-palette-select').addEventListener('change', e => {
+  state.palette = e.target.value;
+  tempColor = PALETTES[state.palette]();
+  buildStatic();
+  updateValuesDisplay();
+});
+
+document.getElementById('bfly-opacity-input').addEventListener('input', e => {
+  state.opacity = +e.target.value;
+  document.getElementById('bfly-opacity-label').textContent = state.opacity.toFixed(2);
+  updateOpacity();
+  updateValuesDisplay();
+});
+
+function updateFadeGradient() {
+  d3.select('#bfly-fade-rg').selectAll('stop').filter((d, i) => i === 1)
+    .attr('stop-opacity', 1 - state.fadeMix);
+}
+
+document.getElementById('bfly-fadefmix-input').addEventListener('input', e => {
+  state.fadeMix = +e.target.value;
+  document.getElementById('bfly-fadefmix-label').textContent = state.fadeMix.toFixed(2);
+  updateFadeGradient();
+  updateValuesDisplay();
+});
+
+// ── Sightings controls ───────────────────────────────────────
+document.getElementById('bfly-sight-shape-select').addEventListener('change', e => {
+  state.sightShape = e.target.value;
+  updateSightings();
+  updateValuesDisplay();
+});
+
+document.getElementById('bfly-sight-fill-input').addEventListener('input', e => {
+  state.sightFill = e.target.value;
+  updateSightings();
+  updateValuesDisplay();
+});
+
+document.getElementById('bfly-sight-stroke-color-input').addEventListener('input', e => {
+  state.sightStroke = e.target.value;
+  updateSightings();
+  updateValuesDisplay();
+});
+
+document.getElementById('bfly-sight-stroke-width-input').addEventListener('input', e => {
+  state.sightStrokeWidth = +e.target.value;
+  document.getElementById('bfly-sight-stroke-width-label').textContent = state.sightStrokeWidth.toFixed(2);
+  updateSightings();
+  updateValuesDisplay();
+});
+
+document.getElementById('bfly-sight-size-input').addEventListener('input', e => {
+  state.sightSize = +e.target.value;
+  document.getElementById('bfly-sight-size-label').textContent = state.sightSize.toFixed(2);
+  updateSightings();
+  updateValuesDisplay();
+});
+
+// ── Map viewport tuning sliders ──────────────────────────────
+let mapTuneTimer = null;
+function rebuildMap() {
+  clearTimeout(mapTuneTimer);
+  mapTuneTimer = setTimeout(buildStatic, 80);
+  updateValuesDisplay();
+}
+
+document.getElementById('bfly-mapscale-input').addEventListener('input', e => {
+  state.mapScale = +e.target.value;
+  document.getElementById('bfly-mapscale-label').textContent = state.mapScale.toFixed(2);
+  rebuildMap();
+});
+
+document.getElementById('bfly-maplon-input').addEventListener('input', e => {
+  state.mapCenterLon = +e.target.value;
+  document.getElementById('bfly-maplon-label').textContent = state.mapCenterLon.toFixed(1);
+  rebuildMap();
+});
+
+document.getElementById('bfly-maplat-input').addEventListener('input', e => {
+  state.mapCenterLat = +e.target.value;
+  document.getElementById('bfly-maplat-label').textContent = state.mapCenterLat.toFixed(1);
+  rebuildMap();
+});
+
+document.getElementById('bfly-mapaspect-input').addEventListener('input', e => {
+  state.mapAspect = +e.target.value;
+  document.getElementById('bfly-mapaspect-label').textContent = state.mapAspect.toFixed(2);
+  rebuildMap();
+});
+
+// ── ResizeObserver ───────────────────────────────────────────
+let resizeTimer = null;
+const ro = new ResizeObserver(() => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(redrawAll, 100);
+});
+ro.observe(document.querySelector('.bfly-wrap'));
+
+// ── Load data & init ─────────────────────────────────────────
+Promise.all([
+  fetch('data/north-america.json').then(r => r.json()),
+  fetch('data/weekly_temperatures.json').then(r => r.json()),
+  fetch('data/temperature_grid.json').then(r => r.json()),
+  fetch('data/monarch_sightings.json').then(r => r.json()),
+]).then(([worldData, tempData, gridData, sightingData]) => {
+  worldLand = worldData;
+  temps = tempData;
+  tempGrid = gridData;
+  monarchSightings = sightingData;
+  buildLatSeriesCache();
+  buildTempByYear();
+  redrawAll();
+  updateScrubberUI();
+});
+</script>
 
   <script src="nav.js"></script>
 </body>
