@@ -161,13 +161,23 @@ let tempGrid = [];
 let monarchSightings = [];
 
 // ── Cached map handles (rebuilt only on resize) ──────────────
-let mapSvg        = null;
-let tempLayer     = null;
-let sightLayer    = null;
-let cachedProj    = null;
+let mapSvg         = null;
+let tempLayer      = null;
+let sightLayer     = null;
+let cachedProj     = null;
 let cachedTempBase = null;
-let cachedSightR  = null;
-let projectedGrid = [];   // { row: originalRow, p: [x,y], latFrac }
+let cachedSightR   = null;
+let projectedGrid     = [];   // { row, p: [x,y], latFrac }
+let projectedSightings = {};  // { "year_week": [{p:[x,y]}, ...] }
+
+// ── Cached chart handles (rebuilt only on resize) ────────────
+let latChart  = null;  // { g, x, line, paths, cursor }
+let tempChart = null;
+
+// ── Pre-grouped data ─────────────────────────────────────────
+let tempByYear = {};
+let tempYears  = [];
+let latSeriesCache = {};
 
 const tempColor = d3.scaleSequential(d3.interpolateOranges).domain([32, 100]);
 const hexPts = (cx, cy, r) => d3.range(6).map(i => {
@@ -176,7 +186,6 @@ const hexPts = (cx, cy, r) => d3.range(6).map(i => {
 }).join(' ');
 
 const YEAR_COLORS = { 2002: '#4c78a8', 2007: '#f58518', 2012: '#72b7b2', 2017: '#54a24b' };
-let latSeriesCache = {};
 
 function buildLatSeriesCache() {
   const byYearWeek = {};
@@ -192,6 +201,15 @@ function buildLatSeriesCache() {
       return lats ? { week: w, lat: d3.mean(lats) } : null;
     }).filter(Boolean);
   });
+}
+
+function buildTempByYear() {
+  tempByYear = {};
+  temps.forEach(d => {
+    if (!tempByYear[d.year]) tempByYear[d.year] = [];
+    tempByYear[d.year].push(d);
+  });
+  tempYears = Object.keys(tempByYear).map(Number).sort((a, b) => a - b);
 }
 
 // ── MAP — static tier (resize / init only) ───────────────────
@@ -220,6 +238,16 @@ function buildStatic() {
     const latFrac = (d.Lat - LAT_EXTENT[0]) / (LAT_EXTENT[1] - LAT_EXTENT[0]);
     return { row: d, p, latFrac };
   }).filter(Boolean);
+
+  // Pre-project all sightings, grouped by year+week for O(1) lookup
+  projectedSightings = {};
+  monarchSightings.forEach(d => {
+    const p = cachedProj([d.longitude, d.latitude]);
+    if (!p) return;
+    const key = `${d.year}_${d.week}`;
+    if (!projectedSightings[key]) projectedSightings[key] = [];
+    projectedSightings[key].push({ p });
+  });
 
   const pathGen = d3.geoPath(cachedProj);
 
@@ -361,13 +389,8 @@ function updateTempDots() {
 }
 
 function updateSightings() {
-  if (!sightLayer || !cachedProj) return;
-
-  const sightings = monarchSightings
-    .filter(d => d.week === state.week && d.year === state.year)
-    .map(d => { const p = cachedProj([d.longitude, d.latitude]); return p ? { p } : null; })
-    .filter(Boolean);
-
+  if (!sightLayer) return;
+  const sightings = projectedSightings[`${state.year}_${state.week}`] || [];
   sightLayer.selectAll('circle')
     .data(sightings)
     .join('circle')
@@ -416,7 +439,7 @@ function lineChartWidth() {
   return Math.floor((wrap.getBoundingClientRect().width - gap) / 2);
 }
 
-function drawLatChart() {
+function buildLatChart() {
   const el = document.getElementById('bfly-line-lat');
   const W  = lineChartWidth();
   if (!W) return;
@@ -438,28 +461,44 @@ function drawLatChart() {
   g.append('g').attr('transform', `translate(0,${iH})`).call(d3.axisBottom(x).ticks(ticks).tickSize(3)).selectAll('text').attr('font-size', fontSize);
   g.append('g').call(d3.axisLeft(y).ticks(ticks).tickSize(3)).selectAll('text').attr('font-size', fontSize);
 
-  const latAllYrs = Object.keys(latSeriesCache).map(Number).sort((a, b) => a - b);
-  latAllYrs.filter(yr => yr !== state.year).forEach(yr => {
-    const data = (latSeriesCache[yr] || []).filter(d => d.week <= state.week && d.week !== 1);
-    g.append('path').datum(data).attr('fill', 'none')
-      .attr('stroke', '#4c78a8').attr('stroke-width', 1).attr('opacity', 0.3).attr('d', line);
-  });
-  const latSelData = (latSeriesCache[state.year] || []).filter(d => d.week <= state.week && d.week !== 1);
-  g.append('path').datum(latSelData).attr('fill', 'none')
-    .attr('stroke', '#e45756').attr('stroke-width', 2).attr('opacity', 1).attr('d', line);
-
-  g.append('line')
-    .attr('x1', x(state.week)).attr('x2', x(state.week))
-    .attr('y1', 0).attr('y2', iH)
-    .attr('stroke', '#e45756').attr('stroke-width', 1).attr('stroke-dasharray', '3,3');
-
   svg.append('text')
     .attr('x', MARGIN.left).attr('y', MARGIN.top - 4)
     .attr('font-size', fontSize).attr('fill', '#6b6f85')
     .text('7-day mean latitude');
+
+  const latAllYrs = Object.keys(latSeriesCache).map(Number).sort((a, b) => a - b);
+  const paths = {};
+  latAllYrs.forEach(yr => { paths[yr] = g.append('path').attr('fill', 'none').attr('d', ''); });
+
+  const cursor = g.append('line')
+    .attr('y1', 0).attr('y2', iH)
+    .attr('stroke', '#e45756').attr('stroke-width', 1).attr('stroke-dasharray', '3,3');
+
+  latChart = { g, x, line, paths, cursor };
+  updateLatChart();
 }
 
-function drawTempChart() {
+function updateLatChart() {
+  if (!latChart) return;
+  const { g, x, line, paths, cursor } = latChart;
+  const latAllYrs = Object.keys(latSeriesCache).map(Number).sort((a, b) => a - b);
+
+  latAllYrs.forEach(yr => {
+    const isSelected = yr === state.year;
+    const data = (latSeriesCache[yr] || []).filter(d => d.week <= state.week && d.week !== 1);
+    paths[yr].datum(data).attr('d', line)
+      .attr('stroke', isSelected ? '#e45756' : '#4c78a8')
+      .attr('stroke-width', isSelected ? 2 : 1)
+      .attr('opacity', isSelected ? 1 : 0.3);
+  });
+
+  // Keep selected year path and cursor on top
+  g.node().appendChild(paths[state.year].node());
+  g.node().appendChild(cursor.node());
+  cursor.attr('x1', x(state.week)).attr('x2', x(state.week));
+}
+
+function buildTempChart() {
   const el = document.getElementById('bfly-line-temp');
   const W  = lineChartWidth();
   if (!W || !temps.length) return;
@@ -481,31 +520,49 @@ function drawTempChart() {
   g.append('g').attr('transform', `translate(0,${iH})`).call(d3.axisBottom(x).ticks(ticks).tickSize(3)).selectAll('text').attr('font-size', fontSize);
   g.append('g').call(d3.axisLeft(y).ticks(ticks).tickSize(3)).selectAll('text').attr('font-size', fontSize);
 
-  const tempAllYrs = [...new Set(temps.map(d => d.year))].sort((a, b) => a - b);
-  tempAllYrs.filter(yr => yr !== state.year).forEach(yr => {
-    const data = temps.filter(d => d.year === yr && d.week <= state.week);
-    g.append('path').datum(data).attr('fill', 'none')
-      .attr('stroke', '#4c78a8').attr('stroke-width', 1).attr('opacity', 0.3).attr('d', line);
-  });
-  const tempSelData = temps.filter(d => d.year === state.year && d.week <= state.week);
-  g.append('path').datum(tempSelData).attr('fill', 'none')
-    .attr('stroke', '#e45756').attr('stroke-width', 2).attr('opacity', 1).attr('d', line);
-
-  g.append('line')
-    .attr('x1', x(state.week)).attr('x2', x(state.week))
-    .attr('y1', 0).attr('y2', iH)
-    .attr('stroke', '#e45756').attr('stroke-width', 1).attr('stroke-dasharray', '3,3');
-
   svg.append('text')
     .attr('x', MARGIN.left).attr('y', MARGIN.top - 4)
     .attr('font-size', fontSize).attr('fill', '#6b6f85')
     .text('Weekly temp °F');
+
+  const paths = {};
+  tempYears.forEach(yr => { paths[yr] = g.append('path').attr('fill', 'none').attr('d', ''); });
+
+  const cursor = g.append('line')
+    .attr('y1', 0).attr('y2', iH)
+    .attr('stroke', '#e45756').attr('stroke-width', 1).attr('stroke-dasharray', '3,3');
+
+  tempChart = { g, x, line, paths, cursor };
+  updateTempChart();
+}
+
+function updateTempChart() {
+  if (!tempChart) return;
+  const { g, x, line, paths, cursor } = tempChart;
+
+  tempYears.forEach(yr => {
+    const isSelected = yr === state.year;
+    const data = (tempByYear[yr] || []).filter(d => d.week <= state.week);
+    paths[yr].datum(data).attr('d', line)
+      .attr('stroke', isSelected ? '#e45756' : '#4c78a8')
+      .attr('stroke-width', isSelected ? 2 : 1)
+      .attr('opacity', isSelected ? 1 : 0.3);
+  });
+
+  // Keep selected year path and cursor on top
+  g.node().appendChild(paths[state.year].node());
+  g.node().appendChild(cursor.node());
+  cursor.attr('x1', x(state.week)).attr('x2', x(state.week));
+}
+
+function buildCharts() {
+  buildLatChart();
+  buildTempChart();
 }
 
 function redrawAll() {
   buildStatic();  // rebuilds static layers + calls updateDynamic()
-  drawLatChart();
-  drawTempChart();
+  buildCharts();
 }
 
 // ── Debug panel toggle ───────────────────────────────────────
@@ -543,14 +600,16 @@ function setPosition(pos) {
   applyPosition(pos);
   updateScrubberUI();
   updateDynamic();
-  drawLatChart();
-  drawTempChart();
+  updateLatChart();
+  updateTempChart();
 }
 
 const scrubberTrack = document.getElementById('bfly-scrubber-track');
 
+let scrubRect = null;
+
 function posFromPointer(e) {
-  const rect = scrubberTrack.getBoundingClientRect();
+  const rect = scrubRect || scrubberTrack.getBoundingClientRect();
   const clientX = e.touches ? e.touches[0].clientX : e.clientX;
   const f = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
   return f * (TOTAL_POS - 1);
@@ -561,25 +620,60 @@ const scrubberHandle = document.getElementById('bfly-scrubber-handle');
 
 function startScrub(e) {
   scrubbing = true;
+  scrubRect = scrubberTrack.getBoundingClientRect();
   scrubberHandle.style.transition = 'none';
   setPosition(posFromPointer(e));
 }
 function endScrub() {
   scrubbing = false;
+  scrubRect = null;
   scrubberHandle.style.transition = '';
 }
 
+let rafPending = false;
+let pendingPos = 0;
+
 scrubberTrack.addEventListener('mousedown', startScrub);
-document.addEventListener('mousemove', e => { if (scrubbing) setPosition(posFromPointer(e)); });
-document.addEventListener('mouseup',   endScrub);
+document.addEventListener('mousemove', e => {
+  if (!scrubbing) return;
+  pendingPos = posFromPointer(e);
+  if (!rafPending) {
+    rafPending = true;
+    requestAnimationFrame(() => { setPosition(pendingPos); rafPending = false; });
+  }
+});
+document.addEventListener('mouseup', endScrub);
 
 scrubberTrack.addEventListener('touchstart', e => {
   e.preventDefault(); startScrub(e);
 }, { passive: false });
 document.addEventListener('touchmove', e => {
-  if (!scrubbing) return; e.preventDefault(); setPosition(posFromPointer(e));
+  if (!scrubbing) return;
+  e.preventDefault();
+  pendingPos = posFromPointer(e);
+  if (!rafPending) {
+    rafPending = true;
+    requestAnimationFrame(() => { setPosition(pendingPos); rafPending = false; });
+  }
 }, { passive: false });
 document.addEventListener('touchend', endScrub);
+
+// ── Keyboard navigation ──────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  let pos = posFromState();
+  if      (e.key === 'ArrowRight') pos = Math.min(TOTAL_POS - 1, pos + 1);
+  else if (e.key === 'ArrowLeft')  pos = Math.max(0, pos - 1);
+  else if (e.key === 'ArrowUp') {
+    const nextIdx = Math.min(YEARS.length - 1, YEARS.indexOf(state.year) + 1);
+    pos = nextIdx * 51 + (state.week - 1);
+  } else if (e.key === 'ArrowDown') {
+    const prevIdx = Math.max(0, YEARS.indexOf(state.year) - 1);
+    pos = prevIdx * 51 + (state.week - 1);
+  } else return;
+  e.preventDefault();
+  setPosition(pos);
+});
 
 // ── Play button — steps through all 204 positions ─────────────
 let playInterval = null;
@@ -711,6 +805,7 @@ Promise.all([
   tempGrid = gridData;
   monarchSightings = sightingData;
   buildLatSeriesCache();
+  buildTempByYear();
   redrawAll();
   updateScrubberUI();
 });
