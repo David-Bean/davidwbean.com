@@ -21,6 +21,7 @@
       <li><a href="projects.html">Projects</a></li>
       <li><a href="gallery.html">Gallery</a></li>
     </ul>
+    <button class="nav-hamburger" id="nav-hamburger" aria-label="Open menu" aria-expanded="false">&#9776;</button>
   </nav>
 
   <section class="viz-section">
@@ -53,7 +54,13 @@
           </div>
           <div class="bfly-scrubber-meta">
             <span class="bfly-key-hint"><kbd>&#8592;</kbd><kbd>&#8594;</kbd> step through weeks &nbsp;&middot;&nbsp; <kbd>&#8593;</kbd><kbd>&#8595;</kbd> jump between years</span>
-            <span id="bfly-week-label">2017 &mdash; Week 26</span>
+            <div class="scrubber-mobile-btns">
+              <button id="bfly-prev-year" title="Previous year">&#x23EE;</button>
+              <button id="bfly-prev-week" title="Previous week">&#x25C0;</button>
+              <button id="bfly-next-week" title="Next week">&#x25B6;</button>
+              <button id="bfly-next-year" title="Next year">&#x23ED;</button>
+            </div>
+            <span id="bfly-week-label"><span id="bfly-year-display">Year 2002</span><span id="bfly-week-display">Week 1</span></span>
           </div>
         </div>
 
@@ -69,25 +76,25 @@
           <button id="bfly-debug-close" title="Close">✕</button>
         </div>
 
-        <div class="bfly-debug-section-label">Points</div>
+        <div class="bfly-debug-section-label">Points: Temperature</div>
 
         <div class="bfly-debug-row">
           <label>Dot size</label>
-          <span id="bfly-dotsize-label">2.45</span>
+          <span id="bfly-dotsize-label">1.90</span>
         </div>
-        <input type="range" id="bfly-dotsize-input" min="0.25" max="9.0" step="0.05" value="2.45">
+        <input type="range" id="bfly-dotsize-input" min="0.25" max="9.0" step="0.05" value="1.90">
 
         <div class="bfly-debug-row">
           <label>Lat scale</label>
-          <span id="bfly-latscale-label">0.55</span>
+          <span id="bfly-latscale-label">1.55</span>
         </div>
-        <input type="range" id="bfly-latscale-input" min="0" max="2" step="0.05" value="0.55">
+        <input type="range" id="bfly-latscale-input" min="0" max="2" step="0.05" value="1.55">
 
         <div class="bfly-debug-row">
           <label>Curve</label>
-          <span id="bfly-latgamma-label">0.10</span>
+          <span id="bfly-latgamma-label">0.90</span>
         </div>
-        <input type="range" id="bfly-latgamma-input" min="0.1" max="3" step="0.05" value="0.10">
+        <input type="range" id="bfly-latgamma-input" min="0.1" max="3" step="0.05" value="0.90">
 
         <div class="bfly-debug-row">
           <label for="bfly-shape-select">Shape</label>
@@ -95,20 +102,85 @@
             <option value="hex" selected>Hex</option>
             <option value="circle">Circle</option>
             <option value="square">Square</option>
+            <option value="butterfly">Butterfly</option>
+          </select>
+        </div>
+
+        <div class="bfly-debug-row">
+          <label>Outline color</label>
+          <input type="color" id="bfly-stroke-color-input" value="#ffffff">
+        </div>
+
+        <div class="bfly-debug-row">
+          <label>Outline width</label>
+          <span id="bfly-stroke-width-label">0.00</span>
+        </div>
+        <input type="range" id="bfly-stroke-width-input" min="0" max="3" step="0.25" value="0">
+
+        <div class="bfly-debug-row">
+          <label>Custom fill</label>
+          <input type="checkbox" id="bfly-fill-override-input">
+          <input type="color" id="bfly-fill-color-input" value="#4c78a8">
+        </div>
+
+        <div class="bfly-debug-row">
+          <label for="bfly-palette-select">Palette</label>
+          <select id="bfly-palette-select">
+            <option value="oranges">Oranges</option>
+            <option value="rdylbu">RdYlBu</option>
+            <option value="spectral" selected>Spectral</option>
+            <option value="plasma">Plasma</option>
+            <option value="inferno">Inferno</option>
           </select>
         </div>
 
         <div class="bfly-debug-row">
           <label>Opacity</label>
-          <span id="bfly-opacity-label">1.00</span>
+          <span id="bfly-opacity-label">0.45</span>
         </div>
-        <input type="range" id="bfly-opacity-input" min="0" max="1" step="0.05" value="1.00">
+        <input type="range" id="bfly-opacity-input" min="0" max="1" step="0.05" value="0.45">
 
         <div class="bfly-debug-row">
           <label>Edge fade</label>
-          <span id="bfly-fadefmix-label">0.95</span>
+          <span id="bfly-fadefmix-label">0.80</span>
         </div>
-        <input type="range" id="bfly-fadefmix-input" min="0" max="1" step="0.05" value="0.95">
+        <input type="range" id="bfly-fadefmix-input" min="0" max="1" step="0.05" value="0.80">
+
+        <hr class="bfly-debug-hr">
+
+        <div class="bfly-debug-section-label">Points: Sightings</div>
+
+        <div class="bfly-debug-row">
+          <label for="bfly-sight-shape-select">Shape</label>
+          <select id="bfly-sight-shape-select">
+            <option value="circle" selected>Circle</option>
+            <option value="hex">Hex</option>
+            <option value="square">Square</option>
+            <option value="butterfly">Butterfly</option>
+          </select>
+        </div>
+
+        <div class="bfly-debug-row">
+          <label>Fill color</label>
+          <input type="color" id="bfly-sight-fill-input" value="#f6f5f4">
+        </div>
+
+        <div class="bfly-debug-row">
+          <label>Outline color</label>
+          <input type="color" id="bfly-sight-stroke-color-input" value="#1c71d8">
+        </div>
+
+        <div class="bfly-debug-row">
+          <label>Outline width</label>
+          <span id="bfly-sight-stroke-width-label">1.50</span>
+        </div>
+        <input type="range" id="bfly-sight-stroke-width-input" min="0" max="4" step="0.25" value="1.5">
+
+        <div class="bfly-debug-row">
+          <label>Size</label>
+          <span id="bfly-sight-size-label">1.25</span>
+        </div>
+        <input type="range" id="bfly-sight-size-input" min="0.25" max="4" step="0.25" value="1.25">
 
         <hr class="bfly-debug-hr">
 
@@ -138,7 +210,7 @@
         </div>
         <input type="range" id="bfly-mapaspect-input" min="0.3" max="1.5" step="0.01" value="0.70">
 
-        <code id="bfly-map-values" class="bfly-debug-values">dotSize=2.45 latScale=0.55 curve=0.10 shape=hex opacity=1.00 fade=0.95&#10;scale=0.90 lon=-93.5 lat=39.0 aspect=0.70</code>
+        <code id="bfly-map-values" class="bfly-debug-values">dotSize=1.90 latScale=1.55 curve=0.90 shape=hex&#10;palette=spectral opacity=0.45 fade=0.80 stroke=#ffffff strokeW=0.00 fillOverride=false fill=#4c78a8&#10;sightShape=circle sightFill=#f6f5f4 sightStroke=#1c71d8 sightStrokeW=1.50 sightSize=1.25&#10;mapScale=0.90 lon=-93.5 lat=39.0 aspect=0.70</code>
       </div>
     </div>
 
@@ -154,7 +226,9 @@ const YEARS = [2002, 2007, 2012, 2017];
 const LON_EXTENT = [-126, -59];
 const LAT_EXTENT = [8, 55];
 
-let state = { week: 26, year: 2017, dotSize: 2.45, latScale: 0.55, latGamma: 0.10, shape: 'hex', opacity: 1.00, fadeMix: 0.95,
+let state = { week: 1, year: 2002, dotSize: 1.90, latScale: 1.55, latGamma: 0.90, shape: 'hex', palette: 'spectral', opacity: 0.45, fadeMix: 0.80,
+              dotStroke: '#ffffff', dotStrokeWidth: 0, dotFillOverride: false, dotFillColor: '#4c78a8',
+              sightFill: '#f6f5f4', sightStroke: '#1c71d8', sightStrokeWidth: 1.5, sightSize: 1.25, sightShape: 'circle',
               mapScale: 0.90, mapCenterLon: -93.5, mapCenterLat: 39.0, mapAspect: 0.70 };
 let worldLand = null;
 let temps = [];
@@ -181,7 +255,15 @@ let tempByYearWeek = {};
 let tempYears  = [];
 let latSeriesCache = {};
 
-const tempColor = d3.scaleSequential(d3.interpolateOranges).domain([32, 100]);
+const PALETTES = {
+  oranges:  () => d3.scaleSequential(d3.interpolateOranges).domain([32, 100]),
+  rdylbu:   () => d3.scaleDiverging(t => d3.interpolateRdYlBu(1 - t)).domain([32, 75, 100]),
+  spectral: () => d3.scaleDiverging(t => d3.interpolateSpectral(1 - t)).domain([32, 75, 100]),
+  plasma:   () => d3.scaleSequential(d3.interpolatePlasma).domain([32, 100]),
+  inferno:  () => d3.scaleSequential(d3.interpolateInferno).domain([32, 100]),
+};
+
+let tempColor = PALETTES.spectral();
 
 function weekToDate(w) {
   const d = new Date(2017, 0, 1);
@@ -192,6 +274,30 @@ const hexPts = (cx, cy, r) => d3.range(6).map(i => {
   const a = Math.PI / 3 * i;
   return `${cx + r * Math.cos(a)},${cy + r * Math.sin(a)}`;
 }).join(' ');
+
+const butterflyPath = (cx, cy, r) => {
+  const x = +cx, y = +cy;
+  // Forewings: large, swept back, pointed apex; hindwings: smaller, rounded
+  return (
+    `M${x},${y}` +
+    // Right forewing — costal edge up to pointed apex, termen down, inner margin back
+    `C${x+r*.15},${y-r*1.05} ${x+r*1.3},${y-r*1.15} ${x+r*1.9},${y-r*.35}` +
+    `C${x+r*2.05},${y+r*.1} ${x+r*1.75},${y+r*.55} ${x+r*1.2},${y+r*.55}` +
+    `C${x+r*.7},${y+r*.5} ${x+r*.2},${y+r*.25} ${x},${y}` +
+    // Right hindwing — fans out from body, round outer tip, inner margin back
+    `C${x+r*.2},${y+r*.3} ${x+r*1.3},${y+r*.8} ${x+r*1.2},${y+r*1.3}` +
+    `C${x+r*1.0},${y+r*1.6} ${x+r*.2},${y+r*1.5} ${x+r*.1},${y+r*1.1}` +
+    `C${x+r*.05},${y+r*.8} ${x},${y+r*.4} ${x},${y}` +
+    // Left hindwing (mirror)
+    `C${x},${y+r*.4} ${x-r*.05},${y+r*.8} ${x-r*.1},${y+r*1.1}` +
+    `C${x-r*.2},${y+r*1.5} ${x-r*1.0},${y+r*1.6} ${x-r*1.2},${y+r*1.3}` +
+    `C${x-r*1.3},${y+r*.8} ${x-r*.2},${y+r*.3} ${x},${y}` +
+    // Left forewing (mirror)
+    `C${x-r*.2},${y+r*.25} ${x-r*.7},${y+r*.5} ${x-r*1.2},${y+r*.55}` +
+    `C${x-r*1.75},${y+r*.55} ${x-r*2.05},${y+r*.1} ${x-r*1.9},${y-r*.35}` +
+    `C${x-r*1.3},${y-r*1.15} ${x-r*.15},${y-r*1.05} ${x},${y}Z`
+  );
+};
 
 const YEAR_COLORS = { 2002: '#4c78a8', 2007: '#f58518', 2012: '#72b7b2', 2017: '#54a24b' };
 
@@ -349,6 +455,31 @@ function buildStatic() {
     .attr('font-size', `${legFontSz}px`).attr('fill', '#444')
     .text('°F');
 
+  const y75 = (100 - 75) / (100 - 32) * legBarH + 5;
+  const arrowSize = Math.max(4, legFontSz * 0.7);
+  legG.append('polygon')
+    .attr('points', `-1,${y75} ${-(arrowSize + 1)},${y75 - arrowSize / 2} ${-(arrowSize + 1)},${y75 + arrowSize / 2}`)
+    .attr('fill', '#54a24b');
+  const textX = -(arrowSize + legFontSz * 0.5);
+  legG.append('text')
+    .attr('x', textX)
+    .attr('y', y75 + legFontSz * 0.35)
+    .attr('text-anchor', 'end')
+    .attr('font-size', `${legFontSz}px`).attr('fill', '#444')
+    .text('75°F / 24°C');
+  legG.append('text')
+    .attr('x', textX)
+    .attr('y', y75 + legFontSz * 1.55)
+    .attr('text-anchor', 'end')
+    .attr('font-size', `${legFontSz}px`).attr('fill', '#888')
+    .text('Peak Active');
+  legG.append('text')
+    .attr('x', textX)
+    .attr('y', y75 + legFontSz * 2.75)
+    .attr('text-anchor', 'end')
+    .attr('font-size', `${legFontSz}px`).attr('fill', '#888')
+    .text('Temperature');
+
   updateDynamic();
 }
 
@@ -364,6 +495,14 @@ function updateTempDots() {
       r: cachedTempBase * state.dotSize * (1 + Math.pow(Math.max(0, d.latFrac), state.latGamma) * state.latScale),
     }));
 
+  const dotFill = d => state.dotFillOverride ? state.dotFillColor : (isNaN(d.t) ? 'none' : tempColor(d.t));
+  const dotStroke = state.dotStrokeWidth > 0 ? state.dotStroke : 'none';
+  const applyStyle = sel => sel
+    .attr('fill-opacity', state.opacity)
+    .attr('stroke', dotStroke)
+    .attr('stroke-width', state.dotStrokeWidth)
+    .attr('mask', 'url(#bfly-dot-fade)');
+
   // Different element types can't be reused by D3 join — clear on shape change
   if (tempLayer.attr('data-shape') !== state.shape) {
     tempLayer.selectAll('*').remove();
@@ -371,45 +510,67 @@ function updateTempDots() {
   }
 
   if (state.shape === 'hex') {
-    tempLayer.selectAll('polygon')
+    applyStyle(tempLayer.selectAll('polygon')
       .data(tempData)
       .join('polygon')
       .attr('points', d => hexPts(d.p[0], d.p[1], d.r))
-      .attr('fill', d => isNaN(d.t) ? 'none' : tempColor(d.t))
-      .attr('fill-opacity', state.opacity)
-      .attr('mask', 'url(#bfly-dot-fade)');
+      .attr('fill', dotFill));
   } else if (state.shape === 'circle') {
-    tempLayer.selectAll('circle')
+    applyStyle(tempLayer.selectAll('circle')
       .data(tempData)
       .join('circle')
       .attr('cx', d => d.p[0]).attr('cy', d => d.p[1]).attr('r', d => d.r)
-      .attr('fill', d => isNaN(d.t) ? 'none' : tempColor(d.t))
-      .attr('fill-opacity', state.opacity)
-      .attr('mask', 'url(#bfly-dot-fade)');
+      .attr('fill', dotFill));
+  } else if (state.shape === 'butterfly') {
+    applyStyle(tempLayer.selectAll('path')
+      .data(tempData)
+      .join('path')
+      .attr('d', d => butterflyPath(d.p[0], d.p[1], d.r))
+      .attr('fill', dotFill));
   } else {
-    tempLayer.selectAll('rect')
+    applyStyle(tempLayer.selectAll('rect')
       .data(tempData)
       .join('rect')
       .attr('x', d => d.p[0] - d.r).attr('y', d => d.p[1] - d.r)
       .attr('width', d => d.r * 2).attr('height', d => d.r * 2)
-      .attr('fill', d => isNaN(d.t) ? 'none' : tempColor(d.t))
-      .attr('fill-opacity', state.opacity)
-      .attr('mask', 'url(#bfly-dot-fade)');
+      .attr('fill', dotFill));
   }
 }
 
 function updateSightings() {
   if (!sightLayer) return;
   const sightings = projectedSightings[`${state.year}_${state.week}`] || [];
-  sightLayer.selectAll('circle')
-    .data(sightings)
-    .join('circle')
-    .attr('cx', d => d.p[0])
-    .attr('cy', d => d.p[1])
-    .attr('r', cachedSightR)
-    .attr('fill', '#4C78A8')
-    .attr('stroke', 'white')
-    .attr('stroke-width', 1.5);
+  const r = cachedSightR * state.sightSize;
+  const stroke = state.sightStrokeWidth > 0 ? state.sightStroke : 'none';
+
+  if (sightLayer.attr('data-shape') !== state.sightShape) {
+    sightLayer.selectAll('*').remove();
+    sightLayer.attr('data-shape', state.sightShape);
+  }
+
+  const applyStyle = sel => sel
+    .attr('fill', state.sightFill)
+    .attr('stroke', stroke)
+    .attr('stroke-width', state.sightStrokeWidth);
+
+  if (state.sightShape === 'circle') {
+    applyStyle(sightLayer.selectAll('circle')
+      .data(sightings).join('circle')
+      .attr('cx', d => d.p[0]).attr('cy', d => d.p[1]).attr('r', r));
+  } else if (state.sightShape === 'hex') {
+    applyStyle(sightLayer.selectAll('polygon')
+      .data(sightings).join('polygon')
+      .attr('points', d => hexPts(d.p[0], d.p[1], r)));
+  } else if (state.sightShape === 'square') {
+    applyStyle(sightLayer.selectAll('rect')
+      .data(sightings).join('rect')
+      .attr('x', d => d.p[0] - r).attr('y', d => d.p[1] - r)
+      .attr('width', r * 2).attr('height', r * 2));
+  } else if (state.sightShape === 'butterfly') {
+    applyStyle(sightLayer.selectAll('path')
+      .data(sightings).join('path')
+      .attr('d', d => butterflyPath(d.p[0], d.p[1], r)));
+  }
 }
 
 function updateDynamic() {
@@ -419,7 +580,7 @@ function updateDynamic() {
 
 function updateOpacity() {
   if (!tempLayer) return;
-  tempLayer.selectAll('polygon, circle, rect').attr('fill-opacity', state.opacity);
+  tempLayer.selectAll('polygon, circle, rect, path').attr('fill-opacity', state.opacity);
 }
 
 // ── LINE CHARTS ──────────────────────────────────────────────
@@ -603,7 +764,8 @@ function updateScrubberUI() {
   document.querySelectorAll('#bfly-scrubber-track .scrubber-segment').forEach((el, i) => {
     el.classList.toggle('active', i === yearIdx);
   });
-  document.getElementById('bfly-week-label').textContent = `${state.year} — Week ${state.week}`;
+  document.getElementById('bfly-year-display').textContent = `Year ${state.year}`;
+  document.getElementById('bfly-week-display').textContent = `Week ${state.week}`;
 }
 
 function setPosition(pos) {
@@ -687,6 +849,12 @@ document.addEventListener('keydown', e => {
   setPosition(pos);
 });
 
+// ── Mobile step buttons ──────────────────────────────────────
+document.getElementById('bfly-prev-week').addEventListener('click', () => { stopPlay(); setPosition(Math.max(0, posFromState() - 1)); });
+document.getElementById('bfly-next-week').addEventListener('click', () => { stopPlay(); setPosition(Math.min(TOTAL_POS - 1, posFromState() + 1)); });
+document.getElementById('bfly-prev-year').addEventListener('click', () => { stopPlay(); setPosition(Math.max(0, posFromState() - 51)); });
+document.getElementById('bfly-next-year').addEventListener('click', () => { stopPlay(); setPosition(Math.min(TOTAL_POS - 1, posFromState() + 51)); });
+
 // ── Play button — steps through all 204 positions ─────────────
 let playInterval = null;
 
@@ -720,8 +888,10 @@ document.getElementById('bfly-play-btn').addEventListener('click', () => {
 function updateValuesDisplay() {
   const s = state;
   document.getElementById('bfly-map-values').textContent =
-    `dotSize=${s.dotSize.toFixed(2)} latScale=${s.latScale.toFixed(2)} curve=${s.latGamma.toFixed(2)} shape=${s.shape} opacity=${s.opacity.toFixed(2)} fade=${s.fadeMix.toFixed(2)}\n` +
-    `scale=${s.mapScale.toFixed(2)} lon=${s.mapCenterLon.toFixed(1)} lat=${s.mapCenterLat.toFixed(1)} aspect=${s.mapAspect.toFixed(2)}`;
+    `dotSize=${s.dotSize.toFixed(2)} latScale=${s.latScale.toFixed(2)} curve=${s.latGamma.toFixed(2)} shape=${s.shape}\n` +
+    `palette=${s.palette} opacity=${s.opacity.toFixed(2)} fade=${s.fadeMix.toFixed(2)} stroke=${s.dotStroke} strokeW=${s.dotStrokeWidth.toFixed(2)} fillOverride=${s.dotFillOverride} fill=${s.dotFillColor}\n` +
+    `sightShape=${s.sightShape} sightFill=${s.sightFill} sightStroke=${s.sightStroke} sightStrokeW=${s.sightStrokeWidth.toFixed(2)} sightSize=${s.sightSize.toFixed(2)}\n` +
+    `mapScale=${s.mapScale.toFixed(2)} lon=${s.mapCenterLon.toFixed(1)} lat=${s.mapCenterLat.toFixed(1)} aspect=${s.mapAspect.toFixed(2)}`;
 }
 
 document.getElementById('bfly-dotsize-input').addEventListener('input', e => {
@@ -751,6 +921,38 @@ document.getElementById('bfly-shape-select').addEventListener('change', e => {
   updateValuesDisplay();
 });
 
+document.getElementById('bfly-stroke-color-input').addEventListener('input', e => {
+  state.dotStroke = e.target.value;
+  updateTempDots();
+  updateValuesDisplay();
+});
+
+document.getElementById('bfly-stroke-width-input').addEventListener('input', e => {
+  state.dotStrokeWidth = +e.target.value;
+  document.getElementById('bfly-stroke-width-label').textContent = state.dotStrokeWidth.toFixed(2);
+  updateTempDots();
+  updateValuesDisplay();
+});
+
+document.getElementById('bfly-fill-override-input').addEventListener('change', e => {
+  state.dotFillOverride = e.target.checked;
+  updateTempDots();
+  updateValuesDisplay();
+});
+
+document.getElementById('bfly-fill-color-input').addEventListener('input', e => {
+  state.dotFillColor = e.target.value;
+  if (state.dotFillOverride) updateTempDots();
+  updateValuesDisplay();
+});
+
+document.getElementById('bfly-palette-select').addEventListener('change', e => {
+  state.palette = e.target.value;
+  tempColor = PALETTES[state.palette]();
+  buildStatic();
+  updateValuesDisplay();
+});
+
 document.getElementById('bfly-opacity-input').addEventListener('input', e => {
   state.opacity = +e.target.value;
   document.getElementById('bfly-opacity-label').textContent = state.opacity.toFixed(2);
@@ -767,6 +969,39 @@ document.getElementById('bfly-fadefmix-input').addEventListener('input', e => {
   state.fadeMix = +e.target.value;
   document.getElementById('bfly-fadefmix-label').textContent = state.fadeMix.toFixed(2);
   updateFadeGradient();
+  updateValuesDisplay();
+});
+
+// ── Sightings controls ───────────────────────────────────────
+document.getElementById('bfly-sight-shape-select').addEventListener('change', e => {
+  state.sightShape = e.target.value;
+  updateSightings();
+  updateValuesDisplay();
+});
+
+document.getElementById('bfly-sight-fill-input').addEventListener('input', e => {
+  state.sightFill = e.target.value;
+  updateSightings();
+  updateValuesDisplay();
+});
+
+document.getElementById('bfly-sight-stroke-color-input').addEventListener('input', e => {
+  state.sightStroke = e.target.value;
+  updateSightings();
+  updateValuesDisplay();
+});
+
+document.getElementById('bfly-sight-stroke-width-input').addEventListener('input', e => {
+  state.sightStrokeWidth = +e.target.value;
+  document.getElementById('bfly-sight-stroke-width-label').textContent = state.sightStrokeWidth.toFixed(2);
+  updateSightings();
+  updateValuesDisplay();
+});
+
+document.getElementById('bfly-sight-size-input').addEventListener('input', e => {
+  state.sightSize = +e.target.value;
+  document.getElementById('bfly-sight-size-label').textContent = state.sightSize.toFixed(2);
+  updateSightings();
   updateValuesDisplay();
 });
 
@@ -828,5 +1063,6 @@ Promise.all([
 });
 </script>
 
+  <script src="nav.js"></script>
 </body>
 </html>

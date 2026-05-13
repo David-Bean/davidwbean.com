@@ -71,6 +71,18 @@ nav {
 
 .nav-links a:hover { opacity: 1; }
 
+.nav-hamburger {
+  display: none;
+  background: none;
+  border: none;
+  color: var(--nav-text);
+  font-size: 1.4rem;
+  cursor: pointer;
+  padding: 4px 6px;
+  line-height: 1;
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* ── Page wrapper ──────────────────────────────────────────── */
 .page {
   max-width: var(--max-width);
@@ -203,6 +215,7 @@ nav {
   border-radius: 6px;
   overflow: visible;
   cursor: pointer;
+  touch-action: none;
 }
 
 .scrubber-play-btn {
@@ -249,7 +262,7 @@ nav {
 .scrubber-handle {
   position: absolute;
   top: 50%;
-  transform: translateY(-50%);
+  transform: translate(-50%, -50%);
   width: 24px;
   height: 24px;
   background: var(--nav-bg);
@@ -570,6 +583,44 @@ nav {
   line-height: 1.4;
 }
 
+.scrubber-mobile-btns {
+  display: none;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.scrubber-mobile-btns button {
+  width: 2.4rem;
+  height: 2.4rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.scrubber-mobile-btns button:active {
+  background: var(--accent);
+  color: var(--nav-bg);
+}
+
+@media (pointer: coarse) {
+  .scrubber-mobile-btns { display: flex; }
+  .bfly-key-hint { display: none; }
+}
+
+#bfly-week-label {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.4;
+}
+
 .bfly-scrubber-meta select {
   font-family: var(--font-body);
   font-size: 0.85rem;
@@ -622,13 +673,51 @@ footer {
 
   .gallery-grid { columns: 2; }
 
-  .nav-links { gap: 1rem; }
-
   .viz-section {
     padding: 3rem 0.75rem;
   }
 
   .viz-container {
     padding: 0.75rem;
+  }
+
+  .nav-hamburger {
+    display: block;
+  }
+
+  .nav-links {
+    display: none;
+    position: absolute;
+    top: var(--nav-height);
+    left: 0;
+    right: 0;
+    background: var(--nav-bg);
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+    padding: 0.5rem 0;
+    z-index: 99;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  .nav-links li {
+    width: 100%;
+  }
+
+  .nav-links a {
+    display: block;
+    padding: 0.75rem 2rem;
+    font-size: 1rem;
+    letter-spacing: 0.04em;
+  }
+
+  .nav-links a:hover {
+    background: rgba(255, 255, 255, 0.06);
+    opacity: 1;
+  }
+
+  nav.open .nav-links {
+    display: flex;
   }
 }
