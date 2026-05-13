@@ -72,9 +72,9 @@
 
         <div class="bfly-debug-row">
           <label>Dot size</label>
-          <span id="bfly-dotsize-label">3.15</span>
+          <span id="bfly-dotsize-label">2.45</span>
         </div>
-        <input type="range" id="bfly-dotsize-input" min="0.25" max="9.0" step="0.05" value="3.15">
+        <input type="range" id="bfly-dotsize-input" min="0.25" max="9.0" step="0.05" value="2.45">
 
         <div class="bfly-debug-row">
           <label>Lat scale</label>
@@ -99,15 +99,15 @@
 
         <div class="bfly-debug-row">
           <label>Opacity</label>
-          <span id="bfly-opacity-label">0.65</span>
+          <span id="bfly-opacity-label">1.00</span>
         </div>
-        <input type="range" id="bfly-opacity-input" min="0" max="1" step="0.05" value="0.65">
+        <input type="range" id="bfly-opacity-input" min="0" max="1" step="0.05" value="1.00">
 
         <div class="bfly-debug-row">
           <label>Edge fade</label>
-          <span id="bfly-fadefmix-label">0.90</span>
+          <span id="bfly-fadefmix-label">0.95</span>
         </div>
-        <input type="range" id="bfly-fadefmix-input" min="0" max="1" step="0.05" value="0.90">
+        <input type="range" id="bfly-fadefmix-input" min="0" max="1" step="0.05" value="0.95">
 
         <hr class="bfly-debug-hr">
 
@@ -115,29 +115,29 @@
 
         <div class="bfly-debug-row">
           <label>Scale</label>
-          <span id="bfly-mapscale-label">0.85</span>
+          <span id="bfly-mapscale-label">0.90</span>
         </div>
-        <input type="range" id="bfly-mapscale-input" min="0.2" max="2.0" step="0.01" value="0.85">
+        <input type="range" id="bfly-mapscale-input" min="0.2" max="2.0" step="0.01" value="0.90">
 
         <div class="bfly-debug-row">
           <label>Pan lon</label>
-          <span id="bfly-maplon-label">-92.5</span>
+          <span id="bfly-maplon-label">-93.5</span>
         </div>
-        <input type="range" id="bfly-maplon-input" min="-135" max="-55" step="0.5" value="-92.5">
+        <input type="range" id="bfly-maplon-input" min="-135" max="-55" step="0.5" value="-93.5">
 
         <div class="bfly-debug-row">
           <label>Pan lat</label>
-          <span id="bfly-maplat-label">37.0</span>
+          <span id="bfly-maplat-label">39.0</span>
         </div>
-        <input type="range" id="bfly-maplat-input" min="5" max="65" step="0.5" value="37.0">
+        <input type="range" id="bfly-maplat-input" min="5" max="65" step="0.5" value="39.0">
 
         <div class="bfly-debug-row">
           <label>Aspect H/W</label>
-          <span id="bfly-mapaspect-label">0.82</span>
+          <span id="bfly-mapaspect-label">0.70</span>
         </div>
-        <input type="range" id="bfly-mapaspect-input" min="0.3" max="1.5" step="0.01" value="0.82">
+        <input type="range" id="bfly-mapaspect-input" min="0.3" max="1.5" step="0.01" value="0.70">
 
-        <code id="bfly-map-values" class="bfly-debug-values">dotSize=3.15 latScale=0.55 curve=0.10 shape=hex opacity=0.65 fade=0.90&#10;scale=0.85 lon=-92.5 lat=37.0 aspect=0.82</code>
+        <code id="bfly-map-values" class="bfly-debug-values">dotSize=2.45 latScale=0.55 curve=0.10 shape=hex opacity=1.00 fade=0.95&#10;scale=0.90 lon=-93.5 lat=39.0 aspect=0.70</code>
       </div>
     </div>
 
@@ -153,8 +153,8 @@ const YEARS = [2002, 2007, 2012, 2017];
 const LON_EXTENT = [-126, -59];
 const LAT_EXTENT = [8, 55];
 
-let state = { week: 26, year: 2017, dotSize: 3.15, latScale: 0.55, latGamma: 0.10, shape: 'hex', opacity: 0.65, fadeMix: 0.90,
-              mapScale: 0.85, mapCenterLon: -92.5, mapCenterLat: 37.0, mapAspect: 0.82 };
+let state = { week: 26, year: 2017, dotSize: 2.45, latScale: 0.55, latGamma: 0.10, shape: 'hex', opacity: 1.00, fadeMix: 0.95,
+              mapScale: 0.90, mapCenterLon: -93.5, mapCenterLat: 39.0, mapAspect: 0.70 };
 let worldLand = null;
 let temps = [];
 let tempGrid = [];
@@ -175,12 +175,23 @@ const hexPts = (cx, cy, r) => d3.range(6).map(i => {
   return `${cx + r * Math.cos(a)},${cy + r * Math.sin(a)}`;
 }).join(' ');
 
-// ── Synthetic lat series per year (simple sine-ish curve) ───
-function latSeries(year) {
-  return d3.range(1, 52).map(w => ({
-    week: w,
-    lat: 20 + 22 * Math.sin((w - 5) / 51 * Math.PI) + (YEARS.indexOf(year) * 1.5)
-  }));
+const YEAR_COLORS = { 2002: '#4c78a8', 2007: '#f58518', 2012: '#72b7b2', 2017: '#54a24b' };
+let latSeriesCache = {};
+
+function buildLatSeriesCache() {
+  const byYearWeek = {};
+  monarchSightings.forEach(d => {
+    const key = `${d.year}_${d.week}`;
+    if (!byYearWeek[key]) byYearWeek[key] = [];
+    byYearWeek[key].push(d.latitude);
+  });
+  const allYears = [...new Set(monarchSightings.map(d => d.year))].sort((a, b) => a - b);
+  allYears.forEach(yr => {
+    latSeriesCache[yr] = d3.range(1, 52).map(w => {
+      const lats = byYearWeek[`${yr}_${w}`];
+      return lats ? { week: w, lat: d3.mean(lats) } : null;
+    }).filter(Boolean);
+  });
 }
 
 // ── MAP — static tier (resize / init only) ───────────────────
@@ -257,6 +268,48 @@ function buildStatic() {
 
   // 4. Sighting placeholder — on top of ocean mask
   sightLayer = mapSvg.append('g');
+
+  // 5. Temperature legend — vertical bar, right side of map
+  const legBarW   = Math.max(8, Math.round(W * 0.018));
+  const legBarH   = Math.round(H * 0.28);
+  const legFontSz = Math.max(7, Math.round(W * 0.018));
+  const legTickW  = Math.round(legFontSz * 2.8);  // room for "100" label
+  const legX      = W - legBarW - legTickW - 18;
+  const legY      = H - legBarH - 22;
+
+  defs.append('linearGradient')
+    .attr('id', 'bfly-leg-grad')
+    .attr('gradientUnits', 'objectBoundingBox')
+    .attr('x1', 0).attr('y1', 0).attr('x2', 0).attr('y2', 1)
+    .selectAll('stop')
+    .data(d3.range(0, 1.01, 0.1))
+    .join('stop')
+    .attr('offset', d => `${(d * 100).toFixed(0)}%`)
+    .attr('stop-color', d => tempColor(100 - d * 68));  // 100°F at top, 32°F at bottom
+
+  const legG = mapSvg.append('g').attr('transform', `translate(${legX},${legY})`);
+
+  legG.append('rect')
+    .attr('x', -4).attr('y', -(legFontSz + 6))
+    .attr('width', legBarW + legTickW + 8).attr('height', legBarH + legFontSz + 16)
+    .attr('fill', 'white').attr('fill-opacity', 0.65).attr('rx', 3);
+
+  legG.append('rect')
+    .attr('width', legBarW).attr('height', legBarH)
+    .attr('fill', 'url(#bfly-leg-grad)');
+
+  legG.append('g')
+    .attr('transform', `translate(${legBarW},0)`)
+    .call(d3.axisRight(d3.scaleLinear().domain([100, 32]).range([0, legBarH])).ticks(4).tickSize(3))
+    .call(g => g.select('.domain').remove())
+    .selectAll('text')
+    .attr('font-size', `${legFontSz}px`).attr('fill', '#444');
+
+  legG.append('text')
+    .attr('x', Math.round(legBarW / 2)).attr('y', -(legFontSz * 0.3))
+    .attr('text-anchor', 'middle')
+    .attr('font-size', `${legFontSz}px`).attr('fill', '#444')
+    .text('°F');
 
   updateDynamic();
 }
@@ -377,28 +430,28 @@ function drawLatChart() {
   const iH = H - MARGIN.top  - MARGIN.bottom;
 
   const x = d3.scaleLinear().domain([1, 51]).range([0, iW]);
-  const y = d3.scaleLinear().domain([15, 50]).range([iH, 0]);
-  const line = d3.line().x(d => x(d.week)).y(d => y(d.lat)).curve(d3.curveCatmullRom);
+  const y = d3.scaleLinear().domain([6, 55]).range([iH, 0]);
+  const line = d3.line().defined(d => d.lat != null).x(d => x(d.week)).y(d => y(d.lat)).curve(d3.curveCatmullRom);
 
   const ticks = getTicks(W);
   const fontSize = getTickFontSize(W);
   g.append('g').attr('transform', `translate(0,${iH})`).call(d3.axisBottom(x).ticks(ticks).tickSize(3)).selectAll('text').attr('font-size', fontSize);
   g.append('g').call(d3.axisLeft(y).ticks(ticks).tickSize(3)).selectAll('text').attr('font-size', fontSize);
 
-  YEARS.forEach(yr => {
-    g.append('path')
-      .datum(latSeries(yr))
-      .attr('fill', 'none')
-      .attr('stroke', yr === state.year ? '#ed8796' : '#666')
-      .attr('stroke-width', yr === state.year ? 2 : 1)
-      .attr('opacity', yr === state.year ? 1 : 0.2)
-      .attr('d', line);
+  const latAllYrs = Object.keys(latSeriesCache).map(Number).sort((a, b) => a - b);
+  latAllYrs.filter(yr => yr !== state.year).forEach(yr => {
+    const data = (latSeriesCache[yr] || []).filter(d => d.week <= state.week && d.week !== 1);
+    g.append('path').datum(data).attr('fill', 'none')
+      .attr('stroke', '#4c78a8').attr('stroke-width', 1).attr('opacity', 0.3).attr('d', line);
   });
+  const latSelData = (latSeriesCache[state.year] || []).filter(d => d.week <= state.week && d.week !== 1);
+  g.append('path').datum(latSelData).attr('fill', 'none')
+    .attr('stroke', '#e45756').attr('stroke-width', 2).attr('opacity', 1).attr('d', line);
 
   g.append('line')
     .attr('x1', x(state.week)).attr('x2', x(state.week))
     .attr('y1', 0).attr('y2', iH)
-    .attr('stroke', '#ed8796').attr('stroke-width', 1).attr('stroke-dasharray', '3,3');
+    .attr('stroke', '#e45756').attr('stroke-width', 1).attr('stroke-dasharray', '3,3');
 
   svg.append('text')
     .attr('x', MARGIN.left).attr('y', MARGIN.top - 4)
@@ -428,21 +481,20 @@ function drawTempChart() {
   g.append('g').attr('transform', `translate(0,${iH})`).call(d3.axisBottom(x).ticks(ticks).tickSize(3)).selectAll('text').attr('font-size', fontSize);
   g.append('g').call(d3.axisLeft(y).ticks(ticks).tickSize(3)).selectAll('text').attr('font-size', fontSize);
 
-  YEARS.forEach(yr => {
-    const data = temps.filter(d => d.year === yr);
-    g.append('path')
-      .datum(data)
-      .attr('fill', 'none')
-      .attr('stroke', yr === state.year ? '#ed8796' : '#666')
-      .attr('stroke-width', yr === state.year ? 2 : 1)
-      .attr('opacity', yr === state.year ? 1 : 0.2)
-      .attr('d', line);
+  const tempAllYrs = [...new Set(temps.map(d => d.year))].sort((a, b) => a - b);
+  tempAllYrs.filter(yr => yr !== state.year).forEach(yr => {
+    const data = temps.filter(d => d.year === yr && d.week <= state.week);
+    g.append('path').datum(data).attr('fill', 'none')
+      .attr('stroke', '#4c78a8').attr('stroke-width', 1).attr('opacity', 0.3).attr('d', line);
   });
+  const tempSelData = temps.filter(d => d.year === state.year && d.week <= state.week);
+  g.append('path').datum(tempSelData).attr('fill', 'none')
+    .attr('stroke', '#e45756').attr('stroke-width', 2).attr('opacity', 1).attr('d', line);
 
   g.append('line')
     .attr('x1', x(state.week)).attr('x2', x(state.week))
     .attr('y1', 0).attr('y2', iH)
-    .attr('stroke', '#ed8796').attr('stroke-width', 1).attr('stroke-dasharray', '3,3');
+    .attr('stroke', '#e45756').attr('stroke-width', 1).attr('stroke-dasharray', '3,3');
 
   svg.append('text')
     .attr('x', MARGIN.left).attr('y', MARGIN.top - 4)
@@ -647,6 +699,7 @@ Promise.all([
   temps = tempData;
   tempGrid = gridData;
   monarchSightings = sightingData;
+  buildLatSeriesCache();
   redrawAll();
   updateScrubberUI();
 });
