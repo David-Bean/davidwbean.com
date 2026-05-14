@@ -70,7 +70,7 @@ as decisions get made later.
 - [x] Write the ~5 lines of JS to load and render the spec
 - [x] Slim down chart data — extracted all inline datasets to data/*.json, loaded by URL. Spec went from 27.8MB to 10KB.
 - [x] Fix monarch visualization scaling — chart now resizes responsively to fit any viewport; re-embeds on window resize with correct mask projection
-- [ ] Redesign the chart for the final version — current POC is functional but visually rough, needs a proper polish pass to fit the site aesthetic
+- [x] Redesign the chart for the final version — rebuilt from scratch in D3/SVG with full aesthetic polish (2026-05-14)
 - [ ] Choose a temperature color scale with three zones: too cold (white/black), butterfly-active range (blue or green?), too hot (orange) — the current single-gradient doesn't communicate the "Goldilocks" reading
 - [ ] Style the container so it fits the page layout
 - [ ] Add prominent "See My Projects" CTA button below chart
@@ -97,7 +97,7 @@ as decisions get made later.
 ## 8. Launch
 
 - [ ] All project pages built and working
-- [ ] Test everything on mobile
+- [x] Test everything on mobile — butterfly chart tested and fixed on iOS/Android (2026-05-14)
 - [x] Deploy live and connect domain — davidwbean.com is live
 - [ ] Test the live site end-to-end
 
