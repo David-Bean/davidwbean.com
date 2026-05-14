@@ -100,15 +100,15 @@
 
         <div class="bfly-debug-row">
           <label>Dot size</label>
-          <span id="bfly-dotsize-label">1.90</span>
+          <span id="bfly-dotsize-label">2.45</span>
         </div>
-        <input type="range" id="bfly-dotsize-input" min="0.25" max="9.0" step="0.05" value="1.90">
+        <input type="range" id="bfly-dotsize-input" min="0.25" max="9.0" step="0.05" value="2.45">
 
         <div class="bfly-debug-row">
           <label>Lat scale</label>
-          <span id="bfly-latscale-label">1.55</span>
+          <span id="bfly-latscale-label">1.15</span>
         </div>
-        <input type="range" id="bfly-latscale-input" min="0" max="2" step="0.05" value="1.55">
+        <input type="range" id="bfly-latscale-input" min="0" max="2" step="0.05" value="1.15">
 
         <div class="bfly-debug-row">
           <label>Curve</label>
@@ -156,15 +156,15 @@
 
         <div class="bfly-debug-row">
           <label>Opacity</label>
-          <span id="bfly-opacity-label">0.45</span>
+          <span id="bfly-opacity-label">0.40</span>
         </div>
-        <input type="range" id="bfly-opacity-input" min="0" max="1" step="0.05" value="0.45">
+        <input type="range" id="bfly-opacity-input" min="0" max="1" step="0.05" value="0.40">
 
         <div class="bfly-debug-row">
           <label>Edge fade</label>
-          <span id="bfly-fadefmix-label">0.80</span>
+          <span id="bfly-fadefmix-label">1.00</span>
         </div>
-        <input type="range" id="bfly-fadefmix-input" min="0" max="1" step="0.05" value="0.80">
+        <input type="range" id="bfly-fadefmix-input" min="0" max="1" step="0.05" value="1.00">
 
         <hr class="bfly-debug-hr">
 
@@ -230,7 +230,7 @@
         </div>
         <input type="range" id="bfly-mapaspect-input" min="0.3" max="1.5" step="0.01" value="0.70">
 
-        <code id="bfly-map-values" class="bfly-debug-values">dotSize=1.90 latScale=1.55 curve=0.90 shape=hex&#10;palette=spectral opacity=0.45 fade=0.80 stroke=#ffffff strokeW=0.00 fillOverride=false fill=#4c78a8&#10;sightShape=circle sightFill=#f6f5f4 sightStroke=#1c71d8 sightStrokeW=1.50 sightSize=1.25&#10;mapScale=0.90 lon=-93.5 lat=39.0 aspect=0.70</code>
+        <code id="bfly-map-values" class="bfly-debug-values">dotSize=2.45 latScale=1.15 curve=0.90 shape=hex&#10;palette=spectral opacity=0.40 fade=1.00 stroke=#ffffff strokeW=0.00 fillOverride=false fill=#4c78a8&#10;sightShape=circle sightFill=#f6f5f4 sightStroke=#1c71d8 sightStrokeW=1.50 sightSize=1.25&#10;mapScale=0.90 lon=-93.5 lat=39.0 aspect=0.70</code>
       </div>
     </div>
 
@@ -246,7 +246,7 @@ const YEARS = [2002, 2007, 2012, 2017];
 const LON_EXTENT = [-126, -59];
 const LAT_EXTENT = [8, 55];
 
-let state = { week: 1, year: 2002, dotSize: 1.90, latScale: 1.55, latGamma: 0.90, shape: 'hex', palette: 'spectral', opacity: 0.45, fadeMix: 0.80,
+let state = { week: 1, year: 2002, dotSize: 2.45, latScale: 1.15, latGamma: 0.90, shape: 'hex', palette: 'spectral', opacity: 0.40, fadeMix: 1.00,
               dotStroke: '#ffffff', dotStrokeWidth: 0, dotFillOverride: false, dotFillColor: '#4c78a8',
               sightFill: '#f6f5f4', sightStroke: '#1c71d8', sightStrokeWidth: 1.5, sightSize: 1.25, sightShape: 'circle',
               mapScale: 0.90, mapCenterLon: -93.5, mapCenterLat: 39.0, mapAspect: 0.70 };
@@ -397,24 +397,16 @@ function buildStatic() {
     .attr('stroke', 'none');
 
   // 2. Temp dot placeholder — sits between land and ocean mask
-  tempLayer = mapSvg.append('g').attr('data-shape', '');
+  tempLayer = mapSvg.append('g').attr('data-shape', '').attr('filter', 'url(#bfly-dot-blur)');
 
   // 3. Ocean mask (static)
   const defs = mapSvg.append('defs');
 
-  // Per-dot radial fade: transparent center → opaque rim
-  const fadeRg = defs.append('radialGradient')
-    .attr('id', 'bfly-fade-rg')
-    .attr('gradientUnits', 'objectBoundingBox')
-    .attr('cx', '0.5').attr('cy', '0.5').attr('r', '0.5');
-  fadeRg.append('stop').attr('offset', '0%').attr('stop-color', 'white');
-  fadeRg.append('stop').attr('offset', '100%').attr('stop-color', 'white').attr('stop-opacity', 1 - state.fadeMix);
-
-  const fadeMask = defs.append('mask')
-    .attr('id', 'bfly-dot-fade')
-    .attr('maskContentUnits', 'objectBoundingBox');
-  fadeMask.append('rect').attr('x', 0).attr('y', 0).attr('width', 1).attr('height', 1)
-    .attr('fill', 'url(#bfly-fade-rg)');
+  // Per-dot edge softening via group blur: one GPU op, each dot fades at its own edge
+  const blurFilter = defs.append('filter').attr('id', 'bfly-dot-blur');
+  blurFilter.append('feGaussianBlur')
+    .attr('in', 'SourceGraphic')
+    .attr('stdDeviation', dotBlurSd());
 
   const oceanMask = defs.append('mask').attr('id', 'bfly-ocean-mask');
   oceanMask.append('rect').attr('width', W).attr('height', H).attr('fill', 'white');
@@ -520,8 +512,7 @@ function updateTempDots() {
   const applyStyle = sel => sel
     .attr('fill-opacity', state.opacity)
     .attr('stroke', dotStroke)
-    .attr('stroke-width', state.dotStrokeWidth)
-    .attr('mask', 'url(#bfly-dot-fade)');
+    .attr('stroke-width', state.dotStrokeWidth);
 
   // Different element types can't be reused by D3 join — clear on shape change
   if (tempLayer.attr('data-shape') !== state.shape) {
@@ -917,6 +908,7 @@ function updateValuesDisplay() {
 document.getElementById('bfly-dotsize-input').addEventListener('input', e => {
   state.dotSize = +e.target.value;
   document.getElementById('bfly-dotsize-label').textContent = state.dotSize.toFixed(2);
+  updateBlurFilter();
   updateTempDots();
   updateValuesDisplay();
 });
@@ -980,15 +972,18 @@ document.getElementById('bfly-opacity-input').addEventListener('input', e => {
   updateValuesDisplay();
 });
 
-function updateFadeGradient() {
-  d3.select('#bfly-fade-rg').selectAll('stop').filter((d, i) => i === 1)
-    .attr('stop-opacity', 1 - state.fadeMix);
+function dotBlurSd() {
+  return cachedTempBase * state.dotSize * state.fadeMix * 0.4;
+}
+
+function updateBlurFilter() {
+  d3.select('#bfly-dot-blur feGaussianBlur').attr('stdDeviation', dotBlurSd());
 }
 
 document.getElementById('bfly-fadefmix-input').addEventListener('input', e => {
   state.fadeMix = +e.target.value;
   document.getElementById('bfly-fadefmix-label').textContent = state.fadeMix.toFixed(2);
-  updateFadeGradient();
+  updateBlurFilter();
   updateValuesDisplay();
 });
 
