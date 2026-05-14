@@ -377,22 +377,16 @@ function buildStatic() {
     .attr('stroke', 'none');
 
   // 2. Temp dot placeholder — sits between land and ocean mask
-  tempLayer = mapSvg.append('g').attr('data-shape', '').attr('mask', 'url(#bfly-dot-fade)');
+  tempLayer = mapSvg.append('g').attr('data-shape', '').attr('filter', 'url(#bfly-dot-blur)');
 
   // 3. Ocean mask (static)
   const defs = mapSvg.append('defs');
 
-  // Vignette fade: dots near map edges fade out — one compositing op for the whole layer
-  const fadeRg = defs.append('radialGradient')
-    .attr('id', 'bfly-fade-rg')
-    .attr('gradientUnits', 'userSpaceOnUse')
-    .attr('cx', W / 2).attr('cy', H / 2).attr('r', Math.max(W, H) * 0.6);
-  fadeRg.append('stop').attr('offset', '0%').attr('stop-color', 'white');
-  fadeRg.append('stop').attr('offset', '100%').attr('stop-color', 'white').attr('stop-opacity', 1 - state.fadeMix);
-
-  const fadeMask = defs.append('mask').attr('id', 'bfly-dot-fade');
-  fadeMask.append('rect').attr('x', 0).attr('y', 0).attr('width', W).attr('height', H)
-    .attr('fill', 'url(#bfly-fade-rg)');
+  // Per-dot edge softening via group blur: one GPU op, each dot fades at its own edge
+  const blurFilter = defs.append('filter').attr('id', 'bfly-dot-blur');
+  blurFilter.append('feGaussianBlur')
+    .attr('in', 'SourceGraphic')
+    .attr('stdDeviation', dotBlurSd());
 
   const oceanMask = defs.append('mask').attr('id', 'bfly-ocean-mask');
   oceanMask.append('rect').attr('width', W).attr('height', H).attr('fill', 'white');
@@ -894,6 +888,7 @@ function updateValuesDisplay() {
 document.getElementById('bfly-dotsize-input').addEventListener('input', e => {
   state.dotSize = +e.target.value;
   document.getElementById('bfly-dotsize-label').textContent = state.dotSize.toFixed(2);
+  updateBlurFilter();
   updateTempDots();
   updateValuesDisplay();
 });
@@ -957,15 +952,18 @@ document.getElementById('bfly-opacity-input').addEventListener('input', e => {
   updateValuesDisplay();
 });
 
-function updateFadeGradient() {
-  d3.select('#bfly-fade-rg').selectAll('stop').filter((d, i) => i === 1)
-    .attr('stop-opacity', 1 - state.fadeMix);
+function dotBlurSd() {
+  return cachedTempBase * state.dotSize * state.fadeMix * 0.4;
+}
+
+function updateBlurFilter() {
+  d3.select('#bfly-dot-blur feGaussianBlur').attr('stdDeviation', dotBlurSd());
 }
 
 document.getElementById('bfly-fadefmix-input').addEventListener('input', e => {
   state.fadeMix = +e.target.value;
   document.getElementById('bfly-fadefmix-label').textContent = state.fadeMix.toFixed(2);
-  updateFadeGradient();
+  updateBlurFilter();
   updateValuesDisplay();
 });
 
