@@ -88,7 +88,7 @@
           <div id="bfly-line-lat"></div>
           <div id="bfly-line-temp"></div>
         </div>
-        <div style="text-align:right;font-size:0.7rem;color:var(--text-muted);opacity:0.5;margin-top:0.25rem;">v6</div>
+        <div style="text-align:right;font-size:0.7rem;color:var(--text-muted);opacity:0.5;margin-top:0.25rem;">v5</div>
       </div>
 
       <div class="bfly-debug-panel" id="bfly-debug-panel">
@@ -1091,7 +1091,7 @@ Promise.all([
       introBtn.innerHTML = '&#9654;&#xFE0E;';
       const handle = document.getElementById('bfly-scrubber-handle');
       handle.classList.add('bfly-nudge');
-      setTimeout(() => handle.classList.remove('bfly-nudge'), 800);
+      handle.addEventListener('animationend', () => handle.classList.remove('bfly-nudge'), { once: true });
     }
   }, 100);
 });
