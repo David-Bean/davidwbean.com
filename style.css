@@ -281,6 +281,16 @@ nav {
   color: var(--accent);
 }
 
+@keyframes bfly-nudge {
+  0%   { transform: translate(-50%, -50%); }
+  40%  { transform: translate(calc(-50% + 16px), -50%); }
+  70%  { transform: translate(calc(-50% - 6px), -50%); }
+  100% { transform: translate(-50%, -50%); }
+}
+.scrubber-handle.bfly-nudge {
+  animation: bfly-nudge 0.7s ease-in-out;
+}
+
 /* ── Generic content page ──────────────────────────────────── */
 .page-header {
   padding: 4rem 2rem 2rem;

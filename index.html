@@ -88,7 +88,7 @@
           <div id="bfly-line-lat"></div>
           <div id="bfly-line-temp"></div>
         </div>
-        <div style="text-align:right;font-size:0.7rem;color:var(--text-muted);opacity:0.5;margin-top:0.25rem;">v4</div>
+        <div style="text-align:right;font-size:0.7rem;color:var(--text-muted);opacity:0.5;margin-top:0.25rem;">v5</div>
       </div>
 
       <div class="bfly-debug-panel" id="bfly-debug-panel">
@@ -804,6 +804,7 @@ const scrubberHandle = document.getElementById('bfly-scrubber-handle');
 
 function startScrub(e) {
   stopPlay();
+  scrubberHandle.classList.remove('bfly-nudge');
   scrubbing = true;
   scrubRect = scrubberTrack.getBoundingClientRect();
   scrubberHandle.style.transition = 'none';
@@ -874,7 +875,7 @@ function stopPlay() {
   if (!playInterval) return;
   clearInterval(playInterval);
   playInterval = null;
-  document.getElementById('bfly-play-btn').innerHTML = '&#9654;';
+  document.getElementById('bfly-play-btn').innerHTML = '&#9654;&#xFE0E;';
 }
 
 document.getElementById('bfly-play-btn').addEventListener('click', () => {
@@ -884,14 +885,14 @@ document.getElementById('bfly-play-btn').addEventListener('click', () => {
   } else {
     let pos = posFromState();
     if (pos >= TOTAL_POS - 1) pos = 0;
-    btn.innerHTML = '&#9646;&#9646;';
+    btn.innerHTML = '&#9646;&#9646;&#xFE0E;';
     playInterval = setInterval(() => {
       pos++;
       setPosition(pos);
       if (pos >= TOTAL_POS - 1) {
         clearInterval(playInterval);
         playInterval = null;
-        btn.innerHTML = '&#9654;';
+        btn.innerHTML = '&#9654;&#xFE0E;';
       }
     }, 100);
   }
@@ -1076,6 +1077,23 @@ Promise.all([
   buildTempByYear();
   redrawAll();
   updateScrubberUI();
+
+  // Brief autoplay intro, then nudge the handle
+  const introBtn = document.getElementById('bfly-play-btn');
+  let introPos = 0;
+  introBtn.innerHTML = '&#9646;&#9646;&#xFE0E;';
+  playInterval = setInterval(() => {
+    introPos++;
+    setPosition(introPos);
+    if (introPos >= 30) {
+      clearInterval(playInterval);
+      playInterval = null;
+      introBtn.innerHTML = '&#9654;&#xFE0E;';
+      const handle = document.getElementById('bfly-scrubber-handle');
+      handle.classList.add('bfly-nudge');
+      handle.addEventListener('animationend', () => handle.classList.remove('bfly-nudge'), { once: true });
+    }
+  }, 100);
 });
 </script>
 
