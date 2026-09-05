@@ -1,0 +1,1675 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Game — Kolvin vs Luke</title>
+<style>
+  :root {
+    color-scheme: light;
+    --surface-1: #fcfcfb;
+    --surface-2: #f2f1ec;
+    --plane: #f9f9f7;
+    --text-primary: #0b0b0b;
+    --text-secondary: #52514e;
+    --muted: #898781;
+    --grid: #e1e0d9;
+    --axis: #c3c2b7;
+    --border: rgba(11,11,11,0.10);
+    --field: #ffffff;
+    --good: #008300;
+    --bad: #e34948;
+    --kid1: #1f6fd0;
+    --kid2: #12803e;
+    --kid3: #7a4fd0;
+    --kid4: #a86a00;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --surface-1: #1a1a19;
+      --surface-2: #232322;
+      --plane: #0d0d0d;
+      --text-primary: #ffffff;
+      --text-secondary: #c3c2b7;
+      --muted: #898781;
+      --grid: #2c2c2a;
+      --axis: #383835;
+      --border: rgba(255,255,255,0.10);
+      --field: #101010;
+      --good: #008300;
+      --bad: #e66767;
+      --kid1: #4a86e8;
+      --kid2: #2e9e5b;
+      --kid3: #9a7ae8;
+      --kid4: #b8862c;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --surface-1: #1a1a19;
+    --surface-2: #232322;
+    --plane: #0d0d0d;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --muted: #898781;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255,255,255,0.10);
+    --field: #101010;
+    --good: #008300;
+    --bad: #e66767;
+    --kid1: #4a86e8;
+    --kid2: #2e9e5b;
+    --kid3: #9a7ae8;
+    --kid4: #b8862c;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 32px 20px 64px;
+    background: var(--plane);
+    color: var(--text-primary);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; }
+  h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  .sub { color: var(--text-secondary); margin: 0 0 24px; font-size: 14px; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 18px; align-items: center;
+            margin: 0 0 24px; font-size: 13px; color: var(--text-secondary); }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .sw { width: 14px; height: 14px; border-radius: 3px; flex: none; }
+  .sw.good { background: var(--good); }
+  .sw.bad  { background: var(--bad); }
+  .sw.goodunk { background: repeating-linear-gradient(135deg, var(--good) 0 3px, transparent 3px 6px);
+                box-shadow: inset 0 0 0 1.5px var(--good); }
+  .sw.badunk  { background: repeating-linear-gradient(135deg, var(--bad) 0 3px, transparent 3px 6px);
+                box-shadow: inset 0 0 0 1.5px var(--bad); }
+
+  .card { background: var(--surface-1); border: 1px solid var(--border);
+          border-radius: 12px; padding: 22px 20px 18px; margin-bottom: 26px; }
+  .card h2 { font-size: 19px; margin: 0 0 2px; }
+  .card .meta { font-size: 13px; color: var(--text-secondary); margin: 0 0 20px; }
+  .card .meta b { color: var(--text-primary); font-weight: 600; }
+
+  /* ---- charts ---- */
+  .scroller { overflow-x: auto; }
+
+  .head { display: grid; align-items: end; margin-bottom: 6px;
+          font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .head .l { text-align: right; padding-right: 10px; }
+  .head .r { text-align: left; padding-left: 10px; }
+  .head .c { text-align: center; }
+
+  .grouplabel { font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase;
+                color: var(--muted); margin: 14px 0 6px; }
+
+  .row { display: grid; align-items: center; height: 22px; margin-bottom: 4px; }
+  .row.totals { height: 34px; margin-bottom: 8px; }
+  .name { padding-right: 12px; text-align: right; line-height: 1.25;
+          display: flex; flex-direction: column; justify-content: center; }
+  .name b { font-size: 14px; font-weight: 600; }
+  .name span { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .cat { text-align: right; font-size: 13px; color: var(--text-secondary);
+         white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 12px; }
+  .side { position: relative; display: flex; align-items: center; gap: 8px; height: 100%; }
+  .side.left  { justify-content: flex-end; }
+  .side.right { justify-content: flex-start; }
+  .bar { display: flex; height: 14px; }
+  .bar.big { height: 20px; }
+  .side.left  .bar { flex-direction: row-reverse; }
+  .side.left  .bar > :last-child { border-radius: 4px 0 0 4px; }
+  .side.right .bar > :last-child { border-radius: 0 4px 4px 0; }
+  .seg { height: 100%; min-width: 3px; background: var(--good); cursor: default; }
+  /* separators live inside the segment, so bar length still equals value × scale */
+  .side.right .bar > .seg + .seg { border-left: 2px solid var(--surface-1); }
+  .side.left  .bar > .seg + .seg { border-right: 2px solid var(--surface-1); }
+  .seg.bad { background: var(--bad); }
+  .seg.unk { background: repeating-linear-gradient(135deg, var(--good) 0 3px, transparent 3px 6px);
+             box-shadow: inset 0 0 0 1.5px var(--good); }
+  .seg.bad.unk { background: repeating-linear-gradient(135deg, var(--bad) 0 3px, transparent 3px 6px);
+                 box-shadow: inset 0 0 0 1.5px var(--bad); }
+  .val { font-size: 12px; color: var(--text-secondary); font-variant-numeric: tabular-nums;
+         white-space: nowrap; }
+
+  .gridlines { position: absolute; inset: 0; pointer-events: none; }
+  .gridlines i { position: absolute; top: -3px; bottom: -3px; width: 1px; background: var(--grid); }
+  .axis { background: var(--axis); }
+
+  .ticks { display: grid; margin-top: 8px; font-size: 11px; color: var(--muted);
+           font-variant-numeric: tabular-nums; }
+  .ticks .band { position: relative; height: 14px; }
+  .ticks .band b { position: absolute; top: 0; font-weight: 400; }
+
+  /* ---- earned & lost by day: one column per kid, per day ---- */
+  /* the scroller clips vertically, so the end figures need reserved room */
+  .dchart .scroller { padding: 40px 0 0; }
+  .dchart .dplot { position: relative; margin-left: 46px; }
+  .dchart .glines { position: absolute; inset: 0; pointer-events: none; }
+  .dchart .glines i { position: absolute; left: 0; right: 0; height: 1px; background: var(--grid); }
+  .dchart .glines i.axis { background: var(--axis); }
+  .dchart .tick { position: absolute; right: 100%; padding-right: 10px; font-size: 11px;
+                  color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap;
+                  transform: translateY(-50%); }
+  .dgroups { position: relative; display: flex; height: 100%; }
+  .dgroup { flex: 1 0 132px; display: flex; justify-content: center; gap: 12px; }
+  .dcol { position: relative; width: 40px; }
+  .dbar { position: absolute; left: 0; right: 0; cursor: default; }
+  .dbar.up   { border-radius: 4px 4px 0 0; }
+  .dbar.down { border-radius: 0 0 4px 4px; }
+  .dbar.flat { border-radius: 0; }
+  .dval { position: absolute; left: -8px; right: -8px; text-align: center; font-size: 11.5px;
+          color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .dval.none { color: var(--muted); }
+  .dlabels { display: flex; margin: 40px 0 0 46px; }
+  .dlabels div { flex: 1 0 132px; text-align: center; font-size: 12px; color: var(--text-secondary); }
+  .klegend { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin: 0 0 18px;
+             font-size: 13px; color: var(--text-secondary); }
+  .klegend span { display: inline-flex; align-items: center; gap: 7px; }
+
+  /* ---- waterfall: the score in the order it happened ---- */
+  /* the end figures sit outside the plot box, and the scroller clips vertically */
+  .wchart .scroller { padding: 30px 0 0; }
+  .wstrip { padding-bottom: 4px; }
+  .wstrip + .wstrip { border-top: 1px solid var(--border); padding-top: 26px; }
+  .wname { margin: 0 0 10px 46px; display: flex; align-items: baseline; gap: 10px; }
+  .wname b { font-size: 14px; font-weight: 600; }
+  .wname span { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .wplot { position: relative; margin-left: 46px; }
+  .wchart .glines { position: absolute; inset: 0; pointer-events: none; }
+  .wchart .glines i { position: absolute; left: 0; right: 0; height: 1px; background: var(--grid); }
+  .wchart .glines i.axis { background: var(--axis); }
+  .wchart .tick { position: absolute; right: 100%; padding-right: 10px; font-size: 11px;
+                  color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap;
+                  transform: translateY(-50%); }
+  .wstep { position: absolute; background: var(--good); border-radius: 2px; cursor: default; }
+  .wstep.bad { background: var(--bad); }
+  .wstep.unk { background: repeating-linear-gradient(135deg, var(--good) 0 3px, transparent 3px 6px);
+               box-shadow: inset 0 0 0 1.5px var(--good); }
+  .wstep.unk.bad { background: repeating-linear-gradient(135deg, var(--bad) 0 3px, transparent 3px 6px);
+                   box-shadow: inset 0 0 0 1.5px var(--bad); }
+  .wlink { position: absolute; height: 1px; background: var(--grid); pointer-events: none; }
+  .wsep { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--border);
+          pointer-events: none; }
+  .wval { position: absolute; font-size: 11px; color: var(--text-secondary); white-space: nowrap;
+          font-variant-numeric: tabular-nums; transform: translateX(-50%); }
+  .wdays { position: relative; height: 15px; margin: 24px 0 4px 46px; }
+  .wdays span { position: absolute; font-size: 12px; color: var(--text-secondary);
+                transform: translateX(-50%); white-space: nowrap; }
+
+  /* ---- one dot per event ---- */
+  .dothead, .drow, .dotticks { display: grid; align-items: center; }
+  .dothead { margin-bottom: 10px; font-size: 11px; letter-spacing: 0.06em;
+             text-transform: uppercase; color: var(--muted); }
+  .dothead .c { text-align: center; }
+  .drow { margin-bottom: 14px; }
+  .drow .name span { white-space: normal; }
+  .dstack, .dlane { position: relative; height: 100%; }
+  .dlane { border-left: 1px dashed var(--border); }
+  .dgrid { position: absolute; top: -6px; bottom: 0; left: 0; right: 0; pointer-events: none; }
+  .dgrid i { position: absolute; top: 0; bottom: 0; width: 1px; background: var(--grid); }
+  .dgrid i.axis { background: var(--axis); }
+  /* the ring is surface-coloured, so a dense stack still reads as separate dots */
+  .dot { position: absolute; width: 9px; height: 9px; border-radius: 50%;
+         background: var(--good); box-shadow: 0 0 0 2px var(--surface-1); cursor: default; }
+  .dot.bad { background: var(--bad); }
+  .dot.unk { background: transparent; border: 1.5px solid var(--good); box-shadow: none; }
+  .dot.unk.bad { border-color: var(--bad); }
+  .dotticks .band { position: relative; height: 14px; font-size: 11px; color: var(--muted);
+                    font-variant-numeric: tabular-nums; }
+  .dotticks .band b { position: absolute; top: 0; font-weight: 400; transform: translateX(-50%); }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px;
+           padding-top: 14px; border-top: 1px solid var(--border); }
+  .chip { font-size: 12px; color: var(--text-secondary); border: 1px solid var(--border);
+          border-radius: 999px; padding: 4px 11px; }
+  .chip b { color: var(--good); font-variant-numeric: tabular-nums; }
+  .chips .none { font-size: 12px; color: var(--muted); }
+
+  /* ---- tables ---- */
+  details { margin-top: 10px; }
+  summary { cursor: pointer; font-size: 13px; color: var(--text-secondary); }
+
+  .card.fold { margin-top: 0; }
+  .card.fold:not([open]) { padding: 15px 20px; }
+  .fold > summary { display: flex; align-items: baseline; gap: 10px; list-style: none;
+                    font-size: 19px; font-weight: 600; color: var(--text-primary); }
+  .fold > summary::-webkit-details-marker { display: none; }
+  .fold > summary::before { content: "\25B8"; color: var(--muted); font-size: 13px; }
+  .fold[open] > summary { margin-bottom: 2px; }
+  .fold[open] > summary::before { content: "\25BE"; }
+  .fold > summary .hint { font-size: 12.5px; font-weight: 400; color: var(--muted); }
+  table { border-collapse: collapse; margin-top: 12px; font-size: 13px; width: 100%; }
+  th, td { text-align: left; padding: 5px 10px 5px 0; border-bottom: 1px solid var(--grid);
+           vertical-align: middle; }
+  th { color: var(--muted); font-weight: 500; font-size: 11px;
+       letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; }
+  td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; padding-right: 16px; }
+  tr.dim td { color: var(--muted); }
+
+  input, select, button { font: inherit; font-size: 13px; color: var(--text-primary); }
+  input[type="text"], input[type="number"], select {
+    background: var(--field); border: 1px solid var(--border); border-radius: 6px;
+    padding: 4px 7px; width: 100%; }
+  input[type="number"] { text-align: right; font-variant-numeric: tabular-nums; }
+  input:focus-visible, select:focus-visible, button:focus-visible {
+    outline: 2px solid var(--text-secondary); outline-offset: 1px; }
+  .btn { background: var(--surface-2); border: 1px solid var(--border); border-radius: 7px;
+         padding: 5px 12px; cursor: pointer; color: var(--text-secondary); width: auto; }
+  .btn:hover { color: var(--text-primary); }
+  .btn.x { padding: 2px 8px; border-radius: 5px; line-height: 1.2; }
+  .btn[disabled] { opacity: .4; cursor: not-allowed; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 14px; }
+  .toolbar .spacer { flex: 1; }
+  .status { font-size: 12px; color: var(--muted); }
+
+  .lookup td:nth-child(1) { width: 34%; }
+  .lookup td:nth-child(2) { width: 17%; }
+  .lookup td:nth-child(3) { width: 15%; }
+  .lookup td:nth-child(4) { width: 20%; }
+  .entries td:nth-child(1) { width: 8%; }
+  .entries td:nth-child(2) { width: 18%; }
+  .entries td:nth-child(3) { width: 27%; }
+  .entries td:nth-child(4) { width: 10%; }
+  .entries td:nth-child(5) { width: 25%; }
+  .tablewrap { overflow-x: auto; }
+  .tablewrap table { min-width: 620px; }
+
+  .note { font-size: 12.5px; color: var(--text-secondary); line-height: 1.65;
+          border-left: 2px solid var(--grid); padding-left: 14px; margin-top: 30px; }
+  .note code { background: var(--grid); padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+  textarea { width: 100%; min-height: 160px; font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+             background: var(--field); color: var(--text-primary); border: 1px solid var(--border);
+             border-radius: 8px; padding: 10px; margin-top: 10px; }
+
+  /* ---- log an entry ---- */
+  .addbar { padding-bottom: 20px; }
+  .addbar .abrow, .addbar .abnew { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+  .addbar .abnew { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--grid); }
+  .addbar .abnew[hidden], .addbar .abf[hidden] { display: none; }
+  .abf { display: flex; flex-direction: column; gap: 5px; flex: none; }
+  .abf > span { font-size: 11px; font-weight: 500; letter-spacing: 0.06em;
+                text-transform: uppercase; color: var(--muted); }
+  .abf-kid { width: 140px; }
+  .abf-type { flex: 1 1 280px; min-width: 230px; }
+  .abf-qty { width: 96px; }
+  .abf-kind { width: 150px; }
+  .abf-pts { width: 104px; }
+  .abf-scope { width: 150px; }
+  .addbar .btn.go { padding: 6px 20px; background: var(--text-primary);
+                    border-color: var(--text-primary); color: var(--surface-1); }
+  .addbar .btn.go:hover { color: var(--surface-1); opacity: .86; }
+  .addbar .btn.go[disabled] { opacity: .35; }
+  .abhint { font-size: 12.5px; color: var(--text-secondary); line-height: 1.5;
+            flex: 1 1 220px; align-self: center; }
+  .abecho { margin-top: 12px; font-size: 12.5px; color: var(--text-secondary);
+            min-height: 18px; font-variant-numeric: tabular-nums; }
+
+  #tip { position: fixed; z-index: 10; pointer-events: none; opacity: 0;
+         transition: opacity .1s; background: var(--surface-1); color: var(--text-primary);
+         border: 1px solid var(--border); border-radius: 7px; padding: 6px 10px;
+         font-size: 12.5px; white-space: nowrap; box-shadow: 0 4px 14px rgba(0,0,0,.16); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>The game</h1>
+  <p class="sub">Misconduct to the left, sightings and deeds to the right &mdash;
+    the game started 4 Sep 2026.</p>
+
+  <div class="card addbar">
+    <h2>Log an entry</h2>
+    <p class="meta">Pick a kid, name the sighting, deed or misconduct, say how many. The day comes off the calendar
+      &mdash; <b id="ab-day">day &mdash;</b>. Points come from the lookup table below; a name that
+      isn&rsquo;t in it yet has to be given a value before it can be logged &mdash; and a value
+      below zero files it under misconduct.</p>
+    <div class="abrow">
+      <label class="abf abf-kid"><span>Kid</span><select id="ab-kid"></select></label>
+      <label class="abf abf-type"><span>Sighting, deed, or misconduct</span>
+        <input id="ab-type" type="text" list="type-names" autocomplete="off"
+               placeholder="dog, rock skip, pushing&hellip;"></label>
+      <label class="abf abf-qty"><span>How many</span>
+        <input id="ab-qty" type="number" min="1" step="1" value="1"></label>
+      <button class="btn go" id="ab-add">Add</button>
+    </div>
+    <div class="abnew" id="ab-new" hidden>
+      <label class="abf abf-kind" id="ab-kindf"><span>Animal or deed</span>
+        <select id="ab-kind"></select></label>
+      <label class="abf abf-pts"><span>Points</span><input id="ab-pts" type="number" step="1"></label>
+      <label class="abf abf-scope" id="ab-scopef"><span>Scoring</span>
+        <select id="ab-scope"></select></label>
+      <span class="abhint" id="ab-newhint"></span>
+    </div>
+    <div class="abecho" id="ab-echo"></div>
+    <datalist id="type-names"></datalist>
+  </div>
+
+  <div class="legend">
+    <span><i class="sw bad"></i> Misconduct</span>
+    <span><i class="sw badunk"></i> Misconduct, no points set</span>
+    <span><i class="sw good"></i> Animal or deed</span>
+    <span><i class="sw goodunk"></i> Animal or deed, no points set</span>
+  </div>
+
+  <div id="charts"></div>
+
+  <details class="card fold">
+    <summary>Point values <span class="hint">edit these and every chart rescales</span></summary>
+    <p class="meta">One row per kind of entry. Every chart above reads its numbers from here.
+      <b>Per animal</b> multiplies the points by how many were spotted; <b>per herd</b> pays once
+      for the whole sighting, however many there were. Leave points blank and the bar is drawn
+      striped &mdash; a placeholder, not a score.</p>
+    <div class="tablewrap"><table class="lookup"><thead><tr>
+      <th>Entry type</th><th>Side</th><th class="n">Points</th><th>Scoring</th>
+      <th class="n">Entries</th><th></th>
+    </tr></thead><tbody id="lookup-body"></tbody></table></div>
+    <div class="toolbar">
+      <button class="btn" id="add-type">+ Add type</button>
+      <span class="spacer"></span>
+      <span class="status" id="status"></span>
+      <button class="btn" id="reset">Reset to the log</button>
+    </div>
+  </details>
+
+  <details class="card fold">
+    <summary>Entries <span class="hint">one line per sighting or incident</span></summary>
+    <p class="meta">Every individual sighting or incident from the note. <b>Day</b> is which day of
+      the game it happened on &mdash; day 1 was 4 Sep 2026, so the note&rsquo;s log is day 2. <b>Qty</b> is how many
+      animals were in that one sighting &mdash; the number a <i>per herd</i> type ignores. Type a new
+      name in <b>Kid</b> and that kid gets their own chart.</p>
+    <div class="tablewrap"><table class="entries"><thead><tr>
+      <th class="n">Day</th><th>Kid</th><th>Type</th><th class="n">Qty</th><th>Note</th>
+      <th class="n">Points</th><th></th>
+    </tr></thead><tbody id="entries-body"></tbody></table></div>
+    <div class="toolbar"><button class="btn" id="add-entry">+ Add entry</button></div>
+    <datalist id="kid-names"></datalist>
+  </details>
+
+  <details>
+    <summary>Data (JSON) &mdash; copy this to keep a backup, paste one back to restore</summary>
+    <textarea id="json" spellcheck="false"></textarea>
+    <div class="toolbar">
+      <button class="btn" id="apply-json">Load the JSON above</button>
+      <span class="status" id="json-status"></span>
+    </div>
+  </details>
+
+  <p class="note">
+    <b>The lookup table is the only place numbers live.</b> Bars, chips and the per-kid tables are
+    all derived from it, so editing one point value rescales every chart at once. The penalties and
+    the two scored activities are seeded from the note itself (&minus;10 fighting, &minus;10 pushing,
+    &minus;10 arguing, &minus;5 for the wax wizard, swim race 50, head under water 15). The note put
+    no value on any sighting, so every sighting starts at <b>1 point per animal</b> &mdash; a bar is
+    a count until you say otherwise. Clear a value and it stops counting: that row draws as a stripe
+    and reads &ldquo;no points set&rdquo; on hover, which is how the five things the note never scored
+    (annoying, false spotting, tattling, pestering, lying) appear now. One caveat: a value here applies
+    to <i>every</i> entry of that type, so scoring <i>arguing</i> scores Luke's argument too, and
+    scoring <i>fighting</i> scores all three of Kolvin's fights, not just the one the note priced.
+    Edits save in this browser only &mdash; keep the JSON block above if you want them anywhere else.
+</p>
+</div>
+
+<div id="tip"></div>
+
+<script>
+/* ---- seed ------------------------------------------------------------
+   Transcribed from the 5 Sep 2026 note, in the order it was written.
+   Entries are individual log lines; the points come from the type table.  */
+
+const KINDS = [
+  { key: "sighting",   label: "Animal",     phrase: "an animal",   side: "right", group: "Animals" },
+  { key: "deed",       label: "Deed",       phrase: "a deed",      side: "right", group: "Other sightings & deeds" },
+  { key: "misconduct", label: "Misconduct", phrase: "misconduct",  side: "left",  group: "Misconduct" },
+  { key: "activity",   label: "Activity",   phrase: "an activity", side: "chip",  group: "Scored activities" }
+];
+const kindPhrase = k => (KINDS.find(x => x.key === k) || {}).phrase || k;
+
+const SEED = {
+  types: [
+    // name, kind, points (null = not recorded), scope
+    ["dog",                        "sighting",   1   , "animal"],
+    ["goose",                      "sighting",   1   , "animal"],
+    ["duck",                       "sighting",   1   , "animal"],
+    ["crow",                       "sighting",   1   , "animal"],
+    ["heron",                      "sighting",   1   , "animal"],
+    ["hawk",                       "sighting",   1   , "animal"],
+    ["bald eagle",                 "sighting",   1   , "animal"],
+    ["cow moose",                  "sighting",   1   , "animal"],
+    ["baby moose",                 "sighting",   1   , "animal"],
+    ["beaver",                     "sighting",   1   , "animal"],
+    ["cat",                        "sighting",   1   , "animal"],
+    ["bunny",                      "sighting",   1   , "animal"],
+    ["special sheep",              "sighting",   1   , "animal"],
+    ["weird car (fire decal)",     "deed",       1   , "animal"],
+    ["weird car (teeth jeep)",     "deed",       1   , "animal"],
+    ["motorcycle",                 "deed",       1   , "animal"],
+    ["cleaned up trash",           "deed",       1   , "animal"],
+    ["funny joke",                 "deed",       1   , "animal"],
+    ["rock skip",                  "deed",       1   , "animal"],
+    ["fighting",                   "misconduct", -10,  "animal"],
+    ["pushing",                    "misconduct", -10,  "animal"],
+    ["arguing",                    "misconduct", -10,  "animal"],
+    ["arguing with the wax wizard","misconduct", -5,   "animal"],
+    ["intentional annoying",       "misconduct", null, "animal"],
+    ["false spotting",             "misconduct", null, "animal"],
+    ["tattling",                   "misconduct", null, "animal"],
+    ["pestering",                  "misconduct", null, "animal"],
+    ["lying",                      "misconduct", null, "animal"],
+    ["swim race",                  "activity",   50,   "animal"],
+    ["head under water",           "activity",   15,   "animal"]
+  ],
+  entries: [
+    // kid, type name, qty, note, day
+    ["Kolvin", "dog", 1, "", 2],
+    ["Kolvin", "beaver", 1, "", 2],
+    ["Kolvin", "pushing", 1, "written −10", 2],
+    ["Kolvin", "arguing", 1, "written −10", 2],
+    ["Kolvin", "baby moose", 1, "", 2],
+    ["Kolvin", "cow moose", 1, "", 2],
+    ["Kolvin", "cat", 1, "", 2],
+    ["Kolvin", "weird car (fire decal)", 1, "", 2],
+    ["Kolvin", "weird car (teeth jeep)", 1, "", 2],
+    ["Kolvin", "special sheep", 1, "", 2],
+    ["Kolvin", "dog", 1, "", 2],
+    ["Kolvin", "goose", 1, "", 2],
+    ["Kolvin", "crow", 1, "", 2],
+    ["Kolvin", "goose", 6, "6 geese", 2],
+    ["Kolvin", "arguing", 1, "no value written", 2],
+    ["Kolvin", "heron", 5, "5 herons", 2],
+    ["Kolvin", "fighting", 1, "no value written", 2],
+    ["Kolvin", "duck", 2, "2 ducks", 2],
+    ["Kolvin", "cleaned up trash", 1, "", 2],
+    ["Kolvin", "bald eagle", 1, "", 2],
+    ["Kolvin", "hawk", 2, "2 hawks", 2],
+    ["Kolvin", "fighting", 1, "no value written", 2],
+    ["Kolvin", "goose", 1, "", 2],
+    ["Kolvin", "crow", 1, "logged as “crows” — count unknown", 2],
+    ["Kolvin", "crow", 1, "", 2],
+    ["Kolvin", "crow", 1, "", 2],
+    ["Kolvin", "fighting", 1, "written −10", 2],
+    ["Kolvin", "arguing with the wax wizard", 1, "written −5", 2],
+    ["Kolvin", "hawk", 1, "", 2],
+    ["Kolvin", "duck", 4, "4 ducks", 2],
+    ["Kolvin", "head under water", 1, "written 15", 2],
+    ["Kolvin", "swim race", 1, "written 50", 2],
+    ["Luke", "cow moose", 1, "", 2],
+    ["Luke", "baby moose", 1, "", 2],
+    ["Luke", "bunny", 1, "", 2],
+    ["Luke", "dog", 1, "", 2],
+    ["Luke", "cow moose", 1, "", 2],
+    ["Luke", "duck", 1, "", 2],
+    ["Luke", "duck", 1, "", 2],
+    ["Luke", "dog", 1, "", 2],
+    ["Luke", "special sheep", 1, "", 2],
+    ["Luke", "duck", 1, "", 2],
+    ["Luke", "duck", 1, "", 2],
+    ["Luke", "duck", 1, "", 2],
+    ["Luke", "motorcycle", 1, "", 2],
+    ["Luke", "motorcycle", 1, "", 2],
+    ["Luke", "dog", 1, "", 2],
+    ["Luke", "funny joke", 1, "", 2],
+    ["Luke", "dog", 1, "", 2],
+    ["Luke", "goose", 1, "", 2],
+    ["Luke", "goose", 1, "", 2],
+    ["Luke", "goose", 1, "", 2],
+    ["Luke", "goose", 2, "2 geese", 2],
+    ["Luke", "arguing", 1, "no value written", 2],
+    ["Luke", "intentional annoying", 1, "", 2],
+    ["Luke", "false spotting", 1, "", 2],
+    ["Luke", "tattling", 1, "", 2],
+    ["Luke", "pestering", 1, "", 2],
+    ["Luke", "lying", 1, "", 2],
+    ["Luke", "rock skip", 1, "", 2]
+  ]
+};
+
+/* ---- state ---------------------------------------------------------- */
+
+const KEY = "the-game-v2";
+const DAY = 2;                       // everything logged so far came from day 2
+let TYPES, ENTRIES, seq = 0;
+const uid = () => "t" + (++seq);
+
+function fromSeed() {
+  seq = 0;
+  TYPES = SEED.types.map(([name, kind, points, scope]) => ({ id: uid(), name, kind, points, scope }));
+  const byName = new Map(TYPES.map(t => [t.name, t.id]));
+  ENTRIES = SEED.entries.map(([kid, name, qty, note, day]) =>
+    ({ id: uid(), kid, typeId: byName.get(name), qty, note, day }));
+}
+
+function save() {
+  try {
+    localStorage.setItem(KEY, JSON.stringify({ types: TYPES, entries: ENTRIES }));
+    status("Saved in this browser.");
+  } catch (e) {
+    status("Can't save here — edits last until you reload.");
+  }
+}
+function status(msg) { document.getElementById("status").textContent = msg; }
+
+// entries saved before there was a day column belong to the day-2 log
+function fillDays() {
+  for (const e of ENTRIES) e.day = Math.max(1, Math.round(+e.day) || DAY);
+}
+
+function load() {
+  let raw = null;
+  try { raw = localStorage.getItem(KEY); } catch (e) { /* file:// with storage off */ }
+  if (!raw) { fromSeed(); return; }
+  try {
+    const d = JSON.parse(raw);
+    if (!Array.isArray(d.types) || !Array.isArray(d.entries)) throw 0;
+    TYPES = d.types; ENTRIES = d.entries; fillDays();
+    seq = Math.max(0, ...[...TYPES, ...ENTRIES].map(o => +String(o.id).slice(1) || 0));
+    status("Loaded your saved edits.");
+  } catch (e) { fromSeed(); }
+}
+
+/* ---- derived model -------------------------------------------------- */
+
+const typeOf = id => TYPES.find(t => t.id === id);
+const num = v => (v === null || v === undefined || v === "" || isNaN(v)) ? null : +v;
+const fmt = n => Number.isInteger(n) ? String(n) : (Math.round(n * 100) / 100).toString();
+
+/* points an entry is worth: null when its type has no value set */
+function entryPoints(e) {
+  const t = typeOf(e.typeId);
+  if (!t || t.points === null) return null;
+  return t.points * (t.scope === "herd" ? 1 : Math.max(0, e.qty || 0));
+}
+
+function model() {
+  const kids = [...new Set(ENTRIES.map(e => e.kid))];
+  return kids.map(name => {
+    const mine = ENTRIES.filter(e => e.kid === name);
+    const groups = [], chips = [];
+    let seen = 0, good = 0, bad = 0, act = 0, unsetGood = 0, unsetBad = 0;
+
+    for (const k of KINDS) {
+      const ids = [...new Set(mine.filter(e => (typeOf(e.typeId) || {}).kind === k.key).map(e => e.typeId))];
+      const rows = ids.map(id => {
+        const t = typeOf(id);
+        const items = mine.filter(e => e.typeId === id).map(e => ({
+          qty: e.qty, note: e.note, day: e.day, pts: entryPoints(e)
+        }));
+        const known = items.filter(i => i.pts !== null);
+        return {
+          name: t.name, scope: t.scope, kind: k.key, items,
+          days: [...new Set(items.map(i => i.day))].sort((a, b) => a - b),
+          count: items.length,
+          qty: items.reduce((a, i) => a + (i.qty || 0), 0),
+          total: known.reduce((a, i) => a + Math.abs(i.pts), 0),
+          signed: known.reduce((a, i) => a + i.pts, 0),
+          missing: items.length - known.length
+        };
+      }).sort((a, b) => b.total - a.total || b.count - a.count || a.name.localeCompare(b.name));
+
+      for (const r of rows) {
+        if (k.key === "misconduct") { bad += r.signed; unsetBad += r.missing; }
+        else                        { unsetGood += r.missing; }
+        if (k.key === "sighting" || k.key === "deed") { seen += r.qty; good += r.signed; }
+        if (k.key === "activity") { act += r.signed; for (const i of r.items) chips.push([r.name, i.pts, i.day]); }
+      }
+      if (rows.length && k.side !== "chip") groups.push({ label: k.group, side: k.side, rows });
+    }
+    return { name, groups, chips, seen, good, bad, act,
+             unsetGood, unsetBad, unset: unsetGood + unsetBad,
+             events: mine.filter(e => (typeOf(e.typeId) || {}).kind === "misconduct").length };
+  });
+}
+
+/* ---- scale ---------------------------------------------------------- */
+
+const PLOT = 300, CAT = 200, LABEL = 46, UNK_PX = 12, NAME = 104;
+let S, T, COLS, TCOLS;   /* S: per-event rows.  T: the totals chart. */
+
+function niceStep(v) {
+  const p = Math.pow(10, Math.floor(Math.log10(v)));
+  const n = v / p;
+  return (n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10) * p;
+}
+function makeScale(max) {
+  const m = Math.max(1, max);
+  const step = niceStep(m / 5);
+  const domain = Math.ceil(m / step) * step;
+  return { step, domain, px: PLOT / domain };
+}
+function scale(kids) {
+  S = makeScale(Math.max(...kids.flatMap(k => k.groups.flatMap(g => g.rows.map(r => r.total)))));
+  T = makeScale(Math.max(...kids.map(k => Math.max(Math.abs(k.bad), k.good + k.act))));
+  COLS  = `${CAT}px ${PLOT + LABEL}px ${PLOT + LABEL}px`;
+  TCOLS = `${NAME}px ${PLOT + LABEL}px ${PLOT + LABEL}px`;
+}
+
+/* ---- dom helpers ---------------------------------------------------- */
+
+const el = (tag, cls, txt) => {
+  const n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (txt != null) n.textContent = txt;
+  return n;
+};
+function opt(select, value, label, on) {
+  const o = el("option", null, label);
+  o.value = value;
+  if (on) o.selected = true;
+  select.appendChild(o);
+}
+
+/* ---- chart ---------------------------------------------------------- */
+
+function gridlines(side, sc) {
+  const g = el("div", "gridlines");
+  for (let v = 0; v <= sc.domain + 1e-9; v += sc.step) {
+    const i = el("i");
+    if (v === 0) i.className = "axis";
+    i.style[side === "left" ? "right" : "left"] = (v * sc.px) + "px";
+    g.appendChild(i);
+  }
+  return g;
+}
+
+function bar(side, row, kidName) {
+  const wrap = el("div", "side " + side);
+  wrap.appendChild(gridlines(side, S));
+  const b = el("div", "bar");
+  const per = row.scope === "herd" ? "per herd" : "per animal";
+  for (const i of row.items) {
+    const seg = el("div", "seg" + (row.kind === "misconduct" ? " bad" : "") + (i.pts === null ? " unk" : ""));
+    seg.style.width = (i.pts === null ? UNK_PX : Math.abs(i.pts) * S.px) + "px";
+    const qty = i.qty > 1 ? ` ×${i.qty}` : "";
+    seg.dataset.tip = `${kidName} · day ${i.day} · ${row.name}${qty} — `
+      + (i.pts === null ? "no points set" : `${fmt(i.pts)} pts (${per})`)
+      + (i.note ? ` · ${i.note}` : "");
+    b.appendChild(seg);
+  }
+  const txt = (row.count - row.missing ? fmt(row.signed) : "—")
+            + (row.missing ? ` +${row.missing}?` : "");
+  const label = el("span", "val", txt);
+  if (side === "left") wrap.append(label, b); else wrap.append(b, label);
+  return wrap;
+}
+
+function rowEl(name, left, right) {
+  const r = el("div", "row");
+  r.style.gridTemplateColumns = COLS;
+  const blank = side => { const d = el("div", "side " + side); d.appendChild(gridlines(side, S)); return d; };
+  r.append(el("div", "cat", name), left || blank("left"), right || blank("right"));
+  return r;
+}
+
+function ticks(cols, sc, sides) {
+  const t = el("div", "ticks");
+  t.style.gridTemplateColumns = cols;
+  for (const side of sides) {
+    const band = el("div", "band");
+    if (side === "left" || side === "right") {
+      for (let v = sc.step; v <= sc.domain + 1e-9; v += sc.step) {
+        const b = el("b", null, fmt(v));
+        b.style[side === "left" ? "right" : "left"] = (v * sc.px) + "px";
+        b.style.transform = `translateX(${side === "left" ? "50%" : "-50%"})`;
+        band.appendChild(b);
+      }
+    }
+    t.appendChild(band);
+  }
+  return t;
+}
+
+function buildChart(kid) {
+  const card = el("div", "card");
+  card.append(el("h2", null, kid.name));
+
+  const net = kid.good + kid.bad + kid.act;
+  const meta = el("p", "meta");
+  meta.innerHTML = `<b>${kid.seen}</b> spotted &middot; <b>${kid.events}</b> misconduct events`
+    + ` &middot; <b>${fmt(kid.good + kid.act)}</b> earned, <b>${fmt(kid.bad)}</b> lost`
+    + ` &middot; net <b>${net > 0 ? "+" : ""}${fmt(net)}</b>`
+    + (kid.unset ? ` &middot; ${kid.unset} entries have no points set` : "");
+  card.append(meta);
+
+  const scroller = el("div", "scroller"), chart = el("div", "chart");
+  chart.style.minWidth = (CAT + (PLOT + LABEL) * 2) + "px";
+
+  const head = el("div", "head");
+  head.style.gridTemplateColumns = COLS;
+  head.append(el("div", "c", ""), el("div", "l", "← Misconduct"), el("div", "r", "Sightings →"));
+  chart.append(head);
+
+  for (const g of kid.groups) {
+    chart.append(el("div", "grouplabel", g.label));
+    for (const r of g.rows) {
+      const b = bar(g.side, r, kid.name);
+      chart.append(g.side === "left" ? rowEl(r.name, b, null) : rowEl(r.name, null, b));
+    }
+  }
+  chart.append(ticks(COLS, S, [null, "left", "right"]));
+  scroller.append(chart);
+  card.append(scroller);
+
+  const chips = el("div", "chips");
+  if (kid.chips.length) {
+    for (const [name, p] of kid.chips) {
+      const c = el("div", "chip");
+      c.innerHTML = `${name} <b>${p === null ? "no points set" : (p > 0 ? "+" : "") + fmt(p)}</b>`;
+      chips.append(c);
+    }
+  } else chips.append(el("div", "none", "No scored activities logged."));
+  card.append(chips);
+
+  const d = el("details"), s = el("summary", null, "Table view");
+  const tbl = el("table");
+  let html = "<tr><th>Event</th><th>Side</th><th class='n'>Day</th>"
+           + "<th class='n'>Times</th><th class='n'>Spotted</th><th class='n'>Points</th></tr>";
+  for (const g of kid.groups) for (const r of g.rows)
+    html += `<tr${r.missing === r.count ? " class='dim'" : ""}><td>${esc(r.name)}</td>`
+      + `<td>${r.kind === "misconduct" ? "misconduct" : r.kind}</td>`
+      + `<td class="n">${r.days.join(", ")}</td>`
+      + `<td class="n">${r.count}</td><td class="n">${r.qty}</td>`
+      + `<td class="n">${r.count - r.missing ? fmt(r.signed) : "not set"}`
+      + `${r.missing && r.missing < r.count ? ` (+${r.missing} not set)` : ""}</td></tr>`;
+  for (const [name, p, day] of kid.chips)
+    html += `<tr><td>${esc(name)}</td><td>activity</td><td class="n">${day}</td>`
+      + `<td class="n">1</td><td class="n">&mdash;</td>`
+      + `<td class="n">${p === null ? "not set" : fmt(p)}</td></tr>`;
+  tbl.innerHTML = html;
+  d.append(s, tbl);
+  card.append(d);
+  return card;
+}
+
+/* ---- totals chart ---------------------------------------------------- */
+
+function totalsSide(side, kid) {
+  const wrap = el("div", "side " + side);
+  wrap.appendChild(gridlines(side, T));
+  const b = el("div", "bar big");
+  const parts = side === "left"
+    ? [["misconduct", Math.abs(kid.bad), true]]
+    : [["sightings & deeds", kid.good, false], ["scored activities", kid.act, false]];
+
+  let drawn = 0;
+  for (const [what, v, isBad] of parts) {
+    if (!v) continue;
+    drawn++;
+    const seg = el("div", "seg" + (isBad ? " bad" : ""));
+    seg.style.width = (v * T.px) + "px";
+    seg.dataset.tip = `${kid.name} · ${fmt(v)} pts from ${what}`;
+    b.appendChild(seg);
+  }
+  const missing = side === "left" ? kid.unsetBad : kid.unsetGood;
+  if (missing) {
+    const seg = el("div", "seg unk" + (side === "left" ? " bad" : ""));
+    seg.style.width = UNK_PX + "px";
+    seg.dataset.tip = `${kid.name} · ${missing} ${missing === 1 ? "entry has" : "entries have"} no points set`;
+    b.appendChild(seg);
+  }
+  const val = side === "left" ? kid.bad : kid.good + kid.act;
+  const txt = (drawn ? (val > 0 ? "+" : "") + fmt(val) : "—") + (missing ? ` +${missing}?` : "");
+  const label = el("span", "val", txt);
+  if (side === "left") wrap.append(label, b); else wrap.append(b, label);
+  return wrap;
+}
+
+function totalsChart(kids) {
+  const card = el("div", "card");
+  card.append(el("h2", null, "Total score"));
+  const meta = el("p", "meta");
+  meta.innerHTML = "One line per kid, both halves on the same axis: everything <b>lost</b> to the "
+    + "left of it, everything <b>earned</b> to the right. The figure past each bar is that side's "
+    + "total; the figure under the name is the net.";
+  card.append(meta);
+
+  const scroller = el("div", "scroller"), chart = el("div", "chart");
+  chart.style.minWidth = (NAME + (PLOT + LABEL) * 2) + "px";
+
+  const head = el("div", "head");
+  head.style.gridTemplateColumns = TCOLS;
+  head.append(el("div", "c", ""), el("div", "l", "← Lost"), el("div", "r", "Earned →"));
+  chart.append(head);
+
+  for (const kid of kids) {
+    const row = el("div", "row totals");
+    row.style.gridTemplateColumns = TCOLS;
+    const net = kid.good + kid.act + kid.bad;
+    const nm = el("div", "name");
+    nm.append(el("b", null, kid.name), el("span", null, `net ${net > 0 ? "+" : ""}${fmt(net)}`));
+    row.append(nm, totalsSide("left", kid), totalsSide("right", kid));
+    chart.append(row);
+  }
+  chart.append(ticks(TCOLS, T, [null, "left", "right"]));
+  scroller.append(chart);
+  card.append(scroller);
+  return card;
+}
+
+/* ---- earned & lost by day -------------------------------------------- */
+
+const DHALF = 150, DAXIS = 46, DCOL = 40, DGAP = 12;  /* px: each half, tick gutter, column */
+const DUNK = 12;                                      /* stub for entries with no points set */
+/* below the line: 2px rules 20px apart, 25% darker than the kid's own colour */
+const STRIPE = "repeating-linear-gradient(45deg, rgba(0,0,0,.25) 0 2px, transparent 2px 20px)";
+const groupWidth = n => Math.max(132, n * DCOL + (n - 1) * DGAP + 40);
+/* blue, green, purple, amber — kept in that order so neighbours stay apart
+   for colourblind readers; every bar is labelled with its number as well */
+const KID_HUES = ["--kid1", "--kid2", "--kid3", "--kid4"];
+const hueOf = i => `var(${KID_HUES[i % KID_HUES.length]})`;
+
+function dayModel() {
+  const days = [...new Set(ENTRIES.map(e => e.day))].sort((a, b) => a - b);
+  const names = [...new Set(ENTRIES.map(e => e.kid))];
+  const cells = days.map(day => names.map(name => {
+    const mine = ENTRIES.filter(e => e.kid === name && e.day === day);
+    let up = 0, down = 0, missUp = 0, missDown = 0;   /* down is a magnitude */
+    for (const e of mine) {
+      const p = entryPoints(e);
+      const bad = (typeOf(e.typeId) || {}).kind === "misconduct";
+      if (p === null) { if (bad) missDown++; else missUp++; }
+      else if (p < 0) down -= p;
+      else up += p;
+    }
+    return { name, day, count: mine.length, up, down, missUp, missDown, net: up - down };
+  }));
+  return { days, names, cells };
+}
+
+/* zero sits in the middle: one domain, used the same distance up and down */
+function dayScale(cells) {
+  const m = Math.max(5, ...cells.map(c => Math.max(c.up, c.down)));   /* whole-number ticks on a quiet day */
+  const step = niceStep(m / 5);
+  const domain = Math.ceil(m / step) * step;
+  return { step, domain, px: DHALF / domain };
+}
+
+function dayChart() {
+  const { days, names, cells } = dayModel();
+  const card = el("div", "card dchart");
+  card.append(el("h2", null, "Earned and lost by day"));
+  const meta = el("p", "meta");
+  meta.innerHTML = "One column per kid per day, split at zero: everything <b>earned</b> reaches up "
+    + "from the line, everything <b>lost</b> hangs below it, hatched to say so. Colour says whose "
+    + "column it is; a striped tip is an entry with no points set.";
+  card.append(meta);
+
+  const legend = el("div", "klegend");
+  names.forEach((n, i) => {
+    const item = el("span"), sw = el("i", "sw");
+    sw.style.background = hueOf(i);
+    item.append(sw, document.createTextNode(n));
+    legend.append(item);
+  });
+  card.append(legend);
+
+  const D = dayScale(cells.flat());
+  const GW = groupWidth(names.length);
+
+  const scroller = el("div", "scroller"), inner = el("div");
+  inner.style.minWidth = (DAXIS + days.length * GW) + "px";
+
+  const plot = el("div", "dplot");
+  plot.style.height = (DHALF * 2) + "px";
+
+  const g = el("div", "glines"), zero = el("div", "glines");
+  const line = (top, cls) => { const i = el("i", cls); i.style.top = top + "px"; g.append(i); };
+  const tick = (top, txt) => {
+    const t = el("div", "tick", txt);
+    t.style.top = top + "px";
+    plot.append(t);
+  };
+  for (let v = D.step; v <= D.domain + 1e-9; v += D.step) {
+    line(DHALF - v * D.px); tick(DHALF - v * D.px, "+" + fmt(v));
+    line(DHALF + v * D.px); tick(DHALF + v * D.px, "\u2212" + fmt(v));
+  }
+  plot.append(g);
+  tick(DHALF, "0");
+  const ax = el("i", "axis");
+  ax.style.top = DHALF + "px";
+  zero.append(ax);
+
+  const groups = el("div", "dgroups");
+  cells.forEach(row => {
+    const grp = el("div", "dgroup");
+    grp.style.flexBasis = GW + "px";
+    row.forEach((c, i) => {
+      const col = el("div", "dcol");
+      const hue = hueOf(i);
+
+      /* one direction at a time: the bar, then the striped stub, then the figure */
+      const arm = (dir, value, missing) => {
+        const away = dir === "up" ? "bottom" : "top";
+        let reach = 0;
+        if (value) {
+          const bar = el("div", "dbar " + (missing ? "flat" : dir));
+          bar.style.background = dir === "down" ? `${STRIPE}, ${hue}` : hue;
+          bar.style[away] = DHALF + "px";
+          bar.style.height = value * D.px + "px";
+          bar.dataset.tip = `${c.name} · day ${c.day} — ${fmt(value)} ${dir === "up" ? "earned" : "lost"}`
+            + ` · net ${c.net > 0 ? "+" : ""}${fmt(c.net)}`;
+          col.append(bar);
+          reach = value * D.px + 2;             /* 2px of surface between the two fills */
+        }
+        if (missing) {
+          const stub = el("div", "dbar " + dir);
+          stub.style.background = `repeating-linear-gradient(135deg, ${hue} 0 3px, transparent 3px 6px)`;
+          stub.style.boxShadow = `inset 0 0 0 1.5px ${hue}`;
+          stub.style[away] = (DHALF + reach) + "px";
+          stub.style.height = DUNK + "px";
+          stub.dataset.tip = `${c.name} · day ${c.day} — ${missing} `
+            + `${missing === 1 ? "entry" : "entries"} with no points set`;
+          col.append(stub);
+          reach += DUNK;
+        }
+        if (!value && !missing) return;
+        const txt = (value ? (dir === "up" ? "+" : "\u2212") + fmt(value) : "")
+                  + (missing ? (value ? ` +${missing}?` : `${missing}?`) : "");
+        const val = el("div", "dval" + (value ? "" : " none"), txt);
+        val.style[away] = (DHALF + reach + 5) + "px";
+        col.append(val);
+      };
+
+      if (c.count) {
+        arm("up", c.up, c.missUp);
+        arm("down", c.down, c.missDown);
+      } else {
+        const none = el("div", "dval none", "—");
+        none.style.bottom = (DHALF + 5) + "px";
+        col.append(none);
+      }
+      grp.append(col);
+    });
+    groups.append(grp);
+  });
+  plot.append(groups, zero);     /* the zero line sits over the bars */
+  inner.append(plot);
+
+  const labels = el("div", "dlabels");
+  for (const d of days) {
+    const l = el("div", null, "Day " + d);
+    l.style.flexBasis = GW + "px";
+    labels.append(l);
+  }
+  inner.append(labels);
+
+  scroller.append(inner);
+  card.append(scroller);
+  return card;
+}
+
+/* ---- waterfall: how the score got built ------------------------------- */
+
+const WPLOT = 240, WBAR = 13, WGAP = 4, WSTUB = 9, WEND = 22;  /* px */
+const wx = i => i * (WBAR + WGAP);                 /* left edge of step i */
+
+/* every event a kid logged, in the order it happened, with the running score */
+function waterfallRows(name) {
+  const mine = ENTRIES.filter(e => e.kid === name).slice().sort((a, b) => a.day - b.day);
+  let run = 0;
+  return mine.map(e => {
+    const t = typeOf(e.typeId) || {};
+    const pts = entryPoints(e), from = run;
+    if (pts !== null) run += pts;
+    return { day: e.day, label: t.name || "?", qty: e.qty, note: e.note,
+             kind: t.kind, pts, from, to: run };
+  });
+}
+
+/* one scale for every kid, so the strips can be read against each other */
+function pathScale(levels) {
+  const lo = Math.min(0, ...levels), hi = Math.max(0, ...levels);
+  const step = niceStep(Math.max(5, hi - lo) / 8);
+  /* a score that never moved gets zero in the middle rather than on the floor */
+  if (hi === lo) return { step, lo: -step, hi: step, span: step * 2, px: WPLOT / (step * 2) };
+  const dlo = Math.floor(lo / step) * step;
+  const span = Math.max(step, Math.ceil(hi / step) * step - dlo);
+  return { step, lo: dlo, hi: dlo + span, span, px: WPLOT / span };
+}
+const wy = (W, v) => (W.hi - v) * W.px;            /* px from the top of the plot */
+
+function dayRuns(steps) {
+  const out = [];
+  steps.forEach((s, i) => {
+    const last = out[out.length - 1];
+    if (last && last.day === s.day) last.end = i;
+    else out.push({ day: s.day, start: i, end: i });
+  });
+  return out;
+}
+
+function waterfallChart(kids) {
+  const rows = kids.map(k => waterfallRows(k.name));
+  const card = el("div", "card wchart");
+  card.append(el("h2", null, "How the score got built"));
+  const meta = el("p", "meta");
+  meta.innerHTML = "Every event in the order it was logged. The step goes <b>up</b> for points "
+    + "earned and <b>down</b> for points lost, each one starting where the last one finished, so "
+    + "the level you end on is the score &mdash; drawn again as the last column. A hatched step is "
+    + "an entry with no points set: it holds the line rather than moving it.";
+  card.append(meta);
+
+  const W = pathScale(rows.flatMap(r => r.flatMap(s => [s.from, s.to])));
+  const width = Math.max(140, ...rows.map(r => wx(r.length) + WEND + WBAR + 6));
+
+  const scroller = el("div", "scroller"), inner = el("div");
+  inner.style.minWidth = (DAXIS + width) + "px";
+
+  rows.forEach((steps, ki) => {
+    const kid = kids[ki], strip = el("div", "wstrip");
+    const net = steps.length ? steps[steps.length - 1].to : 0;
+    const unset = steps.filter(s => s.pts === null).length;
+
+    const head = el("div", "wname");
+    head.append(el("b", null, kid.name), el("span", null,
+      steps.length + " events \u00b7 ends on " + (net > 0 ? "+" : "") + fmt(net)
+      + (unset ? " \u00b7 " + unset + " with no points set" : "")));
+    strip.append(head);
+
+    const plot = el("div", "wplot");
+    plot.style.height = WPLOT + "px";
+
+    const g = el("div", "glines"), zero = el("div", "glines");
+    const steps_n = Math.round(W.span / W.step);
+    for (let i = 0; i <= steps_n; i++) {
+      const v = W.lo + i * W.step, y = wy(W, v);
+      const line = el("i", v === 0 ? "axis" : null);
+      line.style.top = y + "px";
+      (v === 0 ? zero : g).append(line);
+      const t = el("div", "tick", (v > 0 ? "+" : v < 0 ? "\u2212" : "") + fmt(Math.abs(v)));
+      t.style.top = y + "px";
+      plot.append(t);
+    }
+    plot.append(g);
+
+    /* a separator between days, and the day's name under the run it covers */
+    const runs = dayRuns(steps), days = el("div", "wdays");
+    runs.forEach((r, i) => {
+      if (i) {
+        const sep = el("div", "wsep");
+        sep.style.left = (wx(r.start) - WGAP / 2) + "px";
+        plot.append(sep);
+      }
+      const lbl = el("span", null, "Day " + r.day);
+      lbl.style.left = (wx((r.start + r.end) / 2) + WBAR / 2) + "px";
+      days.append(lbl);
+    });
+
+    let labelled = -9;
+    steps.forEach((s, i) => {
+      const x = wx(i);
+      const bad = s.pts === null ? s.kind === "misconduct" : s.pts < 0;
+      const tip = kid.name + " \u00b7 day " + s.day + " \u00b7 " + s.label
+        + (s.qty > 1 ? " \u00d7" + s.qty : "") + " \u2014 "
+        + (s.pts === null ? "no points set" : (s.pts > 0 ? "+" : "") + fmt(s.pts))
+        + " \u00b7 running " + (s.to > 0 ? "+" : "") + fmt(s.to);
+
+      const b = el("div", "wstep" + (bad ? " bad" : "") + (s.pts === null ? " unk" : ""));
+      b.style.left = x + "px";
+      b.style.width = WBAR + "px";
+      if (s.pts === null) {
+        const y = wy(W, s.to) - WSTUB / 2;
+        b.style.top = Math.min(Math.max(y, 0), WPLOT - WSTUB) + "px";
+        b.style.height = WSTUB + "px";
+      } else {
+        b.style.top = wy(W, Math.max(s.from, s.to)) + "px";
+        b.style.height = Math.max(2, Math.abs(s.pts) * W.px) + "px";
+      }
+      b.dataset.tip = tip;
+      plot.append(b);
+
+      if (i < steps.length - 1) {                  /* carry the level across the gap */
+        const link = el("div", "wlink");
+        link.style.left = (x + WBAR) + "px";
+        link.style.width = WGAP + "px";
+        link.style.top = wy(W, s.to) + "px";
+        plot.append(link);
+      }
+
+      /* label only the big movers, and never two close enough to collide */
+      if (s.pts !== null && Math.abs(s.pts) >= 10 && i - labelled >= 3) {
+        labelled = i;
+        const v = el("div", "wval", (s.pts > 0 ? "+" : "\u2212") + fmt(Math.abs(s.pts)));
+        v.style.left = (x + WBAR / 2) + "px";
+        if (s.pts > 0) v.style.top = (wy(W, Math.max(s.from, s.to)) - 17) + "px";
+        else v.style.top = (wy(W, Math.min(s.from, s.to)) + 4) + "px";
+        plot.append(v);
+      }
+    });
+
+    /* the total, in the kid's own colour: the same number, drawn from zero */
+    const tx = wx(steps.length) + WEND;
+    const tot = el("div", "wstep");
+    tot.style.background = hueOf(ki);
+    tot.style.left = tx + "px";
+    tot.style.width = (WBAR + 6) + "px";
+    tot.style.top = wy(W, Math.max(0, net)) + "px";
+    tot.style.height = Math.max(2, Math.abs(net) * W.px) + "px";
+    tot.dataset.tip = kid.name + " \u2014 total " + (net > 0 ? "+" : "") + fmt(net)
+      + (unset ? " \u00b7 " + unset + " entries have no points set" : "");
+    plot.append(tot);
+
+    const tv = el("div", "wval", (net > 0 ? "+" : net < 0 ? "\u2212" : "") + fmt(Math.abs(net)));
+    tv.style.left = (tx + (WBAR + 6) / 2) + "px";
+    tv.style.top = (net < 0 ? wy(W, net) + 4 : wy(W, Math.max(0, net)) - 17) + "px";
+    plot.append(tv);
+
+    const tl = el("span", null, "Total");
+    tl.style.left = (tx + (WBAR + 6) / 2) + "px";
+    days.append(tl);
+
+    plot.append(zero);                             /* the zero line reads over the steps */
+    strip.append(plot, days);
+    inner.append(strip);
+  });
+
+  scroller.append(inner);
+  card.append(scroller);
+
+  const d = el("details"), sum = el("summary", null, "Table view"), tbl = el("table");
+  let html = "<tr><th>Kid</th><th class='n'>Day</th><th>Event</th>"
+           + "<th class='n'>Points</th><th class='n'>Running</th></tr>";
+  rows.forEach((steps, ki) => {
+    for (const s of steps)
+      html += "<tr" + (s.pts === null ? " class='dim'" : "") + "><td>" + esc(kids[ki].name) + "</td>"
+        + "<td class='n'>" + s.day + "</td>"
+        + "<td>" + esc(s.label) + (s.qty > 1 ? " \u00d7" + s.qty : "") + "</td>"
+        + "<td class='n'>" + (s.pts === null ? "not set" : (s.pts > 0 ? "+" : "") + fmt(s.pts)) + "</td>"
+        + "<td class='n'>" + (s.to > 0 ? "+" : "") + fmt(s.to) + "</td></tr>";
+  });
+  tbl.innerHTML = html;
+  d.append(sum, tbl);
+  card.append(d);
+  return card;
+}
+
+/* ---- one dot per event ------------------------------------------------ */
+
+const DOTD = 9, DOTMAXH = 132, DOTW = 620, DOTLANE = 84, DOTNAME = 150, DOTPITCH = 11;
+
+function dotModel() {
+  return [...new Set(ENTRIES.map(e => e.kid))].map(name => {
+    const items = ENTRIES.filter(e => e.kid === name).map(e => {
+      const t = typeOf(e.typeId) || {};
+      return { day: e.day, label: t.name || "?", qty: e.qty, kind: t.kind, pts: entryPoints(e) };
+    });
+    /* one column per distinct value, dots stacked up inside it */
+    const stacks = new Map();
+    for (const i of items) {
+      if (i.pts === null) continue;
+      if (!stacks.has(i.pts)) stacks.set(i.pts, []);
+      stacks.get(i.pts).push(i);
+    }
+    const unset = items.filter(i => i.pts === null);
+    const known = [...stacks.keys()].sort((a, b) => a - b);
+    return { name, items, stacks, unset, known,
+             tallest: Math.max(0, unset.length, ...[...stacks.values()].map(v => v.length)) };
+  });
+}
+
+function dotStrip() {
+  const kids = dotModel();
+  const card = el("div", "card dotchart");
+  card.append(el("h2", null, "Every event, one dot each"));
+  const meta = el("p", "meta");
+  meta.innerHTML = "One dot per logged event, placed at what that single event was worth and "
+    + "stacked where several were worth the same. It shows the <b>shape</b> of a score that the "
+    + "totals hide: a pile of ones is a different day from one big swing. Hollow dots to the "
+    + "right of the axis have no points set yet, so they have nowhere to sit.";
+  card.append(meta);
+
+  const vals = kids.flatMap(k => k.known);
+  const lo0 = Math.min(0, ...vals), hi0 = Math.max(0, ...vals);
+  const step = niceStep(Math.max(5, hi0 - lo0) / 6);
+  const lo = Math.floor(lo0 / step) * step;
+  const span = Math.max(step, Math.ceil(hi0 / step) * step - lo);
+  /* half a dot of inset each end, so the end columns sit inside the plot */
+  const px = (DOTW - DOTD) / span;
+  const at = v => (v - lo) * px;                  /* left edge of the dot at v */
+
+  const tallest = Math.max(1, ...kids.map(k => k.tallest));
+  const pitch = tallest > 1 ? Math.min(DOTPITCH, (DOTMAXH - DOTD) / (tallest - 1)) : DOTPITCH;
+  const H = DOTD + (tallest - 1) * pitch;
+  const COL = DOTNAME + "px " + DOTW + "px " + DOTLANE + "px";
+
+  const scroller = el("div", "scroller"), inner = el("div");
+  inner.style.minWidth = (DOTNAME + DOTW + DOTLANE) + "px";
+
+  const head = el("div", "dothead");
+  head.style.gridTemplateColumns = COL;
+  head.append(el("div", null, ""), el("div", "c", "Points for one event"), el("div", "c", "No value"));
+  inner.append(head);
+
+  for (const k of kids) {
+    const row = el("div", "drow");
+    row.style.gridTemplateColumns = COL;
+    row.style.height = H + "px";
+
+    const worst = k.known.length ? k.known[0] : null;
+    const best = k.known.length ? k.known[k.known.length - 1] : null;
+    const nm = el("div", "name");
+    nm.append(el("b", null, k.name), el("span", null,
+      k.items.length + " events"
+      + (best !== null ? " \u00b7 biggest " + (best > 0 ? "+" : "") + fmt(best) : "")
+      + (worst !== null && worst !== best ? " \u00b7 worst " + fmt(worst) : "")));
+
+    const plot = el("div", "dstack");
+    const grid = el("div", "dgrid");
+    const n = Math.round(span / step);
+    for (let i = 0; i <= n; i++) {
+      const v = lo + i * step, line = el("i", v === 0 ? "axis" : null);
+      line.style.left = (at(v) + DOTD / 2) + "px";
+      grid.append(line);
+    }
+    plot.append(grid);
+
+    for (const [v, list] of k.stacks) {
+      list.forEach((it, i) => {
+        const dot = el("div", "dot" + (v < 0 ? " bad" : ""));
+        dot.style.left = at(v) + "px";
+        dot.style.bottom = (i * pitch) + "px";
+        dot.dataset.tip = k.name + " \u00b7 day " + it.day + " \u00b7 " + it.label
+          + (it.qty > 1 ? " \u00d7" + it.qty : "") + " \u2014 " + (v > 0 ? "+" : "") + fmt(v)
+          + (list.length > 1 ? " \u00b7 " + list.length + " events worth this" : "");
+        plot.append(dot);
+      });
+    }
+
+    const lane = el("div", "dlane");
+    k.unset.forEach((it, i) => {
+      const dot = el("div", "dot unk" + (it.kind === "misconduct" ? " bad" : ""));
+      dot.style.left = (DOTLANE / 2 - DOTD / 2) + "px";
+      dot.style.bottom = (i * pitch) + "px";
+      dot.dataset.tip = k.name + " \u00b7 day " + it.day + " \u00b7 " + it.label
+        + (it.qty > 1 ? " \u00d7" + it.qty : "") + " \u2014 no points set";
+      lane.append(dot);
+    });
+
+    row.append(nm, plot, lane);
+    inner.append(row);
+  }
+
+  const tk = el("div", "dotticks");
+  tk.style.gridTemplateColumns = COL;
+  const band = el("div", "band"), n = Math.round(span / step);
+  for (let i = 0; i <= n; i++) {
+    const v = lo + i * step, b = el("b", null, (v > 0 ? "+" : v < 0 ? "\u2212" : "") + fmt(Math.abs(v)));
+    b.style.left = (at(v) + DOTD / 2) + "px";
+    band.append(b);
+  }
+  tk.append(el("div"), band, el("div"));
+  inner.append(tk);
+
+  scroller.append(inner);
+  card.append(scroller);
+
+  const d = el("details"), sum = el("summary", null, "Table view"), tbl = el("table");
+  const allVals = [...new Set(kids.flatMap(k => k.known))].sort((a, b) => a - b);
+  let html = "<tr><th class='n'>Points</th>"
+           + kids.map(k => "<th class='n'>" + esc(k.name) + "</th>").join("") + "</tr>";
+  for (const v of allVals)
+    html += "<tr><td class='n'>" + (v > 0 ? "+" : "") + fmt(v) + "</td>"
+      + kids.map(k => "<td class='n'>" + ((k.stacks.get(v) || []).length || "\u2014") + "</td>").join("")
+      + "</tr>";
+  if (kids.some(k => k.unset.length))
+    html += "<tr class='dim'><td class='n'>not set</td>"
+      + kids.map(k => "<td class='n'>" + (k.unset.length || "\u2014") + "</td>").join("") + "</tr>";
+  tbl.innerHTML = html;
+  d.append(sum, tbl);
+  card.append(d);
+  return card;
+}
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+/* ---- editor --------------------------------------------------------- */
+
+function renderLookup() {
+  const body = document.getElementById("lookup-body");
+  body.textContent = "";
+  const used = id => ENTRIES.filter(e => e.typeId === id).length;
+
+  for (const t of TYPES) {
+    const tr = el("tr");
+
+    const name = el("input"); name.type = "text"; name.value = t.name;
+    name.addEventListener("input", () => { t.name = name.value; redraw("lookup"); });
+
+    const kind = el("select");
+    for (const k of KINDS) opt(kind, k.key, k.label, k.key === t.kind);
+    kind.addEventListener("change", () => { t.kind = kind.value; redraw("lookup"); });
+
+    const pts = el("input"); pts.type = "number"; pts.step = "any";
+    pts.value = t.points === null ? "" : t.points;
+    pts.placeholder = "—";
+    pts.addEventListener("input", () => { t.points = num(pts.value); redraw("lookup"); });
+
+    const scope = el("select");
+    opt(scope, "animal", "Per animal", t.scope !== "herd");
+    opt(scope, "herd", "Per herd", t.scope === "herd");
+    scope.addEventListener("change", () => { t.scope = scope.value; redraw("lookup"); });
+
+    const n = used(t.id);
+    const del = el("button", "btn x", "×");
+    del.title = n ? "Delete its entries first" : "Delete this type";
+    del.disabled = n > 0;
+    del.addEventListener("click", () => {
+      TYPES = TYPES.filter(x => x.id !== t.id); redraw();
+    });
+
+    for (const [node, cls] of [[name], [kind], [pts, "n"], [scope], [el("span", null, String(n)), "n"], [del]]) {
+      const td = el("td", cls || null);
+      td.append(node);
+      tr.append(td);
+    }
+    body.append(tr);
+  }
+}
+
+function entryPointsText(e) {
+  const p = entryPoints(e);
+  return p === null ? "not set" : fmt(p);
+}
+function refreshEntryPoints() {
+  document.querySelectorAll("[data-entry-points]").forEach(td => {
+    const e = ENTRIES.find(x => x.id === td.dataset.entryPoints);
+    if (e) td.textContent = entryPointsText(e);
+  });
+}
+
+function renderEntries() {
+  const body = document.getElementById("entries-body");
+  body.textContent = "";
+  const list = document.getElementById("kid-names");
+  list.textContent = "";
+  for (const k of [...new Set(ENTRIES.map(e => e.kid))]) list.append(el("option", null, k));
+
+  for (const e of ENTRIES) {
+    const tr = el("tr");
+
+    const day = el("input"); day.type = "number"; day.min = "1"; day.step = "1"; day.value = e.day;
+    day.addEventListener("input", () => {
+      e.day = Math.max(1, Math.round(+day.value || 1));
+      redraw("entries");
+    });
+
+    const kid = el("input"); kid.type = "text"; kid.value = e.kid;
+    kid.setAttribute("list", "kid-names");
+    kid.addEventListener("change", () => {          // change, not input — no chart per keystroke
+      e.kid = kid.value.trim() || e.kid;
+      kid.value = e.kid; redraw();
+    });
+
+    const type = el("select");
+    for (const t of TYPES) {
+      const o = el("option", null, t.name);
+      o.value = t.id;
+      if (t.id === e.typeId) o.selected = true;
+      type.appendChild(o);
+    }
+    type.addEventListener("change", () => { e.typeId = type.value; redraw(); });
+
+    const qty = el("input"); qty.type = "number"; qty.min = "0"; qty.step = "1"; qty.value = e.qty;
+    qty.addEventListener("input", () => {
+      e.qty = Math.max(0, Math.round(+qty.value || 0));
+      redraw("entries");
+    });
+
+    const note = el("input"); note.type = "text"; note.value = e.note || "";
+    note.placeholder = "—";
+    note.addEventListener("input", () => { e.note = note.value; redraw("entries"); });
+
+    const pts = el("td", "n", entryPointsText(e));
+    pts.dataset.entryPoints = e.id;
+
+    const del = el("button", "btn x", "×");
+    del.title = "Delete this entry";
+    del.addEventListener("click", () => { ENTRIES = ENTRIES.filter(x => x.id !== e.id); redraw(); });
+
+    for (const [node, cls] of [[day, "n"], [kid], [type], [qty, "n"], [note]]) {
+      const td = el("td", cls || null);
+      td.append(node);
+      tr.append(td);
+    }
+    tr.append(pts);
+    const last = el("td"); last.append(del); tr.append(last);
+    body.append(tr);
+  }
+}
+
+function renderCharts() {
+  const kids = model();
+  scale(kids);
+  const host = document.getElementById("charts");
+  host.textContent = "";
+  host.append(...kids.map(buildChart), dayChart(), waterfallChart(kids),
+              dotStrip(), totalsChart(kids));
+  document.getElementById("json").value = JSON.stringify({ types: TYPES, entries: ENTRIES }, null, 2);
+}
+
+function renderAll() { renderAddBar(); renderLookup(); renderEntries(); renderCharts(); }
+
+/* Every edit goes through here. The charts read the whole log, so all of them
+   are rebuilt every time — there is no such thing as an edit that only some
+   chart cares about. The tables and the bar are rebuilt with them, except for
+   the table the edit is being typed into: rebuilding an input under the cursor
+   would throw the cursor away, so that one table is left standing and only its
+   computed cells are refreshed.
+     redraw()          — a row appeared or vanished; rebuild everything
+     redraw("entries") — a value was typed in the entries table
+     redraw("lookup")  — a value was typed in the lookup table */
+function redraw(typing) {
+  save();
+  renderAddBar();
+  if (typing !== "lookup") renderLookup();
+  if (typing === "entries") refreshEntryPoints(); else renderEntries();
+  renderCharts();
+}
+
+/* ---- the entry bar ---------------------------------------------------
+   Day 1 of the game is 4 Sep 2026, so the day is read off the calendar
+   instead of being typed. A name that isn't in the lookup table yet is a
+   new type, and a type has to have a value before anything can be logged
+   against it. */
+
+const DAY_ONE = new Date(2026, 8, 4);
+function gameDay(when) {
+  const t = when || new Date();
+  const midnight = new Date(t.getFullYear(), t.getMonth(), t.getDate());
+  return Math.max(1, Math.round((midnight - DAY_ONE) / 864e5) + 1);
+}
+const DAY_FMT = new Intl.DateTimeFormat(undefined, { weekday: "short", day: "numeric", month: "short" });
+
+const findType = name => {
+  const k = String(name || "").trim().toLowerCase();
+  return k ? TYPES.find(t => String(t.name).trim().toLowerCase() === k) || null : null;
+};
+
+const AB = {};
+for (const k of ["kid", "type", "qty", "kind", "kindf", "pts", "scope", "scopef",
+                 "add", "new", "newhint", "echo", "day"])
+  AB[k] = document.getElementById("ab-" + k);
+
+for (const k of KINDS) if (k.side === "right") opt(AB.kind, k.key, k.label, k.key === "sighting");
+opt(AB.scope, "animal", "Per animal", true);
+opt(AB.scope, "herd", "Per herd", false);
+
+let abHeld = "";
+const signed = n => (n > 0 ? "+" : "") + fmt(n);
+
+/* which side a type lands on: anything worth less than nothing is misconduct,
+   whatever the picker says. A type that already has a side keeps it. */
+function abKind(t, p) {
+  if (p !== null && p < 0) return "misconduct";
+  return t ? t.kind : AB.kind.value;
+}
+
+function abHint(t, p, kind) {
+  const name = t ? t.name : AB.type.value.trim();
+  if (t) {
+    return "“" + name + "” is " + kindPhrase(t.kind) + " with no value yet — a number here prices "
+      + "every " + name + " entry, not just this one."
+      + (kind === t.kind ? "" : " A value below zero moves it to misconduct.");
+  }
+  if (p === null)
+    return "New type — say whether it’s an animal or a deed, and what it’s worth. "
+      + "A value below zero makes it misconduct instead.";
+  return "“" + name + "” will be logged as " + kindPhrase(kind)
+    + (kind === "misconduct" ? ", read off the negative value." : ".");
+}
+
+/* what this entry would be worth, spelled out */
+function abPreview(t) {
+  const qty = Math.max(1, Math.round(+AB.qty.value || 1));
+  const name = t ? t.name : AB.type.value.trim();
+  const scope = t ? t.scope : AB.scope.value;
+  const p = (t && t.points !== null) ? t.points : num(AB.pts.value);
+  const worth = p === null ? null : p * (scope === "herd" ? 1 : qty);
+  return AB.kid.value + " · " + qty + " × " + name + " · "
+    + (p === null
+        ? "no points set yet"
+        : fmt(p) + (scope === "herd" ? " for the sighting" : " each") + " · " + signed(worth) + " points")
+    + " · day " + gameDay();
+}
+
+function abSync() {
+  const name = AB.type.value.trim();
+  const t = findType(name);
+  const needs = !!name && (!t || t.points === null);
+  AB.new.hidden = !needs;
+  if (needs) {
+    const p = num(AB.pts.value);
+    const kind = abKind(t, p);
+    AB.kindf.hidden = !!t;               // a type already in the table has its side
+    AB.scopef.hidden = !!t;              // and its scoring already
+    AB.kind.disabled = kind === "misconduct";   // a negative value settles it
+    AB.pts.placeholder = (t ? t.kind : "sighting") === "misconduct" ? "−10" : "1";
+    AB.newhint.textContent = abHint(t, p, kind);
+  }
+  AB.add.disabled = !name || (needs && num(AB.pts.value) === null);
+  AB.echo.textContent = name ? abPreview(t) : abHeld;
+}
+
+function abSay(msg) { abHeld = msg; AB.echo.textContent = msg; }
+
+function abAdd() {
+  const kid = AB.kid.value.trim();
+  const name = AB.type.value.trim();
+  if (!kid) { abSay("Pick a kid first."); return; }
+  if (!name) { AB.type.focus(); abSay("Name the sighting, deed or misconduct."); return; }
+
+  let t = findType(name);
+  if (!t || t.points === null) {
+    const p = num(AB.pts.value);
+    if (p === null) { AB.pts.focus(); abSay("Give " + name + " a point value first."); return; }
+    const kind = abKind(t, p);
+    if (t) { t.points = p; t.kind = kind; }
+    else { t = { id: uid(), name, kind, points: p, scope: AB.scope.value }; TYPES.push(t); }
+  }
+
+  const qty = Math.max(1, Math.round(+AB.qty.value || 1));
+  const day = gameDay();
+  const e = { id: uid(), kid, typeId: t.id, day, qty, note: "" };
+  ENTRIES.push(e);
+
+  AB.type.value = ""; AB.qty.value = "1"; AB.pts.value = "";
+  AB.kind.value = "sighting"; AB.scope.value = "animal";
+  abHeld = "Logged " + qty + " × " + t.name + " for " + kid + " on day " + day
+    + " — " + signed(entryPoints(e)) + " points.";
+  redraw();
+  AB.type.focus();
+}
+
+function renderAddBar() {
+  const kids = [...new Set(ENTRIES.map(e => e.kid))];
+  if (!kids.length) kids.push("Kolvin", "Luke");
+  const want = AB.kid.value;
+  AB.kid.textContent = "";
+  for (const k of kids) opt(AB.kid, k, k, k === want);
+  if (!AB.kid.value) AB.kid.value = kids[0];
+
+  const list = document.getElementById("type-names");
+  list.textContent = "";
+  /* Animals, then deeds, then misconduct, then activities. The option's text
+     is the name and nothing else: a browser filters what you type against what
+     it shows, so anything decorative here stops the name from matching. */
+  for (const k of KINDS) for (const t of TYPES) {
+    if (t.kind !== k.key) continue;
+    const o = el("option", null, t.name);
+    o.value = t.name;
+    list.appendChild(o);
+  }
+
+  const now = new Date();
+  AB.day.textContent = "day " + gameDay(now) + ", " + DAY_FMT.format(now);
+  abSync();
+}
+
+for (const n of [AB.type, AB.qty, AB.pts]) {
+  n.addEventListener("input", abSync);
+  n.addEventListener("keydown", ev => { if (ev.key === "Enter") { ev.preventDefault(); abAdd(); } });
+}
+for (const n of [AB.kid, AB.kind, AB.scope]) n.addEventListener("change", abSync);
+AB.add.addEventListener("click", abAdd);
+
+/* ---- controls ------------------------------------------------------- */
+
+document.getElementById("add-type").addEventListener("click", () => {
+  TYPES.push({ id: uid(), name: "New type", kind: "sighting", points: null, scope: "animal" });
+  redraw();
+  const inputs = document.querySelectorAll("#lookup-body input[type=text]");
+  const last = inputs[inputs.length - 1];
+  if (last) { last.focus(); last.select(); }
+});
+
+document.getElementById("add-entry").addEventListener("click", () => {
+  if (!TYPES.length) { status("Add a type first."); return; }
+  const prev = ENTRIES[ENTRIES.length - 1];
+  const kid = prev ? prev.kid : "Kolvin", day = prev ? prev.day : DAY;
+  ENTRIES.push({ id: uid(), kid, typeId: TYPES[0].id, day, qty: 1, note: "" });
+  redraw();
+  const rows = document.querySelectorAll("#entries-body tr");
+  const last = rows[rows.length - 1];
+  if (last) last.scrollIntoView({ block: "nearest" });
+});
+
+document.getElementById("reset").addEventListener("click", () => {
+  fromSeed(); redraw(); status("Reset to the logged data.");
+});
+
+document.getElementById("apply-json").addEventListener("click", () => {
+  const out = document.getElementById("json-status");
+  try {
+    const d = JSON.parse(document.getElementById("json").value);
+    if (!Array.isArray(d.types) || !Array.isArray(d.entries)) throw new Error("needs types and entries arrays");
+    TYPES = d.types; ENTRIES = d.entries; fillDays();
+    seq = Math.max(0, ...[...TYPES, ...ENTRIES].map(o => +String(o.id).slice(1) || 0));
+    redraw();
+    out.textContent = "Loaded.";
+  } catch (err) {
+    out.textContent = "Couldn't read that: " + err.message;
+  }
+});
+
+load();
+renderAll();
+
+/* ---- hover ---------------------------------------------------------- */
+const tip = document.getElementById("tip");
+document.addEventListener("mouseover", e => {
+  const s = e.target.closest("[data-tip]");
+  if (!s) return;
+  tip.textContent = s.dataset.tip;
+  tip.style.opacity = 1;
+});
+document.addEventListener("mousemove", e => {
+  if (tip.style.opacity !== "1") return;
+  tip.style.left = Math.min(e.clientX + 14, innerWidth - tip.offsetWidth - 8) + "px";
+  tip.style.top  = (e.clientY - tip.offsetHeight - 12) + "px";
+});
+document.addEventListener("mouseout", e => {
+  if (e.target.closest("[data-tip]")) tip.style.opacity = 0;
+});
+</script>
+</body>
+</html>
