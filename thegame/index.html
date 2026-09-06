@@ -166,7 +166,12 @@
   .val { font-size: 12px; color: var(--text-secondary); font-variant-numeric: tabular-nums;
          white-space: nowrap; }
 
-  .gridlines { position: absolute; inset: 0; pointer-events: none; }
+  /* An absolutely positioned layer paints over its static siblings whatever
+     the DOM order says, which is how the rules ended up drawn across the bars
+     and the figures beside them. So say the order out loud: rules behind, data
+     in front. */
+  .gridlines { position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+  .side > .bar, .side > .val { position: relative; z-index: 1; }
   .gridlines i { position: absolute; top: -3px; bottom: -3px; width: 1px; background: var(--grid); }
   .axis { background: var(--axis); }
 
