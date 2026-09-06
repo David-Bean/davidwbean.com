@@ -5,77 +5,104 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>The Game — Kolvin vs Luke</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@400;600&display=swap" rel="stylesheet">
 <style>
   :root {
     color-scheme: light;
-    --surface-1: #fcfcfb;
-    --surface-2: #f2f1ec;
-    --plane: #f9f9f7;
-    --text-primary: #0b0b0b;
-    --text-secondary: #52514e;
-    --muted: #898781;
-    --grid: #e1e0d9;
-    --axis: #c3c2b7;
-    --border: rgba(11,11,11,0.10);
-    --field: #ffffff;
-    --good: #008300;
-    --bad: #e34948;
-    --kid1: #1f6fd0;
-    --kid2: #12803e;
-    --kid3: #7a4fd0;
-    --kid4: #a86a00;
+    /* the site's own page, card, ink and rule */
+    --plane: #f5f0e8;
+    --surface-1: #ede7d9;
+    --surface-2: #e2dac8;
+    --text-primary: #2a2d3e;
+    --text-secondary: #6b6f85;
+    --muted: #8f93a6;
+    --grid: #ded6c4;
+    --axis: #c8bfa9;
+    --border: #d8d0c0;
+    --field: #faf7f0;
+    /* the site's navy chrome and amber accent, for the one button that shouts */
+    --btn-bg: #24273a;
+    --btn-fg: #eed49f;
+    /* Catppuccin Latte: the light sibling of the palette the site's nav wears.
+       Validated against the card colour, not guessed. */
+    --good: #31801f;
+    --bad: #c31d3f;
+    --kid1: #1e66f5;
+    --kid2: #31801f;
+    --kid3: #8839ef;
+    --kid4: #bc7413;
   }
+
   @media (prefers-color-scheme: dark) {
     :root:where(:not([data-theme="light"])) {
       color-scheme: dark;
-      --surface-1: #1a1a19;
-      --surface-2: #232322;
-      --plane: #0d0d0d;
-      --text-primary: #ffffff;
-      --text-secondary: #c3c2b7;
-      --muted: #898781;
-      --grid: #2c2c2a;
-      --axis: #383835;
-      --border: rgba(255,255,255,0.10);
-      --field: #101010;
-      --good: #008300;
-      --bad: #e66767;
-      --kid1: #4a86e8;
-      --kid2: #2e9e5b;
-      --kid3: #9a7ae8;
-      --kid4: #b8862c;
+      /* Catppuccin Macchiato -- literally the palette the site's nav is painted in,
+         so a phone on dark mode gets the site's own night colours rather than a
+         generic black. The marks are re-stepped down into the lightness band the
+         validator wants for a dark surface; Macchiato's pastels are too pale. */
+      --plane: #1e2030;
+      --surface-1: #24273a;
+      --surface-2: #363a4f;
+      --text-primary: #cad3f5;
+      --text-secondary: #a5adcb;
+      --muted: #8087a2;
+      --grid: #363a4f;
+      --axis: #4a4f68;
+      --border: rgba(202,211,245,0.14);
+      --field: #1a1c2a;
+      --btn-bg: #eed49f;
+      --btn-fg: #24273a;
+      --good: #589941;
+      --bad: #cb5e71;
+      --kid1: #5a83da;
+      --kid2: #589941;
+      --kid3: #996eca;
+      --kid4: #c7692d;
     }
   }
   :root[data-theme="dark"] {
     color-scheme: dark;
-    --surface-1: #1a1a19;
-    --surface-2: #232322;
-    --plane: #0d0d0d;
-    --text-primary: #ffffff;
-    --text-secondary: #c3c2b7;
-    --muted: #898781;
-    --grid: #2c2c2a;
-    --axis: #383835;
-    --border: rgba(255,255,255,0.10);
-    --field: #101010;
-    --good: #008300;
-    --bad: #e66767;
-    --kid1: #4a86e8;
-    --kid2: #2e9e5b;
-    --kid3: #9a7ae8;
-    --kid4: #b8862c;
+    /* Catppuccin Macchiato -- literally the palette the site's nav is painted in,
+       so a phone on dark mode gets the site's own night colours rather than a
+       generic black. The marks are re-stepped down into the lightness band the
+       validator wants for a dark surface; Macchiato's pastels are too pale. */
+    --plane: #1e2030;
+    --surface-1: #24273a;
+    --surface-2: #363a4f;
+    --text-primary: #cad3f5;
+    --text-secondary: #a5adcb;
+    --muted: #8087a2;
+    --grid: #363a4f;
+    --axis: #4a4f68;
+    --border: rgba(202,211,245,0.14);
+    --field: #1a1c2a;
+    --btn-bg: #eed49f;
+    --btn-fg: #24273a;
+    --good: #589941;
+    --bad: #cb5e71;
+    --kid1: #5a83da;
+    --kid2: #589941;
+    --kid3: #996eca;
+    --kid4: #c7692d;
   }
 
   * { box-sizing: border-box; }
+  /* the site's pairing: Playfair Display over Inter */
+  :root { --font-body: 'Inter', system-ui, -apple-system, "Segoe UI", sans-serif;
+          --font-head: 'Playfair Display', Georgia, serif; }
   body {
     margin: 0;
     padding: 32px 20px 64px;
     background: var(--plane);
     color: var(--text-primary);
-    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+    font: 15px/1.55 var(--font-body);
+    -webkit-text-size-adjust: 100%;
   }
   .wrap { max-width: 980px; margin: 0 auto; }
-  h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  h1 { font-family: var(--font-head); font-weight: 600;
+       font-size: 34px; line-height: 1.2; margin: 0 0 6px; }
   .sub { color: var(--text-secondary); margin: 0 0 24px; font-size: 14px; }
 
   .legend { display: flex; flex-wrap: wrap; gap: 18px; align-items: center;
@@ -90,13 +117,17 @@
                 box-shadow: inset 0 0 0 1.5px var(--bad); }
 
   .card { background: var(--surface-1); border: 1px solid var(--border);
-          border-radius: 12px; padding: 22px 20px 18px; margin-bottom: 26px; }
-  .card h2 { font-size: 19px; margin: 0 0 2px; }
+          border-radius: 8px; padding: 22px 20px 18px; margin-bottom: 26px; }
+  .card h2 { font-family: var(--font-head); font-weight: 600;
+             font-size: 22px; line-height: 1.25; margin: 0 0 2px; }
   .card .meta { font-size: 13px; color: var(--text-secondary); margin: 0 0 20px; }
   .card .meta b { color: var(--text-primary); font-weight: 600; }
 
   /* ---- charts ---- */
-  .scroller { overflow-x: auto; }
+  /* contain, so dragging a chart to its end doesn't then drag the page back
+     a screen -- the browser's back-swipe gesture is the same movement */
+  .scroller { overflow-x: auto; overscroll-behavior-x: contain;
+              -webkit-overflow-scrolling: touch; }
 
   .head { display: grid; align-items: end; margin-bottom: 6px;
           font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
@@ -147,7 +178,7 @@
   /* ---- earned & lost by day: one column per kid, per day ---- */
   /* the scroller clips vertically, so the end figures need reserved room */
   .dchart .scroller { padding: 40px 0 0; }
-  .dchart .dplot { position: relative; margin-left: 46px; }
+  .dchart .dplot { position: relative; margin-left: var(--gutter, 46px); }
   .dchart .glines { position: absolute; inset: 0; pointer-events: none; }
   .dchart .glines i { position: absolute; left: 0; right: 0; height: 1px; background: var(--grid); }
   .dchart .glines i.axis { background: var(--axis); }
@@ -155,8 +186,8 @@
                   color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap;
                   transform: translateY(-50%); }
   .dgroups { position: relative; display: flex; height: 100%; }
-  .dgroup { flex: 1 0 132px; display: flex; justify-content: center; gap: 12px; }
-  .dcol { position: relative; width: 40px; }
+  .dgroup { flex: 1 0 132px; display: flex; justify-content: center; gap: var(--dgap, 12px); }
+  .dcol { position: relative; width: var(--dcol, 40px); }
   .dbar { position: absolute; left: 0; right: 0; cursor: default; }
   .dbar.up   { border-radius: 4px 4px 0 0; }
   .dbar.down { border-radius: 0 0 4px 4px; }
@@ -164,7 +195,7 @@
   .dval { position: absolute; left: -8px; right: -8px; text-align: center; font-size: 11.5px;
           color: var(--text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .dval.none { color: var(--muted); }
-  .dlabels { display: flex; margin: 40px 0 0 46px; }
+  .dlabels { display: flex; margin: 40px 0 0 var(--gutter, 46px); }
   .dlabels div { flex: 1 0 132px; text-align: center; font-size: 12px; color: var(--text-secondary); }
   .klegend { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin: 0 0 18px;
              font-size: 13px; color: var(--text-secondary); }
@@ -175,10 +206,10 @@
   .wchart .scroller { padding: 30px 0 0; }
   .wstrip { padding-bottom: 4px; }
   .wstrip + .wstrip { border-top: 1px solid var(--border); padding-top: 26px; }
-  .wname { margin: 0 0 10px 46px; display: flex; align-items: baseline; gap: 10px; }
+  .wname { margin: 0 0 10px var(--gutter, 46px); display: flex; align-items: baseline; gap: 10px; }
   .wname b { font-size: 14px; font-weight: 600; }
   .wname span { font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
-  .wplot { position: relative; margin-left: 46px; }
+  .wplot { position: relative; margin-left: var(--gutter, 46px); }
   .wchart .glines { position: absolute; inset: 0; pointer-events: none; }
   .wchart .glines i { position: absolute; left: 0; right: 0; height: 1px; background: var(--grid); }
   .wchart .glines i.axis { background: var(--axis); }
@@ -196,7 +227,7 @@
           pointer-events: none; }
   .wval { position: absolute; font-size: 11px; color: var(--text-secondary); white-space: nowrap;
           font-variant-numeric: tabular-nums; transform: translateX(-50%); }
-  .wdays { position: relative; height: 15px; margin: 24px 0 4px 46px; }
+  .wdays { position: relative; height: 15px; margin: 24px 0 4px var(--gutter, 46px); }
   .wdays span { position: absolute; font-size: 12px; color: var(--text-secondary);
                 transform: translateX(-50%); white-space: nowrap; }
 
@@ -236,12 +267,14 @@
   .card.fold { margin-top: 0; }
   .card.fold:not([open]) { padding: 15px 20px; }
   .fold > summary { display: flex; align-items: baseline; gap: 10px; list-style: none;
-                    font-size: 19px; font-weight: 600; color: var(--text-primary); }
+                    font-family: var(--font-head); font-size: 22px; font-weight: 600;
+                    color: var(--text-primary); }
   .fold > summary::-webkit-details-marker { display: none; }
   .fold > summary::before { content: "\25B8"; color: var(--muted); font-size: 13px; }
   .fold[open] > summary { margin-bottom: 2px; }
   .fold[open] > summary::before { content: "\25BE"; }
-  .fold > summary .hint { font-size: 12.5px; font-weight: 400; color: var(--muted); }
+  .fold > summary .hint { font-family: var(--font-body); font-size: 12.5px;
+                          font-weight: 400; color: var(--muted); }
   table { border-collapse: collapse; margin-top: 12px; font-size: 13px; width: 100%; }
   th, td { text-align: left; padding: 5px 10px 5px 0; border-bottom: 1px solid var(--grid);
            vertical-align: middle; }
@@ -250,6 +283,7 @@
   td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; padding-right: 16px; }
   tr.dim td { color: var(--muted); }
 
+  .summary h2 { margin-bottom: 10px; }
   table.score { width: auto; margin-top: 4px; }
   table.score th.lab { font-size: 14px; text-transform: none; letter-spacing: 0;
                        color: var(--text-secondary); padding-right: 20px; }
@@ -271,7 +305,7 @@
   input[type="number"] { text-align: right; font-variant-numeric: tabular-nums; }
   input:focus-visible, select:focus-visible, button:focus-visible {
     outline: 2px solid var(--text-secondary); outline-offset: 1px; }
-  .btn { background: var(--surface-2); border: 1px solid var(--border); border-radius: 7px;
+  .btn { background: var(--surface-2); border: 1px solid var(--border); border-radius: 4px;
          padding: 5px 12px; cursor: pointer; color: var(--text-secondary); width: auto; }
   .btn:hover { color: var(--text-primary); }
   .btn.x { padding: 2px 8px; border-radius: 5px; line-height: 1.2; }
@@ -313,14 +347,60 @@
   .abf-kind { width: 150px; }
   .abf-pts { width: 104px; }
   .abf-scope { width: 150px; }
-  .addbar .btn.go { padding: 6px 20px; background: var(--text-primary);
-                    border-color: var(--text-primary); color: var(--surface-1); }
-  .addbar .btn.go:hover { color: var(--surface-1); opacity: .86; }
+  .addbar .btn.go { padding: 7px 22px; background: var(--btn-bg); border-color: var(--btn-bg);
+                    color: var(--btn-fg); letter-spacing: 0.04em; text-transform: uppercase;
+                    font-size: 12.5px; }
+  .addbar .btn.go:hover { color: var(--btn-fg); opacity: .86; }
   .addbar .btn.go[disabled] { opacity: .35; }
   .abhint { font-size: 12.5px; color: var(--text-secondary); line-height: 1.5;
             flex: 1 1 220px; align-self: center; }
   .abecho { margin-top: 12px; font-size: 12.5px; color: var(--text-secondary);
             min-height: 18px; font-variant-numeric: tabular-nums; }
+
+  /* ---- on a phone ----
+     The chrome gives up its margins, the entry bar becomes one field to a line
+     with thumb-sized targets, and the charts shrink themselves in metrics().
+     Only what won't fit after all that goes into a sideways scroll. */
+  @media (max-width: 640px) {
+    body { padding: 20px 12px 48px; font-size: 14px; }
+    h1 { font-size: 27px; }
+    .sub { font-size: 13px; margin-bottom: 18px; }
+
+    .card { padding: 16px 13px 14px; margin-bottom: 18px; }
+    .card h2 { font-size: 19px; }
+    .card .meta { font-size: 12.5px; margin-bottom: 14px; }
+    .card.fold:not([open]) { padding: 12px 13px; }
+    .fold > summary { font-size: 19px; }
+    .fold > summary .hint { display: none; }      /* a desktop nicety; no room here */
+
+    .legend, .klegend { gap: 9px 14px; font-size: 12px; margin-bottom: 16px; }
+
+    /* one field to a line, and 16px text in them: below that, iOS zooms the
+       whole page in the moment a field is focused and never zooms back out */
+    .abf { flex: 1 1 100%; width: auto; min-width: 0; }
+    .abf-kid { flex: 1 1 130px; }
+    .abf-qty { flex: 1 1 100px; }
+    .abf-kind, .abf-scope { flex: 1 1 140px; }
+    .abf-pts { flex: 1 1 100px; }
+    input[type="text"], input[type="number"], select { padding: 9px 10px; font-size: 16px; }
+    .addbar .btn.go { flex: 1 1 120px; padding: 11px 22px; }
+    .btn { padding: 8px 14px; }
+    .btn.x { padding: 6px 11px; }
+
+    .cat { font-size: 12px; padding-right: 8px; }
+    .name { padding-right: 8px; }
+    .name b, .wname b { font-size: 13px; }
+    .val, .dval { font-size: 11px; }
+    .dlabels div { font-size: 11px; }
+
+    table { font-size: 12.5px; }
+    .tablewrap table { min-width: 560px; }
+    .note { font-size: 12px; margin-top: 22px; padding-left: 11px; }
+    textarea { min-height: 120px; }
+    .summary h2 { margin-bottom: 6px; }
+    table.score td { font-size: 16px; padding-right: 18px; }
+    table.score tr.net th, table.score tr.net td { font-size: 18px; }
+  }
 
   #tip { position: fixed; z-index: 10; pointer-events: none; opacity: 0;
          transition: opacity .1s; background: var(--surface-1); color: var(--text-primary);
@@ -927,7 +1007,62 @@ function summaryCard(kids) {
 
 /* ---- scale ---------------------------------------------------------- */
 
-const PLOT = 300, CAT = 200, LABEL = 46, UNK_PX = 12, NAME = 104;
+/* Every chart below is laid out in pixels, and a phone has about a third of
+   the pixels this page was drawn for. So the room is measured once per redraw
+   and the parts that can afford to give some up do. Where that isn't enough the
+   scroller still takes over: some of these charts genuinely need the width, and
+   a bar squeezed down to nothing is worse than a swipe. The floors are what
+   stops the shrinking from going that far.
+
+   Under a test's stub DOM there is nothing to measure, so the width falls back
+   to the full 980 and every existing check sees the geometry it always saw. */
+const UNK_PX = 12;
+/* the two floors the shrinking stops at: below these a bar and a dot strip
+   stop carrying any information, and a sideways scroll is the better answer */
+const PLOTMIN = 80, DOTMIN = 200;
+let PLOT, CAT, LABEL, NAME;
+
+const roomFor = () => {
+  const wrap = document.querySelector && document.querySelector(".wrap");
+  return (wrap && wrap.clientWidth) || 980;
+};
+
+function metrics() {
+  const w = roomFor();
+  const tight = w < 560;                        /* a phone, near enough */
+
+  /* The two-sided charts: a name column, then two plots and their end figures.
+     The bars are the chart, so they are served first -- the name column is
+     given only what is left over above the bars' floor, and is the thing that
+     gets squeezed on the narrowest phone rather than the data. */
+  LABEL = tight ? 30 : 46;
+  CAT   = tight ? Math.max(72, Math.min(104, w - 2 * (PLOTMIN + LABEL))) : 200;
+  NAME  = tight ? Math.max(60, CAT - 24) : 104;
+  PLOT  = Math.max(PLOTMIN, Math.min(300, Math.floor((w - CAT - LABEL * 2) / 2)));
+
+  /* earned & lost by day: narrower columns, closer together */
+  DAXIS  = tight ? 30 : 46;
+  DCOL   = tight ? 26 : 40;
+  DGAP   = tight ? 8 : 12;
+  DGROUP = tight ? 86 : 132;
+  DPAD   = tight ? 20 : 40;
+
+  /* the waterfall is as wide as the game is long, so it only gets thinner */
+  WBAR = tight ? 10 : 13;
+  WGAP = tight ? 3 : 4;
+
+  DOTNAME = tight ? 78 : 150;
+  DOTLANE = tight ? 46 : 84;
+  DOTW    = Math.max(DOTMIN, Math.min(620, w - DOTNAME - DOTLANE));
+
+  /* the handful of these the stylesheet needs to know about */
+  const root = document.documentElement;
+  if (root && root.style) {
+    root.style.setProperty("--gutter", DAXIS + "px");
+    root.style.setProperty("--dcol", DCOL + "px");
+    root.style.setProperty("--dgap", DGAP + "px");
+  }
+}
 let S, T, COLS, TCOLS;   /* S: per-event rows.  T: the totals chart. */
 
 function niceStep(v) {
@@ -1152,11 +1287,12 @@ function totalsChart(kids) {
 
 /* ---- earned & lost by day -------------------------------------------- */
 
-const DHALF = 150, DAXIS = 46, DCOL = 40, DGAP = 12;  /* px: each half, tick gutter, column */
-const DUNK = 12;                                      /* stub for entries with no points set */
+const DHALF = 150;                   /* px: each half of the plot, above and below zero */
+const DUNK = 12;                     /* stub for entries with no points set */
+let DAXIS, DCOL, DGAP, DGROUP, DPAD; /* tick gutter, column, gap, group floor, group padding */
 /* below the line: 2px rules 20px apart, 25% darker than the kid's own colour */
 const STRIPE = "repeating-linear-gradient(45deg, rgba(0,0,0,.25) 0 2px, transparent 2px 20px)";
-const groupWidth = n => Math.max(132, n * DCOL + (n - 1) * DGAP + 40);
+const groupWidth = n => Math.max(DGROUP, n * DCOL + (n - 1) * DGAP + DPAD);
 /* blue, green, purple, amber — kept in that order so neighbours stay apart
    for colourblind readers; every bar is labelled with its number as well */
 const KID_HUES = ["--kid1", "--kid2", "--kid3", "--kid4"];
@@ -1304,7 +1440,8 @@ function dayChart() {
 
 /* ---- waterfall: how the score got built ------------------------------- */
 
-const WPLOT = 240, WBAR = 13, WGAP = 4, WSTUB = 9, WEND = 22;  /* px */
+const WPLOT = 240, WSTUB = 9, WEND = 22;  /* px */
+let WBAR, WGAP;                           /* the bar and the space beside it */
 const wx = i => i * (WBAR + WGAP);                 /* left edge of step i */
 
 /* every event a kid logged, in the order it happened, with the running score */
@@ -1493,7 +1630,8 @@ function waterfallChart(kids) {
 
 /* ---- one dot per event ------------------------------------------------ */
 
-const DOTD = 9, DOTMAXH = 132, DOTW = 620, DOTLANE = 84, DOTNAME = 150, DOTPITCH = 11;
+const DOTD = 9, DOTMAXH = 132, DOTPITCH = 11;
+let DOTW, DOTLANE, DOTNAME;               /* the strip, the no-value lane, the name column */
 
 function dotModel() {
   return [...new Set(ENTRIES.map(e => e.kid))].map(name => {
@@ -1747,6 +1885,7 @@ function renderEntries() {
 
 function renderCharts() {
   const kids = model();
+  metrics();
   scale(kids);
   const sum = document.getElementById("summary");
   sum.textContent = "";
@@ -1957,6 +2096,22 @@ document.getElementById("apply-json").addEventListener("click", () => {
     out.textContent = "Couldn't read that: " + err.message;
   }
 });
+
+/* Rotating a phone changes the pixel budget, so the charts are rebuilt --
+   but only when the width actually crossed into different numbers, not on
+   every pixel of an address bar sliding away. */
+if (typeof window !== "undefined" && window.addEventListener) {
+  let lastWidth = 0, resizeTimer = 0;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      const w = roomFor();
+      if (w === lastWidth) return;
+      lastWidth = w;
+      renderCharts();
+    }, 150);
+  });
+}
 
 load();
 renderAll();
