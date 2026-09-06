@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>The Game — Kolvin vs Luke</title>
+<title>The Game: Kolvin vs Luke</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:wght@400;600&display=swap" rel="stylesheet">
@@ -416,15 +416,12 @@
 <body>
 <div class="wrap">
   <h1>The game</h1>
-  <p class="sub">Misconduct to the left, sightings and deeds to the right &mdash;
-    the game started 4 Sep 2026.</p>
+  <p class="sub">Started 4 Sep 2026.</p>
 
   <div class="card addbar">
     <h2>Log an entry</h2>
-    <p class="meta">Pick a kid, name the sighting, deed or misconduct, say how many. The day comes off the calendar
-      &mdash; <b id="ab-day">day &mdash;</b>. Points come from the lookup table below; a name that
-      isn&rsquo;t in it yet has to be given a value before it can be logged &mdash; and a value
-      below zero files it under misconduct.</p>
+    <p class="meta">Today is <b id="ab-day"></b>. Points come from the lookup table below.
+      A name that isn&rsquo;t in it yet needs a value first; below zero files it under misconduct.</p>
     <div class="abrow">
       <label class="abf abf-kid"><span>Kid</span><select id="ab-kid"></select></label>
       <label class="abf abf-type"><span>Sighting, deed, or misconduct</span>
@@ -459,10 +456,9 @@
 
   <details class="card fold">
     <summary>Point values <span class="hint">edit these and every chart rescales</span></summary>
-    <p class="meta">One row per kind of entry. Every chart above reads its numbers from here.
-      <b>Per animal</b> multiplies the points by how many were spotted; <b>per herd</b> pays once
-      for the whole sighting, however many there were. Leave points blank and the bar is drawn
-      striped &mdash; a placeholder, not a score.</p>
+    <p class="meta"><b>Per animal</b> multiplies the points by how many were spotted.
+      <b>Per herd</b> pays once for the sighting. Blank points draw as a stripe and count as
+      nothing.</p>
     <div class="tablewrap"><table class="lookup"><thead><tr>
       <th>Entry type</th><th>Side</th><th class="n">Points</th><th>Scoring</th>
       <th class="n">Entries</th><th></th>
@@ -476,10 +472,9 @@
 
   <details class="card fold">
     <summary>Entries <span class="hint">one line per sighting or incident</span></summary>
-    <p class="meta">Every individual sighting or incident from the note. <b>Day</b> is which day of
-      the game it happened on &mdash; day 1 was 4 Sep 2026, so the note&rsquo;s log is day 2. <b>Qty</b> is how many
-      animals were in that one sighting &mdash; the number a <i>per herd</i> type ignores. Type a new
-      name in <b>Kid</b> and that kid gets their own chart.</p>
+    <p class="meta"><b>Day</b> counts from day 1, 4 Sep 2026. <b>Qty</b> is how many animals
+      were in the one sighting, which <i>per herd</i> types ignore. A new name in <b>Kid</b> gets
+      its own chart.</p>
     <div class="tablewrap"><table class="entries"><thead><tr>
       <th class="n">Day</th><th>Kid</th><th>Type</th><th class="n">Qty</th><th>Note</th>
       <th class="n">Points</th><th></th>
@@ -489,7 +484,7 @@
   </details>
 
   <details>
-    <summary>Data (JSON) &mdash; copy this to keep a backup, paste one back to restore</summary>
+    <summary>Data (JSON)</summary>
     <textarea id="json" spellcheck="false"></textarea>
     <div class="toolbar">
       <button class="btn" id="apply-json">Load the JSON above</button>
@@ -498,18 +493,10 @@
   </details>
 
   <p class="note">
-    <b>The lookup table is the only place numbers live.</b> Bars, chips and the per-kid tables are
-    all derived from it, so editing one point value rescales every chart at once. The penalties and
-    the two scored activities are seeded from the note itself (&minus;10 fighting, &minus;10 pushing,
-    &minus;10 arguing, &minus;5 for the wax wizard, swim race 50, head under water 15). The note put
-    no value on any sighting, so every sighting starts at <b>1 point per animal</b> &mdash; a bar is
-    a count until you say otherwise. Clear a value and it stops counting: that row draws as a stripe
-    and reads &ldquo;no points set&rdquo; on hover, which is how the five things the note never scored
-    (annoying, false spotting, tattling, pestering, lying) appear now. One caveat: a value here applies
-    to <i>every</i> entry of that type, so scoring <i>arguing</i> scores Luke's argument too, and
-    scoring <i>fighting</i> scores all three of Kolvin's fights, not just the one the note priced.
-    Edits save in this browser only &mdash; keep the JSON block above if you want them anywhere else.
-</p>
+    <b>The lookup table is the only place numbers live.</b> Every chart is derived from it, so one
+    edit rescales the lot. A value applies to every entry of that type, not just the one in front
+    of you. Keep the JSON above if you want a copy.
+  </p>
 </div>
 
 <div id="tip"></div>
@@ -708,7 +695,7 @@ function save() {
     localStorage.setItem(KEY, JSON.stringify({ types: TYPES, entries: ENTRIES }));
     if (!SHARED) status("Saved in this browser.");
   } catch (e) {
-    status("Can't save here — edits last until you reload.");
+    status("Can't save here. Edits last until you reload.");
   }
 }
 function status(msg) { document.getElementById("status").textContent = msg; }
@@ -876,7 +863,7 @@ async function sync() {
       if (had) status("Saved for everyone.");
     }
   } catch (e) {
-    status("Can't reach the shared log — your edits are kept here and go up when it's back.");
+    status("Can't reach the shared log. Edits are kept here until it's back.");
   } finally {
     syncing = false;
   }
@@ -968,7 +955,7 @@ function standings(kids) {
 function summaryCard(kids) {
   const rows = standings(kids);
   const card = el("div", "card summary");
-  card.append(el("h2", null, "Where it stands"));
+  card.append(el("h2", null, "The score"));
 
   const table = el("table", "score");
   const hr = el("tr");
@@ -1002,8 +989,8 @@ function summaryCard(kids) {
   const unset = rows.reduce((a, r) => a + r.unset, 0);
   if (unset) {
     const m = el("p", "meta", unset === 1
-      ? "One entry still has no point value set, so it counts as nothing above."
-      : unset + " entries still have no point value set, so they count as nothing above.");
+      ? "1 entry has no point value set."
+      : unset + " entries have no point value set.");
     m.style.margin = "12px 0 0";
     card.append(m);
   }
@@ -1125,7 +1112,7 @@ function bar(side, row, kidName) {
     const seg = el("div", "seg" + (row.kind === "misconduct" ? " bad" : "") + (i.pts === null ? " unk" : ""));
     seg.style.width = (i.pts === null ? UNK_PX : Math.abs(i.pts) * S.px) + "px";
     const qty = i.qty > 1 ? ` ×${i.qty}` : "";
-    seg.dataset.tip = `${kidName} · day ${i.day} · ${row.name}${qty} — `
+    seg.dataset.tip = `${kidName} · day ${i.day} · ${row.name}${qty} · `
       + (i.pts === null ? "no points set" : `${fmt(i.pts)} pts (${per})`)
       + (i.note ? ` · ${i.note}` : "");
     b.appendChild(seg);
@@ -1172,7 +1159,7 @@ function buildChart(kid) {
   meta.innerHTML = `<b>${kid.seen}</b> spotted &middot; <b>${kid.events}</b> misconduct events`
     + ` &middot; <b>${fmt(kid.good + kid.act)}</b> earned, <b>${fmt(kid.bad)}</b> lost`
     + ` &middot; net <b>${net > 0 ? "+" : ""}${fmt(net)}</b>`
-    + (kid.unset ? ` &middot; ${kid.unset} entries have no points set` : "");
+    + (kid.unset ? ` &middot; ${kid.unset} with no points set` : "");
   card.append(meta);
 
   const scroller = el("div", "scroller"), chart = el("div", "chart");
@@ -1261,11 +1248,6 @@ function totalsSide(side, kid) {
 function totalsChart(kids) {
   const card = el("div", "card");
   card.append(el("h2", null, "Total score"));
-  const meta = el("p", "meta");
-  meta.innerHTML = "One line per kid, both halves on the same axis: everything <b>lost</b> to the "
-    + "left of it, everything <b>earned</b> to the right. The figure past each bar is that side's "
-    + "total; the figure under the name is the net.";
-  card.append(meta);
 
   const scroller = el("div", "scroller"), chart = el("div", "chart");
   chart.style.minWidth = (NAME + (PLOT + LABEL) * 2) + "px";
@@ -1333,11 +1315,6 @@ function dayChart() {
   const { days, names, cells } = dayModel();
   const card = el("div", "card dchart");
   card.append(el("h2", null, "Earned and lost by day"));
-  const meta = el("p", "meta");
-  meta.innerHTML = "One column per kid per day, split at zero: everything <b>earned</b> reaches up "
-    + "from the line, everything <b>lost</b> hangs below it, hatched to say so. Colour says whose "
-    + "column it is; a striped tip is an entry with no points set.";
-  card.append(meta);
 
   const legend = el("div", "klegend");
   names.forEach((n, i) => {
@@ -1391,7 +1368,7 @@ function dayChart() {
           bar.style.background = dir === "down" ? `${STRIPE}, ${hue}` : hue;
           bar.style[away] = DHALF + "px";
           bar.style.height = value * D.px + "px";
-          bar.dataset.tip = `${c.name} · day ${c.day} — ${fmt(value)} ${dir === "up" ? "earned" : "lost"}`
+          bar.dataset.tip = `${c.name} · day ${c.day} · ${fmt(value)} ${dir === "up" ? "earned" : "lost"}`
             + ` · net ${c.net > 0 ? "+" : ""}${fmt(c.net)}`;
           col.append(bar);
           reach = value * D.px + 2;             /* 2px of surface between the two fills */
@@ -1402,7 +1379,7 @@ function dayChart() {
           stub.style.boxShadow = `inset 0 0 0 1.5px ${hue}`;
           stub.style[away] = (DHALF + reach) + "px";
           stub.style.height = DUNK + "px";
-          stub.dataset.tip = `${c.name} · day ${c.day} — ${missing} `
+          stub.dataset.tip = `${c.name} · day ${c.day} · ${missing} `
             + `${missing === 1 ? "entry" : "entries"} with no points set`;
           col.append(stub);
           reach += DUNK;
@@ -1488,12 +1465,7 @@ function waterfallChart(kids) {
   const rows = kids.map(k => waterfallRows(k.name));
   const card = el("div", "card wchart");
   card.append(el("h2", null, "How the score got built"));
-  const meta = el("p", "meta");
-  meta.innerHTML = "Every event in the order it was logged. The step goes <b>up</b> for points "
-    + "earned and <b>down</b> for points lost, each one starting where the last one finished, so "
-    + "the level you end on is the score &mdash; drawn again as the last column. A hatched step is "
-    + "an entry with no points set: it holds the line rather than moving it.";
-  card.append(meta);
+  card.append(el("p", "meta", "Every event in the order it was logged."));
 
   const W = pathScale(rows.flatMap(r => r.flatMap(s => [s.from, s.to])));
   const width = Math.max(140, ...rows.map(r => wx(r.length) + WEND + WBAR + 6));
@@ -1662,12 +1634,8 @@ function dotStrip() {
   const kids = dotModel();
   const card = el("div", "card dotchart");
   card.append(el("h2", null, "Every event, one dot each"));
-  const meta = el("p", "meta");
-  meta.innerHTML = "One dot per logged event, placed at what that single event was worth and "
-    + "stacked where several were worth the same. It shows the <b>shape</b> of a score that the "
-    + "totals hide: a pile of ones is a different day from one big swing. Hollow dots to the "
-    + "right of the axis have no points set yet, so they have nowhere to sit.";
-  card.append(meta);
+  card.append(el("p", "meta", "Placed at what one event was worth. Hollow dots off to the right "
+    + "have no points set."));
 
   const vals = kids.flatMap(k => k.known);
   const lo0 = Math.min(0, ...vals), hi0 = Math.max(0, ...vals);
@@ -1720,7 +1688,7 @@ function dotStrip() {
         dot.style.left = at(v) + "px";
         dot.style.bottom = (i * pitch) + "px";
         dot.dataset.tip = k.name + " \u00b7 day " + it.day + " \u00b7 " + it.label
-          + (it.qty > 1 ? " \u00d7" + it.qty : "") + " \u2014 " + (v > 0 ? "+" : "") + fmt(v)
+          + (it.qty > 1 ? " \u00d7" + it.qty : "") + " \u00b7 " + (v > 0 ? "+" : "") + fmt(v)
           + (list.length > 1 ? " \u00b7 " + list.length + " events worth this" : "");
         plot.append(dot);
       });
@@ -1732,7 +1700,7 @@ function dotStrip() {
       dot.style.left = (DOTLANE / 2 - DOTD / 2) + "px";
       dot.style.bottom = (i * pitch) + "px";
       dot.dataset.tip = k.name + " \u00b7 day " + it.day + " \u00b7 " + it.label
-        + (it.qty > 1 ? " \u00d7" + it.qty : "") + " \u2014 no points set";
+        + (it.qty > 1 ? " \u00d7" + it.qty : "") + " \u00b7 no points set";
       lane.append(dot);
     });
 
@@ -1963,12 +1931,12 @@ function abKind(t, p) {
 function abHint(t, p, kind) {
   const name = t ? t.name : AB.type.value.trim();
   if (t) {
-    return "“" + name + "” is " + kindPhrase(t.kind) + " with no value yet — a number here prices "
-      + "every " + name + " entry, not just this one."
+    return "“" + name + "” is " + kindPhrase(t.kind) + " with no value yet. A number "
+      + "here prices every " + name + " entry, not just this one."
       + (kind === t.kind ? "" : " A value below zero moves it to misconduct.");
   }
   if (p === null)
-    return "New type — say whether it’s an animal or a deed, and what it’s worth. "
+    return "New type. Say whether it’s an animal or a deed, and what it’s worth. "
       + "A value below zero makes it misconduct instead.";
   return "“" + name + "” will be logged as " + kindPhrase(kind)
     + (kind === "misconduct" ? ", read off the negative value." : ".");
@@ -2031,7 +1999,7 @@ function abAdd() {
   AB.type.value = ""; AB.qty.value = "1"; AB.pts.value = "";
   AB.kind.value = "sighting"; AB.scope.value = "animal";
   abHeld = "Logged " + qty + " × " + t.name + " for " + kid + " on day " + day
-    + " — " + signed(entryPoints(e)) + " points.";
+    + ", " + signed(entryPoints(e)) + " points.";
   redraw();
   AB.type.focus();
 }
