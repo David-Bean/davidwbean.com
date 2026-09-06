@@ -250,6 +250,20 @@
   td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; padding-right: 16px; }
   tr.dim td { color: var(--muted); }
 
+  table.score { width: auto; margin-top: 4px; }
+  table.score th.lab { font-size: 14px; text-transform: none; letter-spacing: 0;
+                       color: var(--text-secondary); padding-right: 20px; }
+  table.score thead th.n { padding-right: 24px; }
+  table.score td { font-size: 15px; padding-right: 24px; }
+  table.score tr.up td   { color: var(--good); }
+  table.score tr.down td { color: var(--bad); }
+  table.score tr.net th, table.score tr.net td {
+    font-weight: 700; font-size: 17px; color: var(--text-primary); border-bottom: none; }
+  .leader { margin: 16px 0 0; font-size: 11px; letter-spacing: 0.06em;
+            text-transform: uppercase; color: var(--muted); }
+  .leader b { margin-left: 10px; font-size: 16px; letter-spacing: 0;
+              text-transform: none; color: var(--text-primary); }
+
   input, select, button { font: inherit; font-size: 13px; color: var(--text-primary); }
   input[type="text"], input[type="number"], select {
     background: var(--field); border: 1px solid var(--border); border-radius: 6px;
@@ -346,6 +360,8 @@
     <div class="abecho" id="ab-echo"></div>
     <datalist id="type-names"></datalist>
   </div>
+
+  <div id="summary"></div>
 
   <div class="legend">
     <span><i class="sw bad"></i> Misconduct</span>
@@ -839,6 +855,74 @@ function model() {
              unsetGood, unsetBad, unset: unsetGood + unsetBad,
              events: mine.filter(e => (typeOf(e.typeId) || {}).kind === "misconduct").length };
   });
+}
+
+/* ---- the score, in three lines ---------------------------------------
+   Everything else on the page takes the game apart. This takes it back to the
+   one number two kids would actually ask each other for.
+
+   Earned and lost are split by the sign of the points scored rather than by
+   which side of the page a type is filed under, so a misconduct someone gave a
+   positive value to is counted as earned. The net comes out the same either
+   way, and agrees with the total-score chart at the bottom. An entry whose type
+   has no value set counts as nothing, here as everywhere. */
+function standings(kids) {
+  return kids.map(k => {
+    let up = 0, down = 0, unset = 0;
+    for (const e of ENTRIES) {
+      if (e.kid !== k.name) continue;
+      const p = entryPoints(e);
+      if (p === null) unset++;
+      else if (p < 0) down += p;
+      else up += p;
+    }
+    return { name: k.name, up, down, net: up + down, unset };
+  });
+}
+
+function summaryCard(kids) {
+  const rows = standings(kids);
+  const card = el("div", "card summary");
+  card.append(el("h2", null, "Where it stands"));
+
+  const table = el("table", "score");
+  const hr = el("tr");
+  hr.append(el("th", "lab", ""));
+  for (const r of rows) hr.append(el("th", "n", r.name));
+  const thead = el("thead"); thead.append(hr); table.append(thead);
+
+  const tbody = el("tbody");
+  const lines = [["up", "+", r => r.up], ["down", "\u2212", r => -r.down],
+                 ["net", "NET", r => (r.net > 0 ? "+" : "") + fmt(r.net)]];
+  for (const [cls, label, pick] of lines) {
+    const tr = el("tr", cls);
+    tr.append(el("th", "lab", label));
+    for (const r of rows) {
+      const v = pick(r);
+      tr.append(el("td", "n", typeof v === "string" ? v : fmt(v)));
+    }
+    tbody.append(tr);
+  }
+  table.append(tbody);
+  card.append(table);
+
+  /* A tie is a real outcome, not a rounding problem -- say so rather than
+     picking whichever name happens to sort first. */
+  const best = Math.max(...rows.map(r => r.net));
+  const top = rows.filter(r => r.net === best);
+  const lead = el("p", "leader", "Current leader");
+  lead.append(el("b", null, top.length === 1 ? top[0].name : "tied"));
+  card.append(lead);
+
+  const unset = rows.reduce((a, r) => a + r.unset, 0);
+  if (unset) {
+    const m = el("p", "meta", unset === 1
+      ? "One entry still has no point value set, so it counts as nothing above."
+      : unset + " entries still have no point value set, so they count as nothing above.");
+    m.style.margin = "12px 0 0";
+    card.append(m);
+  }
+  return card;
 }
 
 /* ---- scale ---------------------------------------------------------- */
@@ -1664,6 +1748,9 @@ function renderEntries() {
 function renderCharts() {
   const kids = model();
   scale(kids);
+  const sum = document.getElementById("summary");
+  sum.textContent = "";
+  if (kids.length) sum.append(summaryCard(kids));
   const host = document.getElementById("charts");
   host.textContent = "";
   host.append(...kids.map(buildChart), dayChart(), waterfallChart(kids),
