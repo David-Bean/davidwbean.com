@@ -370,7 +370,6 @@
       <button class="btn" id="add-type">+ Add type</button>
       <span class="spacer"></span>
       <span class="status" id="status"></span>
-      <button class="btn" id="reset">Reset to the log</button>
     </div>
   </details>
 
@@ -586,6 +585,10 @@ const uid = () => "x" + Math.random().toString(36).slice(2, 10);
    shared log twice writes the same rows twice rather than two of everything. */
 const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
+/* Only ever reached by a browser that finds nothing written down: no saved
+   copy here and, when the log is shared, no rows on the server either. There is
+   deliberately no button for this -- overwriting a filled-in log with the seed
+   is not something anyone should be one stray click away from. */
 function fromSeed() {
   const taken = new Set();
   TYPES = SEED.types.map(([name, kind, points, scope], i) => {
@@ -1853,10 +1856,6 @@ document.getElementById("add-entry").addEventListener("click", () => {
   const rows = document.querySelectorAll("#entries-body tr");
   const last = rows[rows.length - 1];
   if (last) last.scrollIntoView({ block: "nearest" });
-});
-
-document.getElementById("reset").addEventListener("click", () => {
-  fromSeed(); redraw(); status("Reset to the logged data.");
 });
 
 document.getElementById("apply-json").addEventListener("click", () => {
