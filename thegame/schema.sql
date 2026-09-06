@@ -132,10 +132,9 @@ create trigger game_entries_audit after insert or update or delete on public.gam
 --     select at, tbl, op, row_id from public.game_audit order by seq desc limit 50;
 --
 -- Undo the deletions from one afternoon:
---     insert into public.game_entries
---     select (before ->> 'id'), (before ->> 'kid'), (before ->> 'type_id'),
---            (before ->> 'day')::int, (before ->> 'qty')::int, (before ->> 'note'),
---            now()
+--     insert into public.game_entries (id, kid, type_id, day, qty, note)
+--     select before ->> 'id', before ->> 'kid', before ->> 'type_id',
+--            (before ->> 'day')::int, (before ->> 'qty')::int, before ->> 'note'
 --     from public.game_audit
 --     where tbl = 'game_entries' and op = 'DELETE'
 --       and at > now() - interval '1 day'
