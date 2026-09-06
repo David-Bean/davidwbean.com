@@ -591,8 +591,8 @@ function load() {
      · a poll never rebuilds a field someone is typing in
      · an empty log is filled from the seed, so the first person to open the
        page starts everyone off with the written-down game rather than nothing */
-const SUPABASE_URL = "";             // https://<project>.supabase.co
-const SUPABASE_KEY = "";             // the anon public key
+const SUPABASE_URL = "https://qajfukimikbhmzsosuif.supabase.co";
+const SUPABASE_KEY = "sb_publishable_xptTzZ-QmmdK6CyBj-wySw_Vm7Fxvfr";   // public by design; the guard rails are in the database
 const SHARED = !!(SUPABASE_URL && SUPABASE_KEY);
 const POLL_MS = 4000;
 
