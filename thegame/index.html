@@ -530,21 +530,29 @@ const SEED = {
 
 const KEY = "the-game-v2";
 const DAY = 2;                       // everything logged so far came from day 2
-let TYPES, ENTRIES, seq = 0;
-const uid = () => "t" + (++seq);
+let TYPES, ENTRIES;
+
+/* Two people adding a row at the same moment used to be able to mint the same
+   id, because ids were a running count. They are random now: an id made in one
+   browser can't collide with an id made in another. */
+const uid = () => "x" + Math.random().toString(36).slice(2, 10);
+
+/* The seeded rows keep ids made out of their own names, so filling an empty
+   shared log twice writes the same rows twice rather than two of everything. */
+const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
 function fromSeed() {
-  seq = 0;
-  TYPES = SEED.types.map(([name, kind, points, scope]) => ({ id: uid(), name, kind, points, scope }));
+  TYPES = SEED.types.map(([name, kind, points, scope]) =>
+    ({ id: "t-" + slug(name), name, kind, points, scope }));
   const byName = new Map(TYPES.map(t => [t.name, t.id]));
-  ENTRIES = SEED.entries.map(([kid, name, qty, note, day]) =>
-    ({ id: uid(), kid, typeId: byName.get(name), qty, note, day }));
+  ENTRIES = SEED.entries.map(([kid, name, qty, note, day], i) =>
+    ({ id: "e-" + i, kid, typeId: byName.get(name), qty, note, day }));
 }
 
 function save() {
   try {
     localStorage.setItem(KEY, JSON.stringify({ types: TYPES, entries: ENTRIES }));
-    status("Saved in this browser.");
+    if (!SHARED) status("Saved in this browser.");
   } catch (e) {
     status("Can't save here — edits last until you reload.");
   }
@@ -564,9 +572,167 @@ function load() {
     const d = JSON.parse(raw);
     if (!Array.isArray(d.types) || !Array.isArray(d.entries)) throw 0;
     TYPES = d.types; ENTRIES = d.entries; fillDays();
-    seq = Math.max(0, ...[...TYPES, ...ENTRIES].map(o => +String(o.id).slice(1) || 0));
     status("Loaded your saved edits.");
   } catch (e) { fromSeed(); }
+}
+
+/* ---- the shared log --------------------------------------------------
+   Fill these two in and the page stops being one person's private copy: every
+   edit is written to a Supabase table and every browser polls for everyone
+   else's. Leave them empty and nothing reaches the network — the log lives in
+   localStorage and goes no further than the browser it was typed in.
+
+   The rules the sync keeps:
+     · the server is the truth on arrival — a browser adopts what it finds
+       rather than uploading its own stale copy over the top
+     · an edit made here is never lost to an edit made there. Rows are sent one
+       at a time, so two people working on different entries don't collide, and
+       a poll is ignored while there are edits still waiting to go up
+     · a poll never rebuilds a field someone is typing in
+     · an empty log is filled from the seed, so the first person to open the
+       page starts everyone off with the written-down game rather than nothing */
+const SUPABASE_URL = "";             // https://<project>.supabase.co
+const SUPABASE_KEY = "";             // the anon public key
+const SHARED = !!(SUPABASE_URL && SUPABASE_KEY);
+const POLL_MS = 4000;
+
+/* the two tables, and how a row on the wire maps to a row in the page */
+const ROWS = {
+  types: {
+    table: "game_types",
+    all: () => TYPES,
+    out: t => ({ id: t.id, name: t.name, kind: t.kind, points: t.points, scope: t.scope }),
+    in: r => ({ id: r.id, name: r.name, kind: r.kind, points: r.points, scope: r.scope })
+  },
+  entries: {
+    table: "game_entries",
+    all: () => ENTRIES,
+    out: e => ({ id: e.id, kid: e.kid, type_id: e.typeId, day: e.day, qty: e.qty, note: e.note }),
+    in: r => ({ id: r.id, kid: r.kid, typeId: r.type_id, day: r.day, qty: r.qty, note: r.note })
+  }
+};
+const TABLES = Object.keys(ROWS);
+
+let SENT = null;                     // what the server last agreed to; null = not talked yet
+let syncing = false, syncTimer = 0;
+
+const rest = (t, q) => SUPABASE_URL.replace(/\/+$/, "") + "/rest/v1/" + t + (q || "");
+const head = extra => Object.assign({
+  apikey: SUPABASE_KEY,
+  Authorization: "Bearer " + SUPABASE_KEY,
+  "Content-Type": "application/json"
+}, extra || {});
+
+async function call(method, url, opts) {
+  const r = await fetch(url, Object.assign({ method }, opts));
+  if (!r.ok) throw new Error(method + " " + r.status + " " + (await r.text()).slice(0, 200));
+  return r;
+}
+
+/* the page's current rows, frozen as strings so they can be compared cheaply */
+function snapshot() {
+  const m = {};
+  for (const k of TABLES) m[k] = new Map(ROWS[k].all().map(o => [o.id, JSON.stringify(ROWS[k].out(o))]));
+  return m;
+}
+
+/* what has happened here that the server hasn't been told about */
+function pending(now) {
+  const d = {};
+  for (const k of TABLES) {
+    const was = SENT[k], is = now[k], up = [], gone = [];
+    for (const [id, row] of is) if (was.get(id) !== row) up.push(JSON.parse(row));
+    for (const id of was.keys()) if (!is.has(id)) gone.push(id);
+    d[k] = { up, gone };
+  }
+  return d;
+}
+const anyPending = d => TABLES.some(k => d[k].up.length || d[k].gone.length);
+const unsent = now => anyPending(pending(now || snapshot()));
+
+async function push() {
+  const now = snapshot();
+  const d = pending(now);
+  if (!anyPending(d)) return;
+  // types go up before entries and come down after them, so an entry is never
+  // sitting in the table pointing at a type that isn't there yet
+  for (const k of ["types", "entries"])
+    if (d[k].up.length)
+      await call("POST", rest(ROWS[k].table), {
+        headers: head({ Prefer: "resolution=merge-duplicates,return=minimal" }),
+        body: JSON.stringify(d[k].up)
+      });
+  for (const k of ["entries", "types"])
+    if (d[k].gone.length)
+      await call("DELETE", rest(ROWS[k].table, "?id=in.(" + d[k].gone.map(encodeURIComponent).join(",") + ")"),
+                 { headers: head({ Prefer: "return=minimal" }) });
+  SENT = now;
+}
+
+async function pull() {
+  const got = await Promise.all(TABLES.map(k => call("GET", rest(ROWS[k].table, "?select=*"), { headers: head() })));
+  const d = {};
+  for (let i = 0; i < TABLES.length; i++) d[TABLES[i]] = (await got[i].json()).map(ROWS[TABLES[i]].in);
+  return d;
+}
+
+/* a field with the cursor in it is a field someone is still using */
+const busy = () => {
+  const a = document.activeElement;
+  return !!a && ["INPUT", "SELECT", "TEXTAREA"].includes(a.tagName);
+};
+
+function adopt(d) {
+  const now = snapshot();
+  if (unsent(now)) return;                 // our own unsent edits outrank the poll
+  const same = TABLES.every(k => {
+    const inc = d[k];
+    return inc.length === now[k].size &&
+      inc.every(o => now[k].get(o.id) === JSON.stringify(ROWS[k].out(o)));
+  });
+  if (same || busy()) return;
+  TYPES = d.types; ENTRIES = d.entries; fillDays();
+  SENT = snapshot();
+  save();
+  renderAll();
+  status("Someone else's edits just came in.");
+}
+
+async function sync() {
+  if (!SHARED || syncing) return;
+  syncing = true;
+  try {
+    if (!SENT) {
+      const d = await pull();
+      if (!d.types.length && !d.entries.length) {
+        SENT = { types: new Map(), entries: new Map() };
+        await push();                      // an empty log gets whatever this browser is holding
+        renderAll();
+      } else {
+        TYPES = d.types; ENTRIES = d.entries; fillDays();
+        SENT = snapshot();
+        save();
+        renderAll();
+      }
+      status("Everyone with the link is editing this same log.");
+    } else {
+      const had = unsent();
+      await push();
+      adopt(await pull());
+      if (had) status("Saved for everyone.");
+    }
+  } catch (e) {
+    status("Can't reach the shared log — your edits are kept here and go up when it's back.");
+  } finally {
+    syncing = false;
+  }
+}
+
+/* an edit doesn't go up on the keystroke; it goes up once the typing stops */
+function syncSoon() {
+  if (!SHARED) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(sync, 700);
 }
 
 /* ---- derived model -------------------------------------------------- */
@@ -1461,6 +1627,7 @@ function renderAll() { renderAddBar(); renderLookup(); renderEntries(); renderCh
      redraw("lookup")  — a value was typed in the lookup table */
 function redraw(typing) {
   save();
+  syncSoon();
   renderAddBar();
   if (typing !== "lookup") renderLookup();
   if (typing === "entries") refreshEntryPoints(); else renderEntries();
@@ -1644,7 +1811,6 @@ document.getElementById("apply-json").addEventListener("click", () => {
     const d = JSON.parse(document.getElementById("json").value);
     if (!Array.isArray(d.types) || !Array.isArray(d.entries)) throw new Error("needs types and entries arrays");
     TYPES = d.types; ENTRIES = d.entries; fillDays();
-    seq = Math.max(0, ...[...TYPES, ...ENTRIES].map(o => +String(o.id).slice(1) || 0));
     redraw();
     out.textContent = "Loaded.";
   } catch (err) {
@@ -1654,6 +1820,7 @@ document.getElementById("apply-json").addEventListener("click", () => {
 
 load();
 renderAll();
+if (SHARED) { sync(); setInterval(sync, POLL_MS); }
 
 /* ---- hover ---------------------------------------------------------- */
 const tip = document.getElementById("tip");
