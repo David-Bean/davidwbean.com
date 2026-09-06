@@ -690,9 +690,28 @@ function fromSeed() {
     ({ id: "e-" + i, kid, typeId: byName.get(name), qty, note, day }));
 }
 
+/* SENT is the receipt: the rows the server has already agreed to. It used to
+   live only in memory, so a reload arrived with nothing to compare against and
+   the page took the server's copy over the top of its own. Anything typed on a
+   phone with no signal died there. It is written down with the rows now, so a
+   reload knows exactly what it still owes and sends it. */
+function sentOut() {
+  if (!SENT) return null;
+  const o = {};
+  for (const k of TABLES) o[k] = [...SENT[k]];
+  return o;
+}
+
+function sentIn(o) {
+  if (!o) return null;
+  const m = {};
+  for (const k of TABLES) m[k] = new Map(Array.isArray(o[k]) ? o[k] : []);
+  return m;
+}
+
 function save() {
   try {
-    localStorage.setItem(KEY, JSON.stringify({ types: TYPES, entries: ENTRIES }));
+    localStorage.setItem(KEY, JSON.stringify({ types: TYPES, entries: ENTRIES, sent: sentOut() }));
     if (!SHARED) status("Saved in this browser.");
   } catch (e) {
     status("Can't save here. Edits last until you reload.");
@@ -713,6 +732,7 @@ function load() {
     const d = JSON.parse(raw);
     if (!Array.isArray(d.types) || !Array.isArray(d.entries)) throw 0;
     TYPES = d.types; ENTRIES = d.entries; fillDays();
+    SENT = sentIn(d.sent);
     status("Loaded your saved edits.");
   } catch (e) { fromSeed(); }
 }
@@ -764,8 +784,10 @@ const head = extra => Object.assign({
   "Content-Type": "application/json"
 }, extra || {});
 
+/* keepalive so a write that starts as the tab is being put away still lands.
+   It caps the body at 64KB, which is far more than a handful of rows. */
 async function call(method, url, opts) {
-  const r = await fetch(url, Object.assign({ method }, opts));
+  const r = await fetch(url, Object.assign({ method, keepalive: true }, opts));
   if (!r.ok) throw new Error(method + " " + r.status + " " + (await r.text()).slice(0, 200));
   return r;
 }
@@ -808,6 +830,7 @@ async function push() {
       await call("DELETE", rest(ROWS[k].table, "?id=in.(" + d[k].gone.map(encodeURIComponent).join(",") + ")"),
                  { headers: head({ Prefer: "return=minimal" }) });
   SENT = now;
+  save();
 }
 
 async function pull() {
@@ -817,10 +840,16 @@ async function pull() {
   return d;
 }
 
-/* a field with the cursor in it is a field someone is still using */
+/* A poll must not rebuild a table with the cursor in it: the edit being typed
+   would go out from under the hand typing it. Only the three things a poll
+   actually rebuilds count. The add bar does not, and must not -- it puts the
+   cursor back in the type field after every log, and a phone keeps it there for
+   as long as the keyboard is up, so counting it stopped the phone from ever
+   taking anyone else's entries in. */
+const FIELDS = "#lookup-body, #entries-body, #json";
 const busy = () => {
   const a = document.activeElement;
-  return !!a && ["INPUT", "SELECT", "TEXTAREA"].includes(a.tagName);
+  return !!a && !!a.closest && !!a.closest(FIELDS);
 };
 
 function adopt(d) {
@@ -859,7 +888,17 @@ async function sync() {
     } else {
       const had = unsent();
       await push();
-      adopt(await pull());
+      const d = await pull();
+      /* A log that has gone empty under a browser still holding rows was
+         cleared out deliberately. Same rule as a first visit: whatever this
+         browser has fills it, rather than the blank coming back down. */
+      if (!d.types.length && !d.entries.length && (TYPES.length || ENTRIES.length)) {
+        SENT = { types: new Map(), entries: new Map() };
+        await push();
+        save();
+      } else {
+        adopt(d);
+      }
       if (had) status("Saved for everyone.");
     }
   } catch (e) {
@@ -2084,6 +2123,15 @@ if (typeof window !== "undefined" && window.addEventListener) {
       renderCharts();
     }, 150);
   });
+}
+
+/* A phone suspends the tab the moment you switch away from it, and the 700ms
+   the debounce waits is easily longer than that. Leaving sends whatever is
+   owed straight away; coming back asks for everyone else's. */
+if (SHARED && typeof document !== "undefined" && document.addEventListener) {
+  const flush = () => { clearTimeout(syncTimer); sync(); };
+  document.addEventListener("visibilitychange", flush);
+  if (typeof window !== "undefined" && window.addEventListener) window.addEventListener("pagehide", flush);
 }
 
 load();
