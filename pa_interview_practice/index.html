@@ -99,6 +99,7 @@
     border-radius: 50%; font-size: 14px; line-height: 1; color: var(--dim);
   }
   button.qhelp.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .qsub { font-size: 15px; line-height: 1.4; margin: 0 0 10px; }
   .help { color: var(--dim); font-size: 14px; line-height: 1.45; margin: 0 0 12px; }
   .qtext { font-size: 15px; line-height: 1.45; color: var(--dim); margin: 0; }
   @media (max-width: 640px) { .qbox { min-height: 148px; } }  /* narrower, so more lines */
@@ -798,7 +799,11 @@ function fitCard(sheet, mid) {
   if (!sheet.style || typeof mid.scrollHeight !== "number") return;
   let k = 1;
   for (let i = 0; i < 6; i++) {
-    const over = mid.scrollHeight - mid.clientHeight;
+    /* The middle is what gives when there is not enough room, but it gives
+       only down to nothing: past that the foot goes over the edge of the
+       sheet, and it takes the sheet itself to see that happen. */
+    const over = Math.max(mid.scrollHeight - mid.clientHeight,
+                          sheet.scrollHeight - sheet.clientHeight);
     if (over <= 1) break;
     const room = sheet.clientHeight * k;          /* the frame, in real pixels */
     k = Math.max(0.5, room / (room / k + over + 2));
@@ -837,25 +842,24 @@ function renderPractice() {
     row.append(el("p", "qlead", lead));
     return row;
   };
-  /* The orders are one click away rather than on the card, because they are
-     read once and in the way after that. They open into the middle, which is
-     the part that is measured and drawn to scale, so opening them shrinks the
-     sheet rather than pushing the buttons off the bottom of the frame. */
-  const block = (lead, body, help) => {
+  /* Every step opens the same way: what the step is called with the ? beside
+     it, the one thing to remember under the name, then the question in its own
+     compartment. The longer version opens between the two, so it is read on
+     the way down to the question rather than found under it. */
+  const block = (name, lead, body, help) => {
     const box = el("div", "qbox");
-    const row = title(lead);
+    const row = title(name);
     const note = el("p", "help", help);
     note.hidden = true;
     const ask = el("button", "qhelp", "?");
-    ask.setAttribute("aria-label", "What this step is for");
+    ask.setAttribute("aria-label", "More about this step");
     ask.onclick = () => {
       note.hidden = !note.hidden;
       ask.className = note.hidden ? "qhelp" : "qhelp on";
       fitCard(sheet, mid);
     };
     row.append(ask);
-    mid.append(note);
-    box.append(row, pane(body));
+    box.append(row, el("p", "qsub", lead), note, pane(body));
     return box;
   };
   const asked = () => rich(el("p", "qtext"), q.text);
@@ -907,8 +911,9 @@ function renderPractice() {
 
   /* ---- reading: the instruction leads, the question sits under it ---- */
   if (PHASE === "reading") {
-    sheet.append(block("Read it out loud. Do not start the clock until you have "
-      + "finished asking.", asked(),
+    sheet.append(block("Reading",
+      "Read the question out loud. Do not forget to start the timer as soon as "
+      + "the question is asked.", asked(),
       "Word for word, at the pace you would ask it in the room. The clock times "
       + "the answer, not the asking, so it starts on the last word of the "
       + "question and not before."));
@@ -921,11 +926,15 @@ function renderPractice() {
 
   /* ---- answering: clock on top, scores in the middle, taps at the bottom ---- */
   if (PHASE === "answering") {
-    sheet.append(block("Score it as they answer. Tap for every filler word.", asked(),
-      "Take simple notes while they are talking. The filler word button is for "
-      + "anything that fills time: \u201clike\u201d, \u201cumm\u201d, or a long "
-      + "pause. Grade now or leave it until the answer is finished. Stop the clock "
-      + "with \u201cAnswer finished\u201d as soon as they stop talking."));
+    sheet.append(block("Answering",
+      "Take simple notes but save final judgement for later. Remember to use the "
+      + "filler word button.", asked(),
+      "Click \u201cFiller word +\u201d every time the interviewee uses a word whose "
+      + "only purpose is to fill in time while they think: \u201clike\u201d, "
+      + "\u201cummm\u201d, sometimes \u201cI think\u201d. Take simple notes in the "
+      + "box under each criterion that you can use to write cohesive feedback in "
+      + "the grading step. When the answer is fully delivered, click "
+      + "\u201cAnswer finished\u201d to move on to grading."));
     const bar = el("div", "timer");
     clockNode = el("span", "clock", mmss(onClock()));
     bar.append(clockNode);
@@ -947,11 +956,15 @@ function renderPractice() {
 
   /* ---- summary: what it came to, still open to a change of mind ---- */
   if (PHASE === "summary") {
-    sheet.append(block("Answer finished. Grade every criterion before you save.",
+    sheet.append(block("Grading",
+      "Submit final judgement for each criterion. Finalize the reasoning behind "
+      + "each score so it is useful as constructive feedback in the discussion.",
       asked(),
-      "The clock has stopped. Change anything set while they were talking, and "
-      + "fill in whatever was left. Nothing is saved until the last step, and "
-      + "\u201cKeep timing\u201d starts the clock again if they were not done."));
+      "Nothing is saved until the discussion step, so any score can still change. "
+      + "If they were cut off mid answer, \u201cKeep timing\u201d starts the clock "
+      + "again. Grade the answer you heard, not the one you would have given: 3 is "
+      + "a solid answer that does the job, and 5 is one you would repeat to the "
+      + "hiring panel."));
     mid.append(summary());
     for (const m of METRICS) mid.append(metric(m));
     if (past) mid.append(past);
@@ -968,10 +981,12 @@ function renderPractice() {
   }
 
   /* ---- discuss: the grades read back, and the shape of them ---- */
-  sheet.append(block("Talk it through, then save.", asked(),
-    "Show the interviewee your judgements and go through each point. Offer "
-    + "suggestions and ask follow up questions. Saving puts the scores down "
-    + "under your name and moves on to the next question."));
+  sheet.append(block("Discussion",
+    "Review each criterion and offer feedback on why you made the choices you "
+    + "made. If you have suggestions, now is the time to make them. Make sure to "
+    + "save.", asked(),
+    "Saving puts every score and note down under your name and moves on to the "
+    + "next question. Nothing is shared with the other graders until you do."));
   mid.append(radar(DRAFT), graded());
   acts.append(step1("go", "Save and next", commit),
               step1(null, "Back to scores", () => toPhase("summary")), skip);
