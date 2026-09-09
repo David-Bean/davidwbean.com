@@ -907,9 +907,11 @@ function renderPractice() {
 
   /* ---- reading: the instruction leads, the question sits under it ---- */
   if (PHASE === "reading") {
-    sheet.append(block("Ask the question", asked(),
-      "Read the question to the interviewee word for word. Do not start the "
-      + "clock until the question has been fully asked."));
+    sheet.append(block("Read it out loud. Do not start the clock until you have "
+      + "finished asking.", asked(),
+      "Word for word, at the pace you would ask it in the room. The clock times "
+      + "the answer, not the asking, so it starts on the last word of the "
+      + "question and not before."));
     if (past) mid.append(past);
     acts.append(step1("go", "Start the clock", () => toPhase("answering")), skip, back);
     foot.append(acts);
@@ -919,10 +921,11 @@ function renderPractice() {
 
   /* ---- answering: clock on top, scores in the middle, taps at the bottom ---- */
   if (PHASE === "answering") {
-    sheet.append(block("Score the answer", asked(),
-      "Listen, and take simple notes while they are talking. Tap the filler word "
-      + "button for anything that fills time: \u201clike\u201d, \u201cumm\u201d, "
-      + "or a long pause. Grade now or leave it until the answer is finished."));
+    sheet.append(block("Score it as they answer. Tap for every filler word.", asked(),
+      "Take simple notes while they are talking. The filler word button is for "
+      + "anything that fills time: \u201clike\u201d, \u201cumm\u201d, or a long "
+      + "pause. Grade now or leave it until the answer is finished. Stop the clock "
+      + "with \u201cAnswer finished\u201d as soon as they stop talking."));
     const bar = el("div", "timer");
     clockNode = el("span", "clock", mmss(onClock()));
     bar.append(clockNode);
@@ -944,9 +947,11 @@ function renderPractice() {
 
   /* ---- summary: what it came to, still open to a change of mind ---- */
   if (PHASE === "summary") {
-    sheet.append(block("Check the scores", asked(),
-      "The clock has stopped. Grade every criterion, and change anything set "
-      + "while they were talking. Nothing is saved yet."));
+    sheet.append(block("Answer finished. Grade every criterion before you save.",
+      asked(),
+      "The clock has stopped. Change anything set while they were talking, and "
+      + "fill in whatever was left. Nothing is saved until the last step, and "
+      + "\u201cKeep timing\u201d starts the clock again if they were not done."));
     mid.append(summary());
     for (const m of METRICS) mid.append(metric(m));
     if (past) mid.append(past);
@@ -963,9 +968,10 @@ function renderPractice() {
   }
 
   /* ---- discuss: the grades read back, and the shape of them ---- */
-  sheet.append(block("Talk it through", asked(),
+  sheet.append(block("Talk it through, then save.", asked(),
     "Show the interviewee your judgements and go through each point. Offer "
-    + "suggestions, ask follow up questions, then save."));
+    + "suggestions and ask follow up questions. Saving puts the scores down "
+    + "under your name and moves on to the next question."));
   mid.append(radar(DRAFT), graded());
   acts.append(step1("go", "Save and next", commit),
               step1(null, "Back to scores", () => toPhase("summary")), skip);
