@@ -100,7 +100,13 @@
   }
   button.qhelp.on { background: var(--accent); border-color: var(--accent); color: #fff; }
   .qsub { font-size: 15px; line-height: 1.4; margin: 0 0 10px; }
-  .help { color: var(--dim); font-size: 14px; line-height: 1.45; margin: 0 0 12px; }
+  /* An opened note wears the same colour as the button that opened it, so
+     the two read as one thing rather than as more of the card. */
+  .help {
+    color: var(--dim); font-size: 14px; line-height: 1.45; margin: 0 0 12px;
+    background: var(--panel); border-left: 3px solid var(--accent);
+    border-radius: 0 4px 4px 0; padding: 9px 11px;
+  }
   .qtext { font-size: 15px; line-height: 1.45; color: var(--dim); margin: 0; }
   @media (max-width: 640px) { .qbox { min-height: 148px; } }  /* narrower, so more lines */
   /* a phone turned on its side: the frame is short, so the block gives room back */
@@ -852,10 +858,19 @@ function renderPractice() {
     const note = el("p", "help", help);
     note.hidden = true;
     const ask = el("button", "qhelp", "?");
-    ask.setAttribute("aria-label", "More about this step");
+    /* The mark is the switch, so it shows the way out as plainly as it showed
+       the way in: a ? with the note away, a cross with the note open. */
+    const mark = () => {
+      ask.textContent = note.hidden ? "?" : "\u00d7";
+      ask.className = note.hidden ? "qhelp" : "qhelp on";
+      ask.title = note.hidden ? "More about this step" : "Hide this";
+      ask.setAttribute("aria-label", ask.title);
+      ask.setAttribute("aria-expanded", note.hidden ? "false" : "true");
+    };
+    mark();
     ask.onclick = () => {
       note.hidden = !note.hidden;
-      ask.className = note.hidden ? "qhelp" : "qhelp on";
+      mark();
       fitCard(sheet, mid);
     };
     row.append(ask);
@@ -960,11 +975,12 @@ function renderPractice() {
       "Submit final judgement for each criterion. Finalize the reasoning behind "
       + "each score so it is useful as constructive feedback in the discussion.",
       asked(),
-      "Nothing is saved until the discussion step, so any score can still change. "
-      + "If they were cut off mid answer, \u201cKeep timing\u201d starts the clock "
-      + "again. Grade the answer you heard, not the one you would have given: 3 is "
-      + "a solid answer that does the job, and 5 is one you would repeat to the "
-      + "hiring panel."));
+      "If they were cut off mid answer, \u201cKeep timing\u201d starts the clock "
+      + "again and picks the answer back up. Grade the answer you heard, not the "
+      + "one you would have given: 3 is a solid answer that does the job, and 5 is "
+      + "one you would repeat to the hiring panel. Nothing is written down until "
+      + "you save at the end of the discussion, so every score here can still "
+      + "change."));
     mid.append(summary());
     for (const m of METRICS) mid.append(metric(m));
     if (past) mid.append(past);
@@ -985,8 +1001,9 @@ function renderPractice() {
     "Review each criterion and offer feedback on why you made the choices you "
     + "made. If you have suggestions, now is the time to make them. Make sure to "
     + "save.", asked(),
-    "Saving puts every score and note down under your name and moves on to the "
-    + "next question. Nothing is shared with the other graders until you do."));
+    "Saving writes the scores and the notes down against this question and moves "
+    + "on to the next one. Nothing is kept until you do, so leaving now loses the "
+    + "grading."));
   mid.append(radar(DRAFT), graded());
   acts.append(step1("go", "Save and next", commit),
               step1(null, "Back to scores", () => toPhase("summary")), skip);
