@@ -94,6 +94,19 @@
   .briefhead { font-size: 13.5px; margin: 0 0 10px; }
   .mocklist { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 
+  /* the strip chart of the run, above that list. A CSS variable does not
+     resolve inside an SVG presentation attribute, so every colour on the chart
+     is a class here rather than a fill= on the node. Width is the card's and
+     height follows from the viewBox, which is set from the number of rows: the
+     chart scales with the frame and nothing has to be measured to draw it. */
+  .strip { display: block; width: 100%; height: auto; margin: 0 0 12px; }
+  .strip .gl { stroke: var(--line); stroke-width: 1; }
+  .strip .mk { stroke: var(--gold); stroke-width: 2; }
+  .strip .dot { fill: var(--navy); stroke: var(--sheet); stroke-width: 2; }
+  .strip .rl { fill: var(--dim); font-size: 12px; }
+  .strip .an { fill: var(--dim); font-size: 11px; }
+  .strip .mv { fill: var(--ink); font-size: 12px; font-variant-numeric: tabular-nums; }
+
   /* ---- the bar of who and how it is going ---- */
   .top { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 14px; }
   #status { color: var(--dim); font-size: 12px; margin-left: auto; text-align: right; }
@@ -1374,7 +1387,18 @@ function debrief() {
     + (QUEUE.length === 1 ? " question, " : " questions, ") + runs.length + " scored, "
     + mmss(secs) + " on the clock, "
     + (avg === null ? "nothing" : fmt(avg)) + " overall."));
-  /* The charts of how the run went land here, between this line and the list. */
+  /* The chart of the run goes between that line and the list, so the shape of
+     the session reads before any single question of it does. It sits in the
+     part of the column that does not scroll, so it is kept short. A run where
+     nothing at all was scored has no shape to draw and gets no chart. */
+  const said = new Map(QUEUE.map(q => [q.id, q.text]));
+  const marksOn = key => runs
+    .map(a => ({ v: scoreOn(a, key), text: said.get(a.qid) || "", id: a.id }))
+    .filter(d => d.v !== null);
+  const chart = METRICS.map(m => ({ label: m.short, values: marksOn(m.key) }))
+    .concat([{ label: "Overall", values: marksOn("overall"), apart: true }]);
+  if (chart.some(r => r.values.length)) box.append(strip(chart));
+
 
   const list = el("div", "mocklist");
   for (const q of QUEUE) {
@@ -1444,6 +1468,78 @@ function icon(kind) {
     s.append(svgEl("polyline", line({ points: "1 4 1 10 7 10" })),
              svgEl("path", line({ d: "M3.51 15a9 9 0 1 0 2.13-9.36L1 10" })));
   return s;
+}
+
+/* ---- the shape of a run ------------------------------------------------
+   A row per criterion with Overall under them, each a 1 to 5 axis carrying a
+   dot for every question in the run. A session is under twenty questions,
+   which is what this form is for: at that size every answer can be its own
+   mark and the spread stays there to be read, where a bar of the average would
+   have flattened it away. Dots that landed on the same score are nudged off
+   the line so they sit beside each other and can be counted.
+
+   rows is [{ label, values: [{ v, text, id }], apart }]. apart puts a little
+   air above a row, which is how Overall is kept from reading as a fifth
+   criterion rather than a summary of the four. */
+const STRIP = { w: 560, pad: 4, row: 24, apart: 9, foot: 15, lab: 66, x1: 82, x5: 470 };
+
+const stripX = v => STRIP.x1 + (v - 1) * (STRIP.x5 - STRIP.x1) / 4;
+
+/* The nudge is taken off the attempt's own id rather than a random number.
+   Opening a row redraws the whole debrief, and dots that moved every time it
+   was redrawn would read as the chart changing rather than the row opening. */
+function stripJitter(id) {
+  const n = parseInt(hash(String(id)).slice(-5), 36) % 9973;
+  return (n / 9972 - 0.5) * (STRIP.row / 3);
+}
+
+function strip(rows) {
+  const S = STRIP;
+  const gaps = rows.reduce((t, r) => t + (r.apart ? S.apart : 0), 0);
+  const floor = S.pad + rows.length * S.row + gaps;
+  const svg = svgEl("svg", { class: "strip", width: "100%", height: floor + S.foot,
+                             viewBox: "0 0 " + S.w + " " + (floor + S.foot) });
+
+  /* the grid first and nothing heavier than the data on top of it */
+  for (const v of SCALE)
+    svg.append(svgEl("line", { class: "gl", x1: stripX(v), x2: stripX(v), y1: S.pad, y2: floor }));
+
+  const write = (cls, x, y, txt, anchor) => {
+    const t = svgEl("text", anchor ? { class: cls, x: x, y: y, "text-anchor": anchor }
+                                   : { class: cls, x: x, y: y });
+    t.textContent = txt;
+    svg.append(t);
+    return t;
+  };
+
+  let y = S.pad;
+  for (const r of rows) {
+    if (r.apart) y += S.apart;
+    const cy = y + S.row / 2;
+    write("rl", S.lab, cy + 4, r.label, "end");
+    /* a criterion nobody called all run keeps its row and its label and goes
+       without dots. Dots at nothing would say it was scored and scored badly */
+    if (r.values.length) {
+      const mean = r.values.reduce((t, d) => t + d.v, 0) / r.values.length;
+      svg.append(svgEl("line", { class: "mk", x1: stripX(mean), x2: stripX(mean),
+                                 y1: cy - 9, y2: cy + 9 }));
+      write("mv", S.x5 + 16, cy + 4, fmt(mean));
+      for (const d of r.values) {
+        const dot = svgEl("circle", { class: "dot", cx: stripX(d.v), r: 4.5,
+          cy: Math.round((cy + stripJitter(d.id)) * 100) / 100 });
+        /* the hover label, and the only thing a screen reader has to go on */
+        const cap = svgEl("title");
+        cap.textContent = d.text + " \u00b7 " + fmt(d.v);
+        dot.append(cap);
+        svg.append(dot);
+      }
+    }
+    y += S.row;
+  }
+
+  /* the numbers go under the bottom row only: one scale, read once */
+  for (const v of SCALE) write("an", stripX(v), floor + 12, String(v), "middle");
+  return svg;
 }
 
 /* The five as bars off one line: a length each, all of them starting in the
