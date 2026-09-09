@@ -200,10 +200,29 @@
   .sumline { margin-bottom: 4px; }
   .sumline b { font-size: 26px; font-variant-numeric: tabular-nums; margin-right: 6px; }
 
-  /* ---- talking it through ---- */
-  .gline { font-size: 14px; margin-bottom: 6px; }
-  .gline b { margin-right: 6px; }
-  .gline span { color: var(--dim); }
+  /* ---- talking it through ----
+     Read back as a record rather than as a run of sentences: a row for each
+     thing called, the numbers in a column of their own so they line up and can
+     be compared down the page, and beside each one whatever was written about
+     it. The average of the four sits under a rule at the bottom, which is where
+     a total belongs and is far enough from the filler row to not look like it
+     is counted in. */
+  .gtable {
+    width: 100%; table-layout: fixed; border-collapse: collapse;
+    border-top: 1px solid var(--line); margin-top: 12px; font-size: 14px;
+  }
+  .gtable th, .gtable td { text-align: left; vertical-align: baseline; padding: 5px 10px 5px 0; }
+  .gtable th:last-child, .gtable td:last-child { padding-right: 0; }
+  .gtable th {
+    font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase;
+    color: var(--dim); border-bottom: 1px solid var(--line); padding-top: 8px;
+  }
+  .gtable th:first-child { width: 40%; }
+  .gtable .num { width: 52px; text-align: right; font-variant-numeric: tabular-nums; }
+  .gtable .why { color: var(--dim); }
+  .gtable .miss { color: var(--warn); }
+  .gtable .total td { border-top: 1px solid var(--line); padding-top: 8px; font-weight: 600; }
+  .gtable .total .why { font-weight: 400; }
   .radar { display: block; width: 100%; max-width: 320px; margin: 0 auto 6px; }
   .radar .web, .radar .spoke { fill: none; stroke: var(--line); }
   .radar .shape { fill: var(--accent); fill-opacity: .15; stroke: var(--accent);
@@ -1185,23 +1204,34 @@ function radar(a) {
   return svg;
 }
 
-/* the grades in words, with whatever was written against each one */
+/* The grades read back, one row each, with whatever was written against them
+   and the average underneath. A row with nothing called on it carries the same
+   dash the chart above uses rather than a number, and says so in words in the
+   column that is there for saying why. */
 function graded() {
-  const box = el("div", "sum");
+  const t = el("table", "gtable");
+  const head = el("thead"), hr = el("tr");
+  hr.append(el("th", null, "Criterion"), el("th", "num", "Score"), el("th", null, "Why"));
+  head.append(hr);
+  const body = el("tbody");
+  const row = (cls, name, score, why) => {
+    const r = el("tr", cls);
+    r.append(el("td", null, name),
+             el("td", score === null ? "num miss" : "num", score === null ? "\u2013" : fmt(score)),
+             el("td", why === "not scored" ? "why miss" : "why", why));
+    body.append(r);
+  };
   for (const m of METRICS) {
-    const line = el("div", "gline");
-    line.append(el("b", DRAFT[m.key] === null ? "miss" : null,
-                   m.label + " " + (DRAFT[m.key] === null ? "not scored" : DRAFT[m.key])));
-    if (DRAFT[m.key + "_note"]) line.append(el("span", null, DRAFT[m.key + "_note"]));
-    box.append(line);
+    row(null, m.label, DRAFT[m.key],
+        DRAFT[m.key + "_note"] || (DRAFT[m.key] === null ? "not scored" : ""));
   }
   const r = perMin(DRAFT);
-  const line = el("div", "gline");
-  line.append(el("b", null, "Filler " + (r === null ? "not timed" : fmt(fillerScore(DRAFT)))));
-  line.append(el("span", null, DRAFT.fillers + (DRAFT.fillers === 1 ? " word" : " words")
-    + (r === null ? "" : " in " + mmss(DRAFT.seconds) + ", " + fmt(r) + " a minute")));
-  box.append(line);
-  return box;
+  row(null, "Filler", fillerScore(DRAFT),
+      r === null ? "not timed" : DRAFT.fillers + (DRAFT.fillers === 1 ? " word" : " words")
+        + " in " + mmss(DRAFT.seconds) + ", " + fmt(r) + " a minute");
+  row("total", "Overall", overall(DRAFT), "average of the four criteria");
+  t.append(head, body);
+  return t;
 }
 
 /* One metric: what it is called, whether it has been called yet, the row of
