@@ -9,6 +9,7 @@
 -- rather than in the page. They are:
 --   * only this table is reachable, and only these columns
 --   * scores are 1 to 5 or nothing at all, and notes have a ceiling
+--   * an answer can't be a day long or carry ten thousand filler words
 --   * the log has a row limit, so it can't be filled until it costs money
 --   * every change is copied to pa_audit, which the publishable key cannot
 --     read, write or erase, so anything done through the page can be undone
@@ -34,6 +35,14 @@ create table if not exists public.pa_attempts (
   grader          text    not null default ''    check (length(grader) <= 60),
   mode            text    not null default 'new' check (mode in ('new', 'review', 'mock')),
 
+  -- how long she talked, and how many filler words landed in it. The rate the
+  -- page shows is one over the other, worked out where it is read rather than
+  -- stored, so a corrected count is a corrected rate.
+  fillers         integer not null default 0
+                  constraint pa_fillers_sane check (fillers between 0 and 10000),
+  seconds         integer not null default 0
+                  constraint pa_seconds_sane check (seconds between 0 and 86400),
+
   clarity         integer                        check (clarity    between 1 and 5),
   clarity_note    text    not null default ''    check (length(clarity_note)    <= 1000),
   motivation      integer                        check (motivation between 1 and 5),
@@ -47,6 +56,19 @@ create table if not exists public.pa_attempts (
 );
 
 create index if not exists pa_attempts_qid on public.pa_attempts (qid);
+
+-- fillers and seconds arrived after the first version of this file. Running it
+-- again is how a table that predates them catches up.
+alter table public.pa_attempts add column if not exists fillers integer not null default 0;
+alter table public.pa_attempts add column if not exists seconds integer not null default 0;
+do $$ begin
+  alter table public.pa_attempts
+    add constraint pa_fillers_sane check (fillers between 0 and 10000);
+exception when duplicate_object then null; end $$;
+do $$ begin
+  alter table public.pa_attempts
+    add constraint pa_seconds_sane check (seconds between 0 and 86400);
+exception when duplicate_object then null; end $$;
 
 -- ------------------------------------------------------------ who can act --
 alter table public.pa_attempts enable row level security;
@@ -125,6 +147,7 @@ create trigger pa_attempts_audit after insert or update or delete on public.pa_a
 -- How she is doing, worst first:
 --     select qid, count(*) as attempts,
 --            round(avg((clarity + motivation + judgement + maturity) / 4.0), 2) as avg_all,
+--            round(sum(fillers) * 60.0 / nullif(sum(seconds), 0), 2) as filler_per_min,
 --            round(avg(clarity), 2) as clarity, round(avg(motivation), 2) as motivation,
 --            round(avg(judgement), 2) as judgement, round(avg(maturity), 2) as maturity
 --     from public.pa_attempts group by qid order by avg_all nulls first limit 20;
@@ -136,12 +159,7 @@ create trigger pa_attempts_audit after insert or update or delete on public.pa_a
 --
 -- Put back what was deleted this afternoon:
 --     insert into public.pa_attempts
---     select (before ->> 'id'), (before ->> 'qid'), (before ->> 'at')::bigint,
---            (before ->> 'grader'), (before ->> 'mode'),
---            (before ->> 'clarity')::int, (before ->> 'clarity_note'),
---            (before ->> 'motivation')::int, (before ->> 'motivation_note'),
---            (before ->> 'judgement')::int, (before ->> 'judgement_note'),
---            (before ->> 'maturity')::int, (before ->> 'maturity_note'), now()
+--     select (jsonb_populate_record(null::public.pa_attempts, before)).*
 --     from public.pa_audit
 --     where op = 'DELETE' and at > now() - interval '1 day'
 --     on conflict (id) do nothing;

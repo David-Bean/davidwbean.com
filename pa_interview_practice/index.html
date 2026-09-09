@@ -74,6 +74,27 @@
   .actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
   .empty { color: var(--dim); padding: 8px 0; }
 
+  /* ---- the clock and the filler counter ----
+     Stuck to the top of the screen, because it is tapped while the metrics
+     below it are being scrolled and scored. */
+  .timer {
+    position: sticky; top: 0; z-index: 2; background: var(--bg);
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    padding: 8px 0 12px; border-bottom: 1px solid var(--line);
+  }
+  .clock { font-size: 30px; font-variant-numeric: tabular-nums; min-width: 84px; }
+  .fill { flex: 1 1 180px; padding: 15px 18px; font-size: 15px; }
+  .fill b { font-variant-numeric: tabular-nums; font-size: 19px; margin-left: 10px; }
+  .undo { padding: 15px 16px; }
+
+  /* ---- what it came to ---- */
+  .sum { border-top: 1px solid var(--line); padding: 12px 0 4px; }
+  .sumline { margin-bottom: 4px; }
+  .sumline b { font-size: 26px; font-variant-numeric: tabular-nums; margin-right: 6px; }
+  .sumscores { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 8px;
+               font-size: 13px; color: var(--dim); }
+  .sumscores .miss { color: var(--warn); }
+
   /* ---- the table of everything ---- */
   .filters { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
   .filters input[type="text"] { flex: 1 1 160px; min-width: 0; }
@@ -104,7 +125,7 @@
 <div class="wrap">
 
   <h1>PA Interview Practice</h1>
-  <p class="sub">Four scores and a note on each, kept per attempt so you can see whether the second answer beat the first.</p>
+  <p class="sub">Time the answer, count the filler words, score the four things. Kept per attempt, so you can see whether the second answer beat the first.</p>
 
   <div class="top">
     <label for="grader">Graded by</label>
@@ -291,10 +312,18 @@ let SORT = "overall";                // what review sorts on
 let OPEN = new Set();                // which table rows are expanded
 let FILTER = { school: "", pool: "", text: "" };
 
+/* One question is worked through in four steps. It stays hidden until the
+   interviewer asks for it, is shown so she can read it once before reading it
+   out loud, then timed while it is answered, then totted up. */
+let PHASE = "hidden";                // hidden -> reading -> answering -> summary
+let T0 = 0;                          // when the clock last started; 0 when stopped
+let clockTimer = 0;
+let clockNode = null, fillNode = null;   // repainted on their own, so a note keeps focus
+
 const uid = () => "a" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 
 const blank = () => {
-  const d = {};
+  const d = { fillers: 0, seconds: 0 };
   for (const m of METRICS) { d[m.key] = null; d[m.key + "_note"] = ""; }
   return d;
 };
@@ -327,6 +356,8 @@ function load() {
 function fix(a) {
   const o = { id: a.id || uid(), qid: String(a.qid || ""), at: +a.at || 0,
               grader: String(a.grader || ""), mode: MODES[a.mode] ? a.mode : "new" };
+  o.fillers = Math.max(0, Math.round(+a.fillers) || 0);
+  o.seconds = Math.max(0, Math.round(+a.seconds) || 0);
   for (const m of METRICS) {
     const v = Math.round(+a[m.key]);
     o[m.key] = v >= 1 && v <= 5 ? v : null;
@@ -355,11 +386,13 @@ const ROWS = {
     table: "pa_attempts",
     all: () => ATTEMPTS,
     out: a => {
-      const o = { id: a.id, qid: a.qid, at: a.at, grader: a.grader, mode: a.mode };
+      const o = { id: a.id, qid: a.qid, at: a.at, grader: a.grader, mode: a.mode,
+                  fillers: a.fillers, seconds: a.seconds };
       for (const m of METRICS) { o[m.key] = a[m.key]; o[m.key + "_note"] = a[m.key + "_note"]; }
       return o;
     },
     in: r => fix({ id: r.id, qid: r.qid, at: +r.at, grader: r.grader, mode: r.mode,
+                   fillers: r.fillers, seconds: r.seconds,
                    ...Object.fromEntries(METRICS.flatMap(m =>
                      [[m.key, r[m.key]], [m.key + "_note", r[m.key + "_note"]]])) })
   }
@@ -561,17 +594,58 @@ function shuffle(xs) {
   return xs;
 }
 
+/* ---- the clock ---------------------------------------------------------
+   Seconds are banked when the clock stops rather than counted from a single
+   start, so stopping early by mistake costs nothing: Keep timing picks the
+   same answer back up and adds to it. */
+
+const mmss = t => Math.floor(t / 60) + ":" + String(Math.floor(t % 60)).padStart(2, "0");
+const perMin = a => a.seconds > 0 ? a.fillers * 60 / a.seconds : null;
+const onClock = () => DRAFT.seconds + (T0 ? Math.round((Date.now() - T0) / 1000) : 0);
+
+function freeze() {
+  if (!T0) return;
+  DRAFT.seconds += Math.round((Date.now() - T0) / 1000);
+  T0 = 0;
+}
+
+/* the clock repaints itself rather than the card: a redraw every second would
+   take the cursor out of whichever note was being typed */
+function paintClock() { if (clockNode) clockNode.textContent = mmss(onClock()); }
+function startTick() { stopTick(); clockTimer = setInterval(paintClock, 1000); }
+function stopTick() { if (clockTimer) clearInterval(clockTimer); clockTimer = 0; }
+
+function toPhase(p) {
+  PHASE = p;
+  if (p === "answering") { T0 = Date.now(); startTick(); } else { freeze(); stopTick(); }
+  renderPractice();
+}
+
+/* a miscount is one tap to put right, and the count repaints on its own */
+function bump(n) {
+  DRAFT.fillers = Math.max(0, DRAFT.fillers + n);
+  if (fillNode) fillNode.textContent = String(DRAFT.fillers);
+}
+
+/* a fresh question is a hidden one: nothing on screen until she asks for it */
+function newPass() {
+  stopTick();
+  T0 = 0;
+  PHASE = "hidden";
+  DRAFT = blank();
+}
+
 function setMode(m) {
   MODE = MODES[m] ? m : "new";
   QUEUE = MODES[MODE].build();
   QI = 0;
-  DRAFT = blank();
+  newPass();
   renderAll();
 }
 
 function step(n) {
   QI = Math.max(0, Math.min(QUEUE.length - 1, QI + n));
-  DRAFT = blank();
+  newPass();
   renderPractice();
 }
 
@@ -581,12 +655,15 @@ function commit() {
   const q = QUEUE[QI];
   if (!q) return;
   if (METRICS.every(m => DRAFT[m.key] === null)) { status("Score at least one metric first."); return; }
+  freeze();                            /* saving while it runs still records the time */
   const a = fix(Object.assign({ id: uid(), qid: q.id, at: Date.now(), grader: GRADER, mode: MODE }, DRAFT));
   ATTEMPTS.push(a);
   save();
   syncSoon();
   status("Scored.");
-  if (QI >= QUEUE.length - 1) { renderAll(); } else { QI++; DRAFT = blank(); renderAll(); }
+  if (QI < QUEUE.length - 1) QI++;
+  newPass();
+  renderAll();
 }
 
 function removeAttempt(id) {
@@ -641,6 +718,7 @@ function renderModes() {
 function renderPractice() {
   const card = document.getElementById("practice");
   card.textContent = "";
+  clockNode = fillNode = null;
   const q = QUEUE[QI];
   if (!q) { card.append(el("p", "empty", MODES[MODE].empty)); return; }
 
@@ -648,49 +726,118 @@ function renderPractice() {
   head.append(el("span", "chip", SCHOOLS[q.tag] || q.tag));
   head.append(el("span", "count", (QI + 1) + " of " + QUEUE.length));
   card.append(head);
-  card.append(rich(el("p", "qtext"), q.text));
-
-  for (const m of METRICS) {
-    const wrap = el("div", "metric");
-    const row = el("div", "mrow");
-    row.append(el("span", "mname", m.label));
-    const scale = el("span", "scale");
-    for (const v of SCALE) {
-      const b = el("button", DRAFT[m.key] === v ? "on" : null, String(v));
-      /* tapping the score already showing takes it back off */
-      b.onclick = () => { DRAFT[m.key] = DRAFT[m.key] === v ? null : v; renderPractice(); };
-      scale.append(b);
-    }
-    row.append(scale);
-    wrap.append(row);
-
-    const note = el("textarea");
-    note.rows = 1;
-    note.placeholder = "notes on " + m.label.toLowerCase();
-    note.value = DRAFT[m.key + "_note"];
-    note.oninput = () => { DRAFT[m.key + "_note"] = note.value; };
-    wrap.append(note);
-    card.append(wrap);
-  }
 
   const acts = el("div", "actions");
-  const go = el("button", "go", "Save and next");
-  go.onclick = commit;
-  const skip = el("button", null, "Skip");
-  skip.onclick = () => step(1);
-  const back = el("button", null, "Back");
-  back.onclick = () => step(-1);
+  const step1 = (cls, txt, fn) => { const b = el("button", cls, txt); b.onclick = fn; return b; };
+  const skip = step1(null, "Skip", () => step(1));
+  const back = step1(null, "Back", () => step(-1));
   back.disabled = QI === 0;
-  acts.append(go, skip, back);
-  card.append(acts);
 
-  const past = attemptsFor(q.id);
-  if (past.length) {
-    const p = el("p", "empty", past.length === 1
-      ? "Scored once before, most recently " + fmt(overall(past[0])) + " overall."
-      : "Scored " + past.length + " times before, most recently " + fmt(overall(past[0])) + " overall.");
-    card.append(p);
+  /* ---- hidden: nothing but the offer to show it ---- */
+  if (PHASE === "hidden") {
+    card.append(el("p", "empty", "Hidden until you are ready to ask it."));
+    acts.append(step1("go", "Show question", () => toPhase("reading")), skip, back);
+    card.append(acts);
+    card.append(history(q));
+    return;
   }
+
+  card.append(rich(el("p", "qtext"), q.text));
+
+  /* ---- reading: read it, then read it out ---- */
+  if (PHASE === "reading") {
+    card.append(el("p", "empty", "Read it out loud. Start the clock as you finish asking."));
+    acts.append(step1("go", "Start the clock", () => toPhase("answering")), skip, back);
+    card.append(acts);
+    card.append(history(q));
+    return;
+  }
+
+  /* ---- answering: the clock, the counter, and the four scores ---- */
+  if (PHASE === "answering") {
+    const bar = el("div", "timer");
+    clockNode = el("span", "clock", mmss(onClock()));
+    const tap = el("button", "go fill", "Filler word");
+    fillNode = el("b", null, String(DRAFT.fillers));
+    tap.append(fillNode);
+    tap.onclick = () => bump(1);
+    bar.append(clockNode, tap, step1("undo", "\u2212", () => bump(-1)));
+    card.append(bar);
+  } else {
+    card.append(summary());
+  }
+
+  for (const m of METRICS) card.append(metric(m));
+
+  if (PHASE === "answering") {
+    acts.append(step1("go", "Answer finished", () => toPhase("summary")), skip);
+  } else {
+    acts.append(step1("go", "Save and next", commit),
+                step1(null, "Keep timing", () => toPhase("answering")), skip);
+  }
+  card.append(acts);
+  card.append(history(q));
+}
+
+/* one metric: the row of five, and somewhere to say why */
+function metric(m) {
+  const wrap = el("div", "metric");
+  const row = el("div", "mrow");
+  row.append(el("span", "mname", m.label));
+  const scale = el("span", "scale");
+  for (const v of SCALE) {
+    const b = el("button", DRAFT[m.key] === v ? "on" : null, String(v));
+    /* tapping the score already showing takes it back off */
+    b.onclick = () => { DRAFT[m.key] = DRAFT[m.key] === v ? null : v; renderPractice(); };
+    scale.append(b);
+  }
+  row.append(scale);
+  wrap.append(row);
+
+  const note = el("textarea");
+  note.rows = 1;
+  note.placeholder = "notes on " + m.label.toLowerCase();
+  note.value = DRAFT[m.key + "_note"];
+  note.oninput = () => { DRAFT[m.key + "_note"] = note.value; };
+  wrap.append(note);
+  return wrap;
+}
+
+/* What the pass came to. Anything still unscored is called out in the warning
+   colour rather than left blank, because a blank reads as a zero. */
+function summary() {
+  const box = el("div", "sum");
+
+  const t = el("div", "sumline");
+  t.append(el("b", null, mmss(DRAFT.seconds)));
+  t.append(el("span", null, "answering"));
+  box.append(t);
+
+  const f = el("div", "sumline");
+  const rate = perMin(DRAFT);
+  f.append(el("b", null, String(DRAFT.fillers)));
+  f.append(el("span", null, (DRAFT.fillers === 1 ? "filler word" : "filler words")
+    + (rate === null ? "" : ", " + fmt(rate) + " a minute")));
+  box.append(f);
+
+  const ms = el("div", "sumscores");
+  for (const m of METRICS) {
+    ms.append(el("span", DRAFT[m.key] === null ? "miss" : null,
+                 m.label + " " + (DRAFT[m.key] === null ? "not scored" : DRAFT[m.key])));
+  }
+  const o = overall(DRAFT);
+  if (o !== null) ms.append(el("span", null, "Overall " + fmt(o)));
+  box.append(ms);
+  return box;
+}
+
+/* how she did on this one last time, if she has had it before */
+function history(q) {
+  const past = attemptsFor(q.id);
+  if (!past.length) return null;
+  return el("p", "empty", past.length === 1
+    ? "Scored once before, most recently " + fmt(overall(past[0])) + " overall."
+    : "Scored " + past.length + " times before, most recently " + fmt(overall(past[0])) + " overall.");
 }
 
 function renderStats() {
@@ -700,6 +847,13 @@ function renderStats() {
   for (const m of METRICS) {
     const v = ATTEMPTS.map(a => a[m.key]).filter(x => x !== null);
     if (v.length) bits.push(m.label + " " + fmt(v.reduce((s, x) => s + x, 0) / v.length));
+  }
+  /* pooled rather than an average of averages: a two minute answer and a ten
+     minute one are not the same size of evidence */
+  const secs = ATTEMPTS.reduce((n, a) => n + a.seconds, 0);
+  if (secs > 0) {
+    const fill = ATTEMPTS.reduce((n, a) => n + a.fillers, 0);
+    bits.push("Filler " + fmt(fill * 60 / secs) + " a minute");
   }
   const line = qs.length + " questions, " + scored + " scored, " + ATTEMPTS.length + " attempts."
     + (bits.length ? " Averages: " + bits.join(" · ") : "");
@@ -753,6 +907,14 @@ function detail(q, past) {
     const w = el("div", "att");
     w.append(el("div", "when", when(a.at) + (a.grader ? " · " + a.grader : "")
       + " · " + MODES[a.mode].label.toLowerCase()));
+    if (a.seconds || a.fillers) {
+      const line = el("div", "line");
+      const rate = perMin(a);
+      line.append(el("b", null, mmss(a.seconds)));
+      line.append(el("span", null, a.fillers + (a.fillers === 1 ? " filler" : " fillers")
+        + (rate === null ? "" : ", " + fmt(rate) + " a minute")));
+      w.append(line);
+    }
     for (const m of METRICS) {
       const line = el("div", "line");
       line.append(el("b", null, a[m.key] === null ? "-" : String(a[m.key])));
