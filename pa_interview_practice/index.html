@@ -222,10 +222,13 @@
     color: var(--dim); border-bottom: 1px solid var(--line); padding-top: 8px;
   }
   /* A name is a few words and a reason is a few sentences, so the room goes
-     where the writing is: a third for the name, the rest to the reasoning, and
-     the score column only as wide as a number needs. */
-  .gtable th:first-child { width: 33%; }
-  .gtable .num { width: 52px; text-align: right; font-variant-numeric: tabular-nums; }
+     where the writing is: a quarter for the name, the rest to the reasoning,
+     and the score column wide enough for its own heading, which is longer than
+     anything that lands under it. The numbers are centred under that heading
+     rather than pushed against the rule to the right of them, where they read
+     as belonging to the column beyond. */
+  .gtable th:first-child { width: 25%; }
+  .gtable .num { width: 72px; text-align: center; font-variant-numeric: tabular-nums; }
   .gtable .reason { color: var(--dim); }
   .gtable .miss { color: var(--warn); }
   .gtable .total td { border-top: 1px solid var(--line); padding-top: 8px; font-weight: 600; }
