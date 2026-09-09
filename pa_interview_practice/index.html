@@ -81,7 +81,6 @@
   .modes button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
 
   /* ---- the question on screen ---- */
-  .qhead { display: flex; gap: 8px; align-items: baseline; margin-bottom: 8px; }
   .chip {
     background: var(--chip); border-radius: 3px; padding: 1px 6px;
     font-size: 11px; letter-spacing: .04em; color: var(--dim);
@@ -117,6 +116,11 @@
     background: var(--panel); border: 1px solid var(--line);
     border-radius: 6px; padding: 12px 14px;
   }
+  /* The compartment says what it holds before it holds it, and the school the
+     question came from rides beside that name rather than off on its own at
+     the top of the card. The question itself is the plain line underneath. */
+  .qcap { display: flex; gap: 8px; align-items: baseline; margin-bottom: 5px; }
+  .qcapname { font-size: 14px; font-weight: 600; color: var(--ink); }
 
   /* ---- the briefing on the first step ---- */
   .gname { display: flex; gap: 8px; align-items: center; }
@@ -828,10 +832,6 @@ function renderPractice() {
   const sheet = el("div", "fit");
   card.append(sheet);
 
-  const head = el("div", "qhead");
-  head.append(el("span", "chip", SCHOOLS[q.tag] || q.tag));
-  sheet.append(head);
-
   /* the three parts: the head above, the middle that takes up what is left
      over, and the foot of buttons at the bottom of the frame */
   const mid = el("div", "mid");
@@ -877,7 +877,14 @@ function renderPractice() {
     box.append(row, el("p", "qsub", lead), note, pane(body));
     return box;
   };
-  const asked = () => rich(el("p", "qtext"), q.text);
+  const asked = () => {
+    const box = el("div", "qask");
+    const cap = el("div", "qcap");
+    cap.append(el("span", "qcapname", "Question"),
+               el("span", "chip", SCHOOLS[q.tag] || q.tag));
+    box.append(cap, rich(el("p", "qtext"), q.text));
+    return box;
+  };
   const skip = step1(null, "Skip", () => step(1));
   const back = step1(null, "Back", () => step(-1));
   back.disabled = QI === 0;
