@@ -54,7 +54,6 @@
 
   /* ---- the bar of who and how it is going ---- */
   .top { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 14px; }
-  .top label { color: var(--dim); font-size: 13px; }
   #status { color: var(--dim); font-size: 12px; margin-left: auto; text-align: right; }
   #stats { color: var(--dim); font-size: 12.5px; margin: 0 0 16px; }
 
@@ -71,6 +70,8 @@
     border: 1px solid var(--line); border-radius: 4px; padding: 6px 12px; cursor: pointer;
   }
   button:hover { border-color: var(--dim); }
+  button[disabled] { opacity: .45; cursor: default; }
+  button[disabled]:hover { border-color: var(--line); }
   button.go { background: var(--accent); border-color: var(--accent); color: #fff; }
   button.go:hover { filter: brightness(1.08); }
   button.danger { color: var(--warn); }
@@ -95,7 +96,12 @@
   @media (max-width: 640px) { .qbox { min-height: 148px; } }  /* narrower, so more lines */
   /* a phone turned on its side: the frame is short, so the block gives room back */
   @media (max-height: 560px) { .qbox { min-height: 88px; } }
-  .count { color: var(--dim); font-size: 12.5px; margin-left: auto; }
+  /* The part to be read out sits in a compartment of its own rather than loose
+     on the card: the steps on the first one, the question on every one after. */
+  .pane {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 6px; padding: 12px 14px;
+  }
 
   /* ---- the briefing on the first step ---- */
   .gname { display: flex; gap: 8px; align-items: center; }
@@ -103,6 +109,7 @@
   .howto { margin: 0; padding-left: 20px; color: var(--dim); font-size: 14px; line-height: 1.45; }
   .howto li { margin-bottom: 5px; }
   .howto b { color: var(--ink); font-weight: 600; }
+  .nudge { color: var(--warn); font-size: 13px; margin: 8px 0 0; }
 
   .metric { border-top: 1px solid var(--line); padding: 8px 0; }
   .metric .mrow { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
@@ -185,8 +192,6 @@
   <p class="sub">Time the answer, count the filler words, score the four things. Kept per attempt, so you can see whether the second answer beat the first.</p>
 
   <div class="top">
-    <label for="grader">Graded by</label>
-    <input type="text" id="grader" placeholder="your name" autocomplete="off" size="14">
     <span id="status"></span>
   </div>
 
@@ -716,7 +721,7 @@ function commit() {
   if (!q) return;
   if (METRICS.every(m => DRAFT[m.key] === null)) { status("Score at least one metric first."); return; }
   freeze();                            /* saving while it runs still records the time */
-  const a = fix(Object.assign({ id: uid(), qid: q.id, at: Date.now(), grader: GRADER, mode: MODE }, DRAFT));
+  const a = fix(Object.assign({ id: uid(), qid: q.id, at: Date.now(), grader: GRADER.trim(), mode: MODE }, DRAFT));
   ATTEMPTS.push(a);
   save();
   syncSoon();
@@ -806,7 +811,6 @@ function renderPractice() {
 
   const head = el("div", "qhead");
   head.append(el("span", "chip", SCHOOLS[q.tag] || q.tag));
-  head.append(el("span", "count", (QI + 1) + " of " + QUEUE.length));
   sheet.append(head);
 
   /* the three parts: the head above, the middle that takes up what is left
@@ -816,10 +820,12 @@ function renderPractice() {
   sheetNode = sheet; midNode = mid;
   const acts = el("div", "actions");
   const step1 = (cls, txt, fn) => { const b = el("button", cls, txt); b.onclick = fn; return b; };
+  /* what is to be read out, in its own compartment */
+  const pane = body => { const p = el("div", "pane"); p.append(body); return p; };
   /* the fixed block every step opens with, and the question inside it */
   const block = (lead, body) => {
     const box = el("div", "qbox");
-    box.append(el("p", "qlead", lead), body);
+    box.append(el("p", "qlead", lead), pane(body));
     return box;
   };
   const asked = () => rich(el("p", "qtext"), q.text);
@@ -838,17 +844,33 @@ function renderPractice() {
      handed to someone who has never seen the page and they can run an
      interview off it without being talked through it first. */
   if (PHASE === "hidden") {
-    if (MODE === "mock") {
-      sheet.append(block("Hidden until you are ready to ask it.",
-        el("p", "qtext", "Show it, read it to yourself, then read it out loud. "
-          + "Start the clock as you finish asking, and tap once for every filler word.")));
-    } else {
-      sheet.append(block("Instructions for the grader", graderRow()));
-      mid.append(howto());
-    }
+    const mock = MODE === "mock";
+    const box = el("div", "qbox");
+    box.append(el("p", "qlead", mock ? "Hidden until you are ready to ask it."
+                                     : "Instructions for the grader"));
+
+    /* Every score goes down under a name, and this is the only place one can be
+       typed, so the pass does not start until there is one. The button says no
+       by being unavailable; the line under it says why. */
+    const go = step1("go", "Show question", () => toPhase("reading"));
+    const nudge = el("p", "nudge",
+      "Enter your name first. Every score you give is saved under it.");
+    const gate = () => {
+      const named = GRADER.trim() !== "";
+      go.disabled = !named;
+      nudge.hidden = named;
+    };
+
+    box.append(graderRow(gate));
+    sheet.append(box);
+    mid.append(pane(mock
+      ? el("p", "qtext", "Show it, read it to yourself, then read it out loud. "
+          + "Start the clock as you finish asking, and tap once for every filler word.")
+      : howto()));
     if (past) mid.append(past);
-    acts.append(step1("go", "Show question", () => toPhase("reading")), skip, back);
-    foot.append(acts);
+    gate();
+    acts.append(go, skip, back);
+    foot.append(acts, nudge);
     finish();
     return;
   }
@@ -1011,10 +1033,10 @@ function metric(m) {
   return wrap;
 }
 
-/* The same name as the box at the top of the page, put where it is needed.
-   Typing in either one moves the other, and neither redraws the card, so the
-   cursor stays where it was put. */
-function graderRow() {
+/* The one place the grader's name is typed. Typing does not redraw the card,
+   so the cursor stays where it was put; `after` is whatever has to keep up with
+   the name as it is typed. */
+function graderRow(after) {
   const row = el("div", "gname");
   const lab = el("label", null, "Graded by");
   lab.setAttribute("for", "grader-step");
@@ -1026,9 +1048,8 @@ function graderRow() {
   inp.value = GRADER;
   inp.oninput = () => {
     GRADER = inp.value;
-    const top = document.getElementById("grader");
-    if (top) top.value = GRADER;
     save();
+    if (after) after();
   };
   row.append(lab, inp);
   return row;
@@ -1254,17 +1275,6 @@ function buildFilters() {
   text.oninput = () => { FILTER.text = text.value; renderTable(); };
 }
 
-function wireGrader() {
-  const g = document.getElementById("grader");
-  g.value = GRADER;
-  g.oninput = () => {
-    GRADER = g.value;
-    const step = document.getElementById("grader-step");
-    if (step) step.value = GRADER;
-    save();
-  };
-}
-
 /* The mock set is a file sitting beside this page rather than anything built
    in, so a new one is a drop and a push. Its absence is not an error: the mode
    simply says there is nothing loaded. */
@@ -1279,7 +1289,6 @@ async function loadMock() {
 
 buildFilters();
 load();
-wireGrader();
 wireClear();
 setMode("new");
 
