@@ -537,6 +537,7 @@ const byId = id => QUESTIONS().find(q => q.id === id) || null;
 const KEY = "pa-interview-v1";
 let ATTEMPTS = [];                   // one row per pass at a question
 let SUBJECT = "";                    // who is answering, by name; "" until chosen
+let LOOKBACK = false;                // "" means the earlier scores, not nobody yet
 let GRADER = "";                     // who is scoring, the same way
 let ADDED = [];                      // names typed on this device, not yet scored under
 let MODE = "new";
@@ -924,6 +925,12 @@ function setMode(m) {
    out from under. */
 function setSubject(n) {
   SUBJECT = n;
+  /* Nobody can be picked off the list but the earlier scores: the placeholder
+     cannot be chosen and every name on the roster has one. So an empty name
+     arriving here means they are what is being looked at, which is a different
+     thing from a row nobody has filled in yet, and the picker has to keep
+     saying so after the card is drawn again. */
+  LOOKBACK = n === "";
   const q = QUEUE[QI];
   QUEUE = MODES[MODE].build();
   /* The question that was about to be asked stays the one about to be asked.
@@ -1455,15 +1462,17 @@ function personPicker(kind, current, onPick) {
     const hold = el("option", null, "choose " + hint + "\u2026");
     hold.value = "";
     hold.disabled = true;
-    if (!current) hold.selected = true;
+    if (!current && !LOOKBACK) hold.selected = true;
     sel.append(hold);
     /* The way back to the scores from before the page asked who was answering.
-       It is not a roster name and nobody can be interviewed under it: picking
-       it is picking nobody, which is why the placeholder is what shows after.
-       Offered only while there are such scores left to look at. */
+       It is not a roster name and nobody can be interviewed under it, so the
+       way on stays shut while it is showing; it stays showing all the same,
+       because it is what the record underneath is of. Offered only while there
+       are such scores left to look at. */
     if (kind === "subject" && anyUnnamed()) {
       const old = el("option", null, "Earlier scores");
       old.value = EARLIER;
+      if (LOOKBACK) old.selected = true;
       sel.append(old);
     }
     for (const n of roster(kind)) {
