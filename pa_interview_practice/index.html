@@ -163,12 +163,17 @@
 
   /* ---- the clock ----
      In the head of the card, which is the part that never scrolls, so it is
-     on screen the whole time the scores below it are being worked. */
+     on screen the whole time the scores below it are being worked. Pause and
+     Reset ride with the numbers rather than with the buttons at the bottom:
+     they are part of reading the clock, not part of moving on. */
   .timer {
-    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    display: flex; gap: 10px; align-items: center;
     padding: 0 0 10px; border-bottom: 1px solid var(--line);
   }
   .clock { font-size: 28px; font-variant-numeric: tabular-nums; min-width: 84px; }
+  .clock.off { color: var(--dim); }
+  .tacts { display: flex; gap: 6px; margin-left: auto; flex: 0 0 auto; }
+  .tacts button { padding: 6px 10px; font-size: 13px; }
 
   /* The two taps live under the scores rather than above them: this is worked
      on a phone held in one hand, and the bottom of the screen is the part a
@@ -700,8 +705,9 @@ function shuffle(xs) {
 
 /* ---- the clock ---------------------------------------------------------
    Seconds are banked when the clock stops rather than counted from a single
-   start, so stopping early by mistake costs nothing: Keep timing picks the
-   same answer back up and adds to it. */
+   start, so stopping early by mistake costs nothing: Resume picks the same
+   answer back up and adds to it. T0 is what says it is running, and it is 0
+   whenever it is not. */
 
 const mmss = t => Math.floor(t / 60) + ":" + String(Math.floor(t % 60)).padStart(2, "0");
 const perMin = a => a.seconds > 0 ? a.fillers * 60 / a.seconds : null;
@@ -718,10 +724,24 @@ function freeze() {
 function paintClock() { if (clockNode) clockNode.textContent = mmss(onClock()); }
 function startTick() { stopTick(); clockTimer = setInterval(paintClock, 1000); }
 function stopTick() { if (clockTimer) clearInterval(clockTimer); clockTimer = 0; }
+const ticking = () => T0 !== 0;
 
-function toPhase(p) {
+/* Pause banks what has run so far and Resume opens a fresh stretch on top of
+   it, so an interruption costs the time it took and nothing else. Reset throws
+   the whole answer away and leaves the clock stopped on 0:00, which is what a
+   clock started on the question rather than on the answer needs. */
+function pauseClock() { freeze(); stopTick(); renderPractice(); }
+function resumeClock() { T0 = Date.now(); startTick(); renderPractice(); }
+function resetClock() { freeze(); stopTick(); DRAFT.seconds = 0; renderPractice(); }
+
+/* The clock runs on the answering step and nowhere else, but coming back to
+   that step is not the same as starting the answer again: only the button that
+   says so starts it. Back leaves the clock where it was, with Resume beside
+   it. */
+function toPhase(p, run) {
   PHASE = p;
-  if (p === "answering") { T0 = Date.now(); startTick(); } else { freeze(); stopTick(); }
+  if (p === "answering") { if (run) T0 = Date.now(); if (T0) startTick(); }
+  else { freeze(); stopTick(); }
   renderPractice();
 }
 
@@ -944,7 +964,8 @@ function renderPractice() {
     sheet.append(box);
     mid.append(pane(mock
       ? el("p", "qtext", "Show it, read it to yourself, then read it out loud. "
-          + "Start the clock as you finish asking, and tap once for every filler word.")
+          + "Start the clock as you finish asking, and tap once for every filler "
+          + "word. The scores come after, on the grading step.")
       : howto()));
     if (past) mid.append(past);
     gate();
@@ -961,9 +982,10 @@ function renderPractice() {
       + "the question is asked.", asked(),
       "Word for word, at the pace you would ask it in the room. The clock times "
       + "the answer, not the asking, so it starts on the last word of the "
-      + "question and not before."));
+      + "question and not before. If it does start at the wrong moment, Reset "
+      + "beside the clock puts it back to 0:00."));
     if (past) mid.append(past);
-    acts.append(step1("go", "Start the clock", () => toPhase("answering")), skip, back);
+    acts.append(step1("go", "Start the clock", () => toPhase("answering", true)), skip, back);
     foot.append(acts);
     finish();
     return;
@@ -973,17 +995,29 @@ function renderPractice() {
   if (PHASE === "answering") {
     sheet.append(block("Answering",
       "Listen. Take notes if you want them, and save every judgement for the "
-      + "grading step. Remember to use the filler word button.", asked(),
+      + "grading step. Tap the filler word button as you hear them, and pause "
+      + "the clock if the answer is interrupted.", asked(),
       "Click \u201cFiller word +\u201d every time the interviewee uses a word whose "
       + "only purpose is to fill in time while they think: \u201clike\u201d, "
       + "\u201cummm\u201d, sometimes \u201cI think\u201d. There are no scores on "
       + "this step on purpose: the notes under each criterion are only there to "
       + "catch what you would otherwise forget, and nothing has to be written in "
-      + "them. When the answer is fully delivered, click "
-      + "\u201cAnswer finished\u201d to move on to grading."));
+      + "them. Pause banks the time and Resume adds to it rather than starting "
+      + "the answer over, so an interruption costs only what it took; Reset puts "
+      + "the clock back to 0:00 if it was started too early. When the answer is "
+      + "fully delivered, click \u201cAnswer finished\u201d to move on to "
+      + "grading."));
     const bar = el("div", "timer");
-    clockNode = el("span", "clock", mmss(onClock()));
-    bar.append(clockNode);
+    clockNode = el("span", ticking() ? "clock" : "clock off", mmss(onClock()));
+    const tacts = el("div", "tacts");
+    tacts.append(ticking()
+      ? step1(null, "Pause", pauseClock)
+      : step1(null, onClock() ? "Resume" : "Start", resumeClock));
+    /* nothing to put back to zero on a clock that is already there */
+    const zero = step1(null, "Reset", resetClock);
+    zero.disabled = !ticking() && onClock() === 0;
+    tacts.append(zero);
+    bar.append(clockNode, tacts);
     sheet.append(bar);
     for (const m of METRICS) mid.append(metric(m, false));
     if (past) mid.append(past);
@@ -1003,15 +1037,17 @@ function renderPractice() {
   /* ---- summary: what it came to, still open to a change of mind ---- */
   if (PHASE === "summary") {
     sheet.append(block("Grading",
-      "Submit final judgement for each criterion. Finalize the reasoning behind "
-      + "each score so it is useful as constructive feedback in the discussion.",
+      "Give all four criteria a score, and finalize the reasoning behind each one "
+      + "so it is useful as constructive feedback in the discussion.",
       asked(),
-      "If they were cut off mid answer, \u201cKeep timing\u201d starts the clock "
-      + "again and picks the answer back up. Grade the answer you heard, not the "
-      + "one you would have given: 3 is a solid answer that does the job, and 5 is "
-      + "one you would repeat to the hiring panel. Nothing is written down until "
-      + "you save at the end of the discussion, so every score here can still "
-      + "change."));
+      "The circle beside a criterion turns into a check once it has been called, "
+      + "and all four have to be called before you can go on. \u201cBack\u201d "
+      + "returns to the answering step with the clock where you left it, so if "
+      + "they were cut off mid answer, press Resume there and pick it up. Grade "
+      + "the answer you heard, not the one you would have given: 3 is a solid "
+      + "answer that does the job, and 5 is one you would repeat to the hiring "
+      + "panel. Nothing is written down until you save at the end of the "
+      + "discussion, so every score here can still change."));
     mid.append(summary());
     for (const m of METRICS) mid.append(metric(m, true));
     if (past) mid.append(past);
@@ -1025,7 +1061,7 @@ function renderPractice() {
       ? step1("go", "Save and next", commit)
       : step1("go", "Discuss", () => toPhase("discuss"));
     on.disabled = !allGraded();
-    acts.append(on, step1(null, "Keep timing", () => toPhase("answering")), skip);
+    acts.append(on, step1(null, "Back", () => toPhase("answering")), skip);
     if (!allGraded()) foot.append(el("p", "nudge", "Give all four a score to go on."));
     foot.append(acts);
     finish();
@@ -1186,9 +1222,10 @@ const STEPS = [
     + "\u201cStart the clock\u201d until the question has been fully asked.",
   "Listen to the interviewee. Take notes if you want them, while they are talking. "
     + "Click the \u201cFiller word\u201d button for phrases that fill in time: "
-    + "\u201cLike\u201d, \u201cUmm\u201d, or long pauses.",
+    + "\u201cLike\u201d, \u201cUmm\u201d, or long pauses. Pause and Reset sit "
+    + "beside the clock for an interruption or a clock started too early.",
   "Click \u201cAnswer finished\u201d. Take more detailed notes if necessary and give "
-    + "all four criteria a score.",
+    + "all four criteria a score. The way on stays shut until all four are called.",
   "Discuss. Show the interviewee your judgements and discuss each point. Offer "
     + "suggestions and ask follow up questions.",
 ];
