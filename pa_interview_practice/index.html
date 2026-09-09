@@ -217,12 +217,15 @@
     font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase;
     color: var(--dim); border-bottom: 1px solid var(--line); padding-top: 8px;
   }
-  .gtable th:first-child { width: 40%; }
+  /* A name is a few words and a reason is a few sentences, so the room goes
+     where the writing is: a third for the name, the rest to the reasoning, and
+     the score column only as wide as a number needs. */
+  .gtable th:first-child { width: 33%; }
   .gtable .num { width: 52px; text-align: right; font-variant-numeric: tabular-nums; }
-  .gtable .why { color: var(--dim); }
+  .gtable .reason { color: var(--dim); }
   .gtable .miss { color: var(--warn); }
   .gtable .total td { border-top: 1px solid var(--line); padding-top: 8px; font-weight: 600; }
-  .gtable .total .why { font-weight: 400; }
+  .gtable .total .reason { font-weight: 400; }
   .radar { display: block; width: 100%; max-width: 320px; margin: 0 auto 6px; }
   .radar .web, .radar .spoke { fill: none; stroke: var(--line); }
   .radar .shape { fill: var(--accent); fill-opacity: .15; stroke: var(--accent);
@@ -1207,18 +1210,18 @@ function radar(a) {
 /* The grades read back, one row each, with whatever was written against them
    and the average underneath. A row with nothing called on it carries the same
    dash the chart above uses rather than a number, and says so in words in the
-   column that is there for saying why. */
+   column the reasoning goes in. */
 function graded() {
   const t = el("table", "gtable");
   const head = el("thead"), hr = el("tr");
-  hr.append(el("th", null, "Criterion"), el("th", "num", "Score"), el("th", null, "Why"));
+  hr.append(el("th", null, "Criterion"), el("th", "num", "Score"), el("th", null, "Reasoning"));
   head.append(hr);
   const body = el("tbody");
   const row = (cls, name, score, why) => {
     const r = el("tr", cls);
     r.append(el("td", null, name),
              el("td", score === null ? "num miss" : "num", score === null ? "\u2013" : fmt(score)),
-             el("td", why === "not scored" ? "why miss" : "why", why));
+             el("td", why === "not scored" ? "reason miss" : "reason", why));
     body.append(r);
   };
   for (const m of METRICS) {
