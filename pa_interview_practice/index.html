@@ -782,10 +782,20 @@ function syncSoon() {
 
 /* ---- reading the record ----------------------------------------------- */
 
-const attemptsFor = qid => ATTEMPTS.filter(a => a.qid === qid).sort((x, y) => y.at - x.at);
+/* ATTEMPTS is the whole shared log. This is the part of it belonging to
+   whoever is being interviewed, which is what every count, queue and average
+   on the page is actually about. A row goes down under a trimmed name, so a
+   trimmed name is what it is matched against. */
+const LOG = () => ATTEMPTS.filter(a => a.subject === SUBJECT.trim());
+
+/* A score that went down before the page asked who was answering belongs to no
+   name, and is what a SUBJECT of "" reads back. */
+const anyUnnamed = () => ATTEMPTS.some(a => a.subject === "");
+
+const attemptsFor = qid => LOG().filter(a => a.qid === qid).sort((x, y) => y.at - x.at);
 const latestFor = qid => {
   let best = null;
-  for (const a of ATTEMPTS) if (a.qid === qid && (!best || a.at > best.at)) best = a;
+  for (const a of LOG()) if (a.qid === qid && (!best || a.at > best.at)) best = a;
   return best;
 };
 
@@ -901,6 +911,26 @@ function newPass() {
 function setMode(m) {
   MODE = MODES[m] ? m : "new";
   QUEUE = MODES[MODE].build();
+  QI = 0;
+  newPass();
+  renderAll();
+}
+
+/* Every queue, count and average on the page is one person's record, so
+   changing who is being interviewed is the same reset as changing mode: a new
+   name has been asked nothing, and gets the whole bank back. The picker sits
+   on the hidden step alone, before the clock has started and before the
+   question has been shown, so there is never a pass in flight for this to pull
+   out from under. */
+function setSubject(n) {
+  SUBJECT = n;
+  const q = QUEUE[QI];
+  QUEUE = MODES[MODE].build();
+  /* The question that was about to be asked stays the one about to be asked.
+     Only the record behind it changed, and a fresh shuffle underfoot would
+     read as the pick having done something to the pass that it did not. */
+  const i = q ? QUEUE.findIndex(x => x.id === q.id) : -1;
+  if (i > 0) QUEUE.unshift(QUEUE.splice(i, 1)[0]);
   QI = 0;
   newPass();
   renderAll();
@@ -1104,7 +1134,7 @@ function renderPractice() {
       nudge.className = missing ? "nudge" : "nudge quiet";
     };
 
-    box.append(personPicker("subject", SUBJECT, n => { SUBJECT = n; gate(); }),
+    box.append(personPicker("subject", SUBJECT, setSubject),
                personPicker("grader", GRADER, n => { GRADER = n; gate(); }));
     sheet.append(box);
     mid.append(pane(mock
@@ -1381,9 +1411,10 @@ const PERSON = {
   grader: { label: "Graded by", hint: "who is scoring" },
 };
 
-/* The option that is not a name. A name is trimmed before it is kept, so
+/* The two options that are not names. A name is trimmed before it is kept, so
    nothing anyone can type collides with a value that starts with a space. */
 const NEWNAME = " add";
+const EARLIER = " earlier";
 
 /* every spelling the log or this device knows for one of the two jobs, once
    each, the first spelling seen winning over a later difference in case */
@@ -1399,9 +1430,10 @@ function roster(kind) {
 }
 
 /* One row: a label and a picker over the roster, with a way in for someone the
-   roster has never heard of. Picking does not redraw the card, so nothing on it
-   moves and the other row keeps whatever it was doing; onPick is both where the
-   name is put and whatever has to keep up with it. */
+   roster has never heard of. Picking redraws nothing of itself, so the other
+   row keeps whatever it was doing; onPick is both where the name is put and
+   whatever has to keep up with it. The interviewee is the one pick that does
+   rebuild the card, because the record the card reads from changed with it. */
 function personPicker(kind, current, onPick) {
   const { label, hint } = PERSON[kind];
   const row = el("div", "gname");
@@ -1425,6 +1457,15 @@ function personPicker(kind, current, onPick) {
     hold.disabled = true;
     if (!current) hold.selected = true;
     sel.append(hold);
+    /* The way back to the scores from before the page asked who was answering.
+       It is not a roster name and nobody can be interviewed under it: picking
+       it is picking nobody, which is why the placeholder is what shows after.
+       Offered only while there are such scores left to look at. */
+    if (kind === "subject" && anyUnnamed()) {
+      const old = el("option", null, "Earlier scores");
+      old.value = EARLIER;
+      sel.append(old);
+    }
     for (const n of roster(kind)) {
       const o = el("option", null, n);
       o.value = n;
@@ -1436,7 +1477,7 @@ function personPicker(kind, current, onPick) {
     sel.append(more);
     sel.onchange = () => {
       if (sel.value === NEWNAME) { ask(); return; }
-      current = sel.value;
+      current = sel.value === EARLIER ? "" : sel.value;
       onPick(current);
       save();
     };
@@ -1541,20 +1582,26 @@ function history(q) {
 
 function renderStats() {
   const qs = QUESTIONS();
+  const log = LOG();
   const scored = qs.filter(q => latestFor(q.id)).length;
   const bits = [];
   for (const m of METRICS) {
-    const v = ATTEMPTS.map(a => a[m.key]).filter(x => x !== null);
+    const v = log.map(a => a[m.key]).filter(x => x !== null);
     if (v.length) bits.push(m.label + " " + fmt(v.reduce((s, x) => s + x, 0) / v.length));
   }
   /* pooled rather than an average of averages: a two minute answer and a ten
      minute one are not the same size of evidence */
-  const secs = ATTEMPTS.reduce((n, a) => n + a.seconds, 0);
+  const secs = log.reduce((n, a) => n + a.seconds, 0);
   if (secs > 0) {
-    const fill = ATTEMPTS.reduce((n, a) => n + a.fillers, 0);
+    const fill = log.reduce((n, a) => n + a.fillers, 0);
     bits.push("Filler " + fmt(fill * 60 / secs) + " a minute");
   }
-  const line = qs.length + " questions, " + scored + " scored, " + ATTEMPTS.length + " attempts."
+  /* whose record it is comes first, because the same numbers under a different
+     name are a different claim. The earlier scores belong to nobody, so they
+     are given no name rather than a made up one. */
+  const who = SUBJECT.trim();
+  const line = (who ? who + ": " : "")
+    + qs.length + " questions, " + scored + " scored, " + log.length + " attempts."
     + (bits.length ? " Averages: " + bits.join(" · ") : "");
   document.getElementById("stats").textContent = line;
 }
@@ -1591,7 +1638,7 @@ function renderTable() {
   }
 
   const known = new Set(QUESTIONS().map(q => q.id));
-  const lost = ATTEMPTS.filter(a => !known.has(a.qid));
+  const lost = LOG().filter(a => !known.has(a.qid));
   if (lost.length) {
     const p = el("p", "empty", lost.length + " attempt" + (lost.length === 1 ? "" : "s")
       + " belong to questions that are no longer in the bank. They are still in the log.");
