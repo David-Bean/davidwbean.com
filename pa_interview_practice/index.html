@@ -60,7 +60,10 @@
     background: var(--chip); border-radius: 3px; padding: 1px 6px;
     font-size: 11px; letter-spacing: .04em; color: var(--dim);
   }
-  .qtext { font-size: 19px; line-height: 1.35; margin: 0 0 18px; }
+  /* the same two lines at every step, so the card doesn't jump as it moves on:
+     what to do next in bold, and the detail under it */
+  .qlead { font-size: 19px; font-weight: 600; line-height: 1.35; margin: 0 0 8px; }
+  .qtext { font-size: 15px; line-height: 1.45; color: var(--dim); margin: 0 0 16px; }
   .count { color: var(--dim); font-size: 12.5px; margin-left: auto; }
 
   .metric { border-top: 1px solid var(--line); padding: 10px 0; }
@@ -83,9 +86,15 @@
     padding: 8px 0 12px; border-bottom: 1px solid var(--line);
   }
   .clock { font-size: 30px; font-variant-numeric: tabular-nums; min-width: 84px; }
-  .fill { flex: 1 1 180px; padding: 15px 18px; font-size: 15px; }
-  .fill b { font-variant-numeric: tabular-nums; font-size: 19px; margin-left: 10px; }
-  .undo { padding: 15px 16px; }
+
+  /* The two taps live under the scores rather than above them: this is worked
+     on a phone held in one hand, and the bottom of the screen is the part a
+     thumb reaches. Three quarters for the tap that is made over and over,
+     the last quarter for the one beside it. */
+  .pad { display: grid; grid-template-columns: 3fr 1fr; gap: 8px; margin-top: 12px; }
+  .pad button { padding: 20px 8px; font-size: 16px; }
+  .fill b { font-variant-numeric: tabular-nums; font-size: 20px; margin-left: 10px; }
+  .undo { font-size: 22px; }
 
   /* ---- what it came to ---- */
   .sum { border-top: 1px solid var(--line); padding: 12px 0 4px; }
@@ -733,48 +742,54 @@ function renderPractice() {
   const back = step1(null, "Back", () => step(-1));
   back.disabled = QI === 0;
 
-  /* ---- hidden: nothing but the offer to show it ---- */
+  /* ---- hidden: what happens next, and nothing else ---- */
   if (PHASE === "hidden") {
-    card.append(el("p", "empty", "Hidden until you are ready to ask it."));
+    card.append(el("p", "qlead", "Hidden until you are ready to ask it."));
+    card.append(el("p", "qtext", "Show it, read it to yourself, then read it out loud. "
+      + "Start the clock as you finish asking, and tap once for every filler word."));
     acts.append(step1("go", "Show question", () => toPhase("reading")), skip, back);
     card.append(acts);
     card.append(history(q));
     return;
   }
 
-  card.append(rich(el("p", "qtext"), q.text));
-
-  /* ---- reading: read it, then read it out ---- */
+  /* ---- reading: the instruction leads, the question sits under it ---- */
   if (PHASE === "reading") {
-    card.append(el("p", "empty", "Read it out loud. Start the clock as you finish asking."));
+    card.append(el("p", "qlead", "Read out loud. Start the clock as you finish asking."));
+    card.append(rich(el("p", "qtext"), q.text));
     acts.append(step1("go", "Start the clock", () => toPhase("answering")), skip, back);
     card.append(acts);
     card.append(history(q));
     return;
   }
 
-  /* ---- answering: the clock, the counter, and the four scores ---- */
+  /* ---- answering: clock on top, scores in the middle, taps at the bottom ---- */
   if (PHASE === "answering") {
     const bar = el("div", "timer");
     clockNode = el("span", "clock", mmss(onClock()));
-    const tap = el("button", "go fill", "Filler word");
+    bar.append(clockNode);
+    card.append(bar);
+    card.append(rich(el("p", "qtext"), q.text));
+    for (const m of METRICS) card.append(metric(m));
+
+    const pad = el("div", "pad");
+    const tap = el("button", "go fill", "Filler word +");
     fillNode = el("b", null, String(DRAFT.fillers));
     tap.append(fillNode);
     tap.onclick = () => bump(1);
-    bar.append(clockNode, tap, step1("undo", "\u2212", () => bump(-1)));
-    card.append(bar);
-  } else {
-    card.append(summary());
+    pad.append(tap, step1("undo", "\u2212", () => bump(-1)));
+    pad.append(step1("go", "Answer finished", () => toPhase("summary")), skip);
+    card.append(pad);
+    card.append(history(q));
+    return;
   }
 
+  /* ---- summary: what it came to, still open to a change of mind ---- */
+  card.append(rich(el("p", "qtext"), q.text));
+  card.append(summary());
   for (const m of METRICS) card.append(metric(m));
-
-  if (PHASE === "answering") {
-    acts.append(step1("go", "Answer finished", () => toPhase("summary")), skip);
-  } else {
-    acts.append(step1("go", "Save and next", commit),
-                step1(null, "Keep timing", () => toPhase("answering")), skip);
-  }
+  acts.append(step1("go", "Save and next", commit),
+              step1(null, "Keep timing", () => toPhase("answering")), skip);
   card.append(acts);
   card.append(history(q));
 }
