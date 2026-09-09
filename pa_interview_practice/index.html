@@ -91,7 +91,15 @@
      nothing below it moves. A question with more to it than that takes the room
      it needs, and the sheet is drawn smaller to keep the lot on the card. */
   .qbox { min-height: 124px; margin-bottom: 14px; }
-  .qlead { font-size: 19px; font-weight: 600; line-height: 1.35; margin: 0 0 8px; }
+  .qtitle { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .qlead { font-size: 19px; font-weight: 600; line-height: 1.35; margin: 0; }
+  /* The step is named, and the ? beside the name is where the orders went. */
+  button.qhelp {
+    flex: 0 0 auto; width: 24px; height: 24px; padding: 0;
+    border-radius: 50%; font-size: 14px; line-height: 1; color: var(--dim);
+  }
+  button.qhelp.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .help { color: var(--dim); font-size: 14px; line-height: 1.45; margin: 0 0 12px; }
   .qtext { font-size: 15px; line-height: 1.45; color: var(--dim); margin: 0; }
   @media (max-width: 640px) { .qbox { min-height: 148px; } }  /* narrower, so more lines */
   /* a phone turned on its side: the frame is short, so the block gives room back */
@@ -822,10 +830,32 @@ function renderPractice() {
   const step1 = (cls, txt, fn) => { const b = el("button", cls, txt); b.onclick = fn; return b; };
   /* what is to be read out, in its own compartment */
   const pane = body => { const p = el("div", "pane"); p.append(body); return p; };
-  /* the fixed block every step opens with, and the question inside it */
-  const block = (lead, body) => {
+  /* the fixed block every step opens with: what the step is called, the ?
+     beside it, and the question inside it */
+  const title = lead => {
+    const row = el("div", "qtitle");
+    row.append(el("p", "qlead", lead));
+    return row;
+  };
+  /* The orders are one click away rather than on the card, because they are
+     read once and in the way after that. They open into the middle, which is
+     the part that is measured and drawn to scale, so opening them shrinks the
+     sheet rather than pushing the buttons off the bottom of the frame. */
+  const block = (lead, body, help) => {
     const box = el("div", "qbox");
-    box.append(el("p", "qlead", lead), pane(body));
+    const row = title(lead);
+    const note = el("p", "help", help);
+    note.hidden = true;
+    const ask = el("button", "qhelp", "?");
+    ask.setAttribute("aria-label", "What this step is for");
+    ask.onclick = () => {
+      note.hidden = !note.hidden;
+      ask.className = note.hidden ? "qhelp" : "qhelp on";
+      fitCard(sheet, mid);
+    };
+    row.append(ask);
+    mid.append(note);
+    box.append(row, pane(body));
     return box;
   };
   const asked = () => rich(el("p", "qtext"), q.text);
@@ -846,8 +876,8 @@ function renderPractice() {
   if (PHASE === "hidden") {
     const mock = MODE === "mock";
     const box = el("div", "qbox");
-    box.append(el("p", "qlead", mock ? "Hidden until you are ready to ask it."
-                                     : "Instructions for the grader"));
+    box.append(title(mock ? "Hidden until you are ready to ask it."
+                          : "Instructions for the grader"));
 
     /* Every score goes down under a name, and this is the only place one can be
        typed, so the pass does not start until there is one. The button says no
@@ -877,7 +907,9 @@ function renderPractice() {
 
   /* ---- reading: the instruction leads, the question sits under it ---- */
   if (PHASE === "reading") {
-    sheet.append(block("Read out loud. Start the clock as you finish asking.", asked()));
+    sheet.append(block("Ask the question", asked(),
+      "Read the question to the interviewee word for word. Do not start the "
+      + "clock until the question has been fully asked."));
     if (past) mid.append(past);
     acts.append(step1("go", "Start the clock", () => toPhase("answering")), skip, back);
     foot.append(acts);
@@ -887,7 +919,10 @@ function renderPractice() {
 
   /* ---- answering: clock on top, scores in the middle, taps at the bottom ---- */
   if (PHASE === "answering") {
-    sheet.append(block("Score it as she answers. Tap for every filler word.", asked()));
+    sheet.append(block("Score the answer", asked(),
+      "Listen, and take simple notes while they are talking. Tap the filler word "
+      + "button for anything that fills time: \u201clike\u201d, \u201cumm\u201d, "
+      + "or a long pause. Grade now or leave it until the answer is finished."));
     const bar = el("div", "timer");
     clockNode = el("span", "clock", mmss(onClock()));
     bar.append(clockNode);
@@ -909,7 +944,9 @@ function renderPractice() {
 
   /* ---- summary: what it came to, still open to a change of mind ---- */
   if (PHASE === "summary") {
-    sheet.append(block("Answer finished. Check it over.", asked()));
+    sheet.append(block("Check the scores", asked(),
+      "The clock has stopped. Grade every criterion, and change anything set "
+      + "while they were talking. Nothing is saved yet."));
     mid.append(summary());
     for (const m of METRICS) mid.append(metric(m));
     if (past) mid.append(past);
@@ -926,7 +963,9 @@ function renderPractice() {
   }
 
   /* ---- discuss: the grades read back, and the shape of them ---- */
-  sheet.append(block("Talk it through, then save.", asked()));
+  sheet.append(block("Talk it through", asked(),
+    "Show the interviewee your judgements and go through each point. Offer "
+    + "suggestions, ask follow up questions, then save."));
   mid.append(radar(DRAFT), graded());
   acts.append(step1("go", "Save and next", commit),
               step1(null, "Back to scores", () => toPhase("summary")), skip);
