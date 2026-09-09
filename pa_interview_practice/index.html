@@ -95,6 +95,9 @@
   .att .line i { color: var(--dim); font-style: normal; }
   .note { color: var(--dim); font-size: 12px; border-left: 2px solid var(--line);
           padding-left: 11px; margin-top: 22px; }
+  .reset { margin-top: 26px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .reset span { color: var(--warn); font-size: 12px; }
+  button[disabled] { opacity: .45; cursor: default; }
 </style>
 </head>
 <body>
@@ -130,6 +133,11 @@
     another within a few seconds. A question is identified by its own text: fix a typo in one and
     it becomes a new question with no history.
   </p>
+
+  <div class="reset">
+    <button id="clear" class="danger">Clear all scores</button>
+    <span id="clear-say"></span>
+  </div>
 
 </div>
 <script>
@@ -421,9 +429,14 @@ async function push() {
         headers: head({ Prefer: "resolution=merge-duplicates,return=minimal" }),
         body: JSON.stringify(d[k].up)
       });
-    if (d[k].gone.length)
-      await call("DELETE", rest(ROWS[k].table, "?id=in.(" + d[k].gone.map(encodeURIComponent).join(",") + ")"),
+    /* Clearing everything puts every id into the query string at once, and a
+       URL has a length the server refuses long before the log gets big. A
+       hundred at a time stays well under it. */
+    for (let i = 0; i < d[k].gone.length; i += 100) {
+      const ids = d[k].gone.slice(i, i + 100).map(encodeURIComponent).join(",");
+      await call("DELETE", rest(ROWS[k].table, "?id=in.(" + ids + ")"),
                  { headers: head({ Prefer: "return=minimal" }) });
+    }
   }
   SENT = now;
   save();
@@ -761,7 +774,51 @@ function detail(q, past) {
   return box;
 }
 
-const renderRecord = () => { renderStats(); renderTable(); };
+const renderRecord = () => { renderStats(); renderTable(); renderClear(); };
+
+/* Clearing empties the log for every grader at once rather than only here, so
+   it takes two clicks and the second one says how much it is about to destroy.
+   Arming lapses after a few seconds: a button left sitting on "Yes, delete" is
+   a trap for whoever picks the phone up next. */
+let CLEARING = false, clearTimer = 0;
+
+function renderClear() {
+  const b = document.getElementById("clear"), say = document.getElementById("clear-say");
+  const n = ATTEMPTS.length;
+  b.disabled = n === 0;
+  b.textContent = CLEARING ? "Yes, delete " + n + (n === 1 ? " attempt" : " attempts") : "Clear all scores";
+  say.textContent = CLEARING
+    ? (SHARED ? "Are you sure? This clears every grader's scores, not only yours."
+              : "Are you sure? There is no undo.")
+    : "";
+}
+
+function armClear() {
+  CLEARING = true;
+  clearTimeout(clearTimer);
+  clearTimer = setTimeout(() => { CLEARING = false; renderClear(); }, 8000);
+  renderClear();
+}
+
+function clearAll() {
+  CLEARING = false;
+  clearTimeout(clearTimer);
+  ATTEMPTS = [];
+  CONFIRM = null;
+  OPEN.clear();
+  save();
+  syncSoon();
+  setMode(MODE);                     // the queue was built from scores that are gone
+  status("Cleared.");
+}
+
+function wireClear() {
+  document.getElementById("clear").onclick = () => {
+    if (!ATTEMPTS.length) return;
+    if (CLEARING) clearAll(); else armClear();
+  };
+  renderClear();
+}
 const renderAll = () => { renderModes(); renderPractice(); renderRecord(); };
 
 /* ---- wiring ------------------------------------------------------------ */
@@ -804,6 +861,7 @@ async function loadMock() {
 buildFilters();
 load();
 wireGrader();
+wireClear();
 setMode("new");
 
 loadMock().then(() => { if (MOCK.length) setMode(MODE); });
