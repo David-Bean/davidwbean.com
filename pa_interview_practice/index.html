@@ -72,8 +72,8 @@
     border: 1px solid var(--line); border-radius: 4px; padding: 6px 12px; cursor: pointer;
   }
   button:hover { border-color: var(--dim); }
-  button[disabled] { opacity: .45; cursor: default; }
-  button[disabled]:hover { border-color: var(--line); }
+  button[disabled], button[aria-disabled="true"] { opacity: .45; cursor: default; }
+  button[disabled]:hover, button[aria-disabled="true"]:hover { border-color: var(--line); }
   button.go { background: var(--accent); border-color: var(--accent); color: #fff; }
   button.go:hover { filter: brightness(1.08); }
   button.danger { color: var(--warn); }
@@ -131,6 +131,9 @@
   .howto li { margin-bottom: 5px; }
   .howto b { color: var(--ink); font-weight: 600; }
   .nudge { color: var(--warn); font-size: 13px; margin: 8px 0 0; }
+  /* held rather than removed: the line keeps its space whether or not it is
+     being read, so nothing on the card moves when it starts being read */
+  .nudge.quiet { visibility: hidden; }
 
   .metric { border-top: 1px solid var(--line); padding: 8px 0; }
   /* The name on the left, the row of five hard against the right, one line at
@@ -196,9 +199,6 @@
   .sum { border-top: 1px solid var(--line); padding: 12px 0 4px; }
   .sumline { margin-bottom: 4px; }
   .sumline b { font-size: 26px; font-variant-numeric: tabular-nums; margin-right: 6px; }
-  .sumscores { display: flex; flex-wrap: wrap; gap: 4px 16px; margin-top: 8px;
-               font-size: 13px; color: var(--dim); }
-  .sumscores .miss { color: var(--warn); }
 
   /* ---- talking it through ---- */
   .gline { font-size: 14px; margin-bottom: 6px; }
@@ -432,6 +432,7 @@ let FILTER = { school: "", pool: "", text: "" };
    out loud, then timed while it is answered, then totted up, then talked
    through with her. Scoring stops at the summary: discuss only reads it back. */
 let PHASE = "hidden";                // hidden -> reading -> answering -> summary -> discuss
+let NAGGED = false;                  // whether the way on has been tried and refused
 let T0 = 0;                          // when the clock last started; 0 when stopped
 let clockTimer = 0;
 let clockNode = null, fillNode = null;   // repainted on their own, so a note keeps focus
@@ -748,6 +749,7 @@ function resetClock() { freeze(); stopTick(); DRAFT.seconds = 0; renderPractice(
    it. */
 function toPhase(p, run) {
   PHASE = p;
+  NAGGED = false;
   if (p === "answering") { if (run) T0 = Date.now(); if (T0) startTick(); }
   else { freeze(); stopTick(); }
   renderPractice();
@@ -1079,10 +1081,18 @@ function renderPractice() {
     const on = MODE === "mock"
       ? step1("go", "Save and next", commit)
       : step1("go", "Discuss", () => toPhase("discuss"));
-    on.disabled = !allGraded();
+    /* Shut, but not dead: a button that does nothing at all when it is pressed
+       does not say why, so this one keeps the look of one that is off and
+       answers by putting the reason under it. The reason is on the card either
+       way and only turns visible, so asking for it moves nothing. */
+    const nudge = el("p", NAGGED && !allGraded() ? "nudge" : "nudge quiet",
+                     "Give all four a score to go on.");
+    if (!allGraded()) {
+      on.setAttribute("aria-disabled", "true");
+      on.onclick = () => { NAGGED = true; renderPractice(); };
+    }
     acts.append(on, step1(null, "Back", () => toPhase("answering")), skip);
-    if (!allGraded()) foot.append(el("p", "nudge", "Give all four a score to go on."));
-    foot.append(acts);
+    foot.append(nudge, acts);
     finish();
     return;
   }
@@ -1291,12 +1301,6 @@ function summary() {
     + (rate === null ? "" : ", " + fmt(rate) + " a minute")));
   box.append(f);
 
-  const o = overall(DRAFT);
-  if (o !== null) {
-    const ms = el("div", "sumscores");
-    ms.append(el("span", null, "Overall " + fmt(o)));
-    box.append(ms);
-  }
   return box;
 }
 
