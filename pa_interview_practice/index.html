@@ -163,17 +163,25 @@
 
   /* ---- the clock ----
      In the head of the card, which is the part that never scrolls, so it is
-     on screen the whole time the scores below it are being worked. Pause and
-     Reset ride with the numbers rather than with the buttons at the bottom:
-     they are part of reading the clock, not part of moving on. */
+     on screen the whole time the scores below it are being worked. The clock
+     and its two buttons are boxed together and sit at the left: they are one
+     thing to reach for, so the buttons stay against the numbers rather than
+     out at the far edge of the card. */
   .timer {
     display: flex; gap: 10px; align-items: center;
     padding: 0 0 10px; border-bottom: 1px solid var(--line);
   }
+  .tbox {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 10px; border: 1px solid var(--line); border-radius: 12px;
+    background: var(--panel);
+  }
+  /* a fixed width for the numbers, so the buttons do not walk left and right
+     as the minutes tick over */
   .clock { font-size: 28px; font-variant-numeric: tabular-nums; min-width: 84px; }
   .clock.off { color: var(--dim); }
-  .tacts { display: flex; gap: 6px; margin-left: auto; flex: 0 0 auto; }
-  .tacts button { padding: 6px 10px; font-size: 13px; }
+  .tbox button { padding: 5px; border-radius: 8px; line-height: 0; }
+  .ico { display: block; width: 18px; height: 18px; }
 
   /* The two taps live under the scores rather than above them: this is worked
      on a phone held in one hand, and the bottom of the screen is the part a
@@ -982,8 +990,8 @@ function renderPractice() {
       + "the question is asked.", asked(),
       "Word for word, at the pace you would ask it in the room. The clock times "
       + "the answer, not the asking, so it starts on the last word of the "
-      + "question and not before. If it does start at the wrong moment, Reset "
-      + "beside the clock puts it back to 0:00."));
+      + "question and not before. If it does start at the wrong moment, the "
+      + "arrow in the clock box puts it back to 0:00."));
     if (past) mid.append(past);
     acts.append(step1("go", "Start the clock", () => toPhase("answering", true)), skip, back);
     foot.append(acts);
@@ -1002,22 +1010,33 @@ function renderPractice() {
       + "\u201cummm\u201d, sometimes \u201cI think\u201d. There are no scores on "
       + "this step on purpose: the notes under each criterion are only there to "
       + "catch what you would otherwise forget, and nothing has to be written in "
-      + "them. Pause banks the time and Resume adds to it rather than starting "
-      + "the answer over, so an interruption costs only what it took; Reset puts "
-      + "the clock back to 0:00 if it was started too early. When the answer is "
+      + "them. The pause button in the clock box banks the time and the play "
+      + "button adds to it rather than starting the answer over, so an "
+      + "interruption costs only what it took; the arrow beside them puts the "
+      + "clock back to 0:00 if it was started too early. When the answer is "
       + "fully delivered, click \u201cAnswer finished\u201d to move on to "
       + "grading."));
     const bar = el("div", "timer");
+    const tbox = el("div", "tbox");
     clockNode = el("span", ticking() ? "clock" : "clock off", mmss(onClock()));
-    const tacts = el("div", "tacts");
-    tacts.append(ticking()
-      ? step1(null, "Pause", pauseClock)
-      : step1(null, onClock() ? "Resume" : "Start", resumeClock));
+    /* The two are drawn rather than written: a word sitting against a running
+       clock reads as part of the time. What each one is called stays on it for
+       whoever is hovering, or listening rather than looking. */
+    const tbtn = (kind, name, fn) => {
+      const b = step1(null, "", fn);
+      b.append(icon(kind));
+      b.title = name;
+      b.setAttribute("aria-label", name);
+      return b;
+    };
+    tbox.append(clockNode,
+                ticking() ? tbtn("pause", "Pause", pauseClock)
+                          : tbtn("play", onClock() ? "Resume" : "Start", resumeClock));
     /* nothing to put back to zero on a clock that is already there */
-    const zero = step1(null, "Reset", resetClock);
+    const zero = tbtn("reset", "Reset", resetClock);
     zero.disabled = !ticking() && onClock() === 0;
-    tacts.append(zero);
-    bar.append(clockNode, tacts);
+    tbox.append(zero);
+    bar.append(tbox);
     sheet.append(bar);
     for (const m of METRICS) mid.append(metric(m, false));
     if (past) mid.append(past);
@@ -1043,7 +1062,7 @@ function renderPractice() {
       "The circle beside a criterion turns into a check once it has been called, "
       + "and all four have to be called before you can go on. \u201cBack\u201d "
       + "returns to the answering step with the clock where you left it, so if "
-      + "they were cut off mid answer, press Resume there and pick it up. Grade "
+      + "they were cut off mid answer, press play there and pick it up. Grade "
       + "the answer you heard, not the one you would have given: 3 is a solid "
       + "answer that does the job, and 5 is one you would repeat to the hiring "
       + "panel. Nothing is written down until you save at the end of the "
@@ -1100,6 +1119,23 @@ const svgEl = (tag, attrs) => {
   for (const k in attrs) n.setAttribute(k, String(attrs[k]));
   return n;
 };
+
+/* The three marks on the clock: a triangle to start it, two bars to stop it,
+   and an arrow turning back on itself to put it to 0:00. Drawn at the size of
+   the text around them and in whatever colour that text is. */
+function icon(kind) {
+  const s = svgEl("svg", { viewBox: "0 0 24 24", class: "ico", "aria-hidden": "true" });
+  const line = a => Object.assign({ fill: "none", stroke: "currentColor",
+    "stroke-width": 2, "stroke-linecap": "round", "stroke-linejoin": "round" }, a);
+  if (kind === "play") s.append(svgEl("path", { d: "M8 5 L19 12 L8 19 Z", fill: "currentColor" }));
+  else if (kind === "pause")
+    s.append(svgEl("rect", { x: 7, y: 5, width: 3.5, height: 14, rx: 1, fill: "currentColor" }),
+             svgEl("rect", { x: 13.5, y: 5, width: 3.5, height: 14, rx: 1, fill: "currentColor" }));
+  else
+    s.append(svgEl("polyline", line({ points: "1 4 1 10 7 10" })),
+             svgEl("path", line({ d: "M3.51 15a9 9 0 1 0 2.13-9.36L1 10" })));
+  return s;
+}
 
 /* The five together, as one shape, so a lopsided answer looks lopsided. A
    spoke with nothing scored on it is left out of the shape rather than drawn
@@ -1222,8 +1258,9 @@ const STEPS = [
     + "\u201cStart the clock\u201d until the question has been fully asked.",
   "Listen to the interviewee. Take notes if you want them, while they are talking. "
     + "Click the \u201cFiller word\u201d button for phrases that fill in time: "
-    + "\u201cLike\u201d, \u201cUmm\u201d, or long pauses. Pause and Reset sit "
-    + "beside the clock for an interruption or a clock started too early.",
+    + "\u201cLike\u201d, \u201cUmm\u201d, or long pauses. The pause and reset "
+    + "buttons are in the box with the clock, for an interruption or a clock "
+    + "started too early.",
   "Click \u201cAnswer finished\u201d. Take more detailed notes if necessary and give "
     + "all four criteria a score. The way on stays shut until all four are called.",
   "Discuss. Show the interviewee your judgements and discuss each point. Offer "
