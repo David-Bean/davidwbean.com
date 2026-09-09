@@ -170,7 +170,10 @@
 
   /* ---- the briefing on the first step ---- */
   .gname { display: flex; gap: 8px; align-items: center; }
-  .gname label { color: var(--dim); font-size: 13px; }
+  /* Two of these rows, so the labels are given a common width and the pickers
+     under one another rather than each starting wherever its own label ended. */
+  .gname label { color: var(--dim); font-size: 13px; min-width: 76px; }
+  .gname + .gname { margin-top: 6px; }
   .howto { margin: 0; padding-left: 20px; color: var(--dim); font-size: 14px; line-height: 1.45; }
   .howto li { margin-bottom: 5px; }
   .howto b { color: var(--ink); font-weight: 600; }
@@ -533,7 +536,9 @@ const byId = id => QUESTIONS().find(q => q.id === id) || null;
 
 const KEY = "pa-interview-v1";
 let ATTEMPTS = [];                   // one row per pass at a question
-let GRADER = "";
+let SUBJECT = "";                    // who is answering, by name; "" until chosen
+let GRADER = "";                     // who is scoring, the same way
+let ADDED = [];                      // names typed on this device, not yet scored under
 let MODE = "new";
 let QUEUE = [], QI = 0;              // the questions this mode lined up, and where we are
 let DRAFT = null;                    // scores and notes for the question on screen
@@ -552,6 +557,10 @@ let clockTimer = 0;
 let clockNode = null, fillNode = null;   // repainted on their own, so a note keeps focus
 let sheetNode = null, midNode = null;    // the sheet and the part of it that is measured
 
+/* what the database lets a name be, so a name too long to store is cut here
+   rather than refused there and stalling the sync behind it. See schema.sql. */
+const NAMEMAX = 60;
+
 const uid = () => "a" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 
 const blank = () => {
@@ -564,7 +573,8 @@ function status(msg) { document.getElementById("status").textContent = msg; }
 
 function save() {
   try {
-    localStorage.setItem(KEY, JSON.stringify({ attempts: ATTEMPTS, grader: GRADER, sent: sentOut() }));
+    localStorage.setItem(KEY, JSON.stringify({ attempts: ATTEMPTS, subject: SUBJECT,
+                                               grader: GRADER, added: ADDED, sent: sentOut() }));
     if (!SHARED) status("Saved in this browser.");
   } catch (e) {
     status("Can't save here. Scores last until you reload.");
@@ -579,7 +589,11 @@ function load() {
     const d = JSON.parse(raw);
     if (!Array.isArray(d.attempts)) throw 0;
     ATTEMPTS = d.attempts.map(fix);
+    /* a blob written before there were two names has neither of the last two,
+       and reads back as nobody chosen, which is what the gate wants anyway */
+    SUBJECT = typeof d.subject === "string" ? d.subject : "";
     GRADER = typeof d.grader === "string" ? d.grader : "";
+    ADDED = Array.isArray(d.added) ? d.added.filter(n => typeof n === "string" && n.trim()) : [];
     SENT = sentIn(d.sent);
   } catch (e) { ATTEMPTS = []; }
 }
@@ -587,6 +601,7 @@ function load() {
 /* a saved row from an older shape, or a hand-edited one, made safe to render */
 function fix(a) {
   const o = { id: a.id || uid(), qid: String(a.qid || ""), at: +a.at || 0,
+              subject: String(a.subject || "").slice(0, NAMEMAX),
               grader: String(a.grader || ""), mode: MODES[a.mode] ? a.mode : "new" };
   o.fillers = Math.max(0, Math.round(+a.fillers) || 0);
   o.seconds = Math.max(0, Math.round(+a.seconds) || 0);
@@ -618,13 +633,13 @@ const ROWS = {
     table: "pa_attempts",
     all: () => ATTEMPTS,
     out: a => {
-      const o = { id: a.id, qid: a.qid, at: a.at, grader: a.grader, mode: a.mode,
-                  fillers: a.fillers, seconds: a.seconds };
+      const o = { id: a.id, qid: a.qid, at: a.at, subject: a.subject, grader: a.grader,
+                  mode: a.mode, fillers: a.fillers, seconds: a.seconds };
       for (const m of METRICS) { o[m.key] = a[m.key]; o[m.key + "_note"] = a[m.key + "_note"]; }
       return o;
     },
-    in: r => fix({ id: r.id, qid: r.qid, at: +r.at, grader: r.grader, mode: r.mode,
-                   fillers: r.fillers, seconds: r.seconds,
+    in: r => fix({ id: r.id, qid: r.qid, at: +r.at, subject: r.subject, grader: r.grader,
+                   mode: r.mode, fillers: r.fillers, seconds: r.seconds,
                    ...Object.fromEntries(METRICS.flatMap(m =>
                      [[m.key, r[m.key]], [m.key + "_note", r[m.key + "_note"]]])) })
   }
@@ -907,7 +922,8 @@ function commit() {
   if (!q) return;
   if (!allGraded()) { status("Give all four a score first."); return; }
   freeze();                            /* saving while it runs still records the time */
-  const a = fix(Object.assign({ id: uid(), qid: q.id, at: Date.now(), grader: GRADER.trim(), mode: MODE }, DRAFT));
+  const a = fix(Object.assign({ id: uid(), qid: q.id, at: Date.now(), subject: SUBJECT.trim(),
+                               grader: GRADER.trim(), mode: MODE }, DRAFT));
   ATTEMPTS.push(a);
   save();
   syncSoon();
@@ -1072,19 +1088,24 @@ function renderPractice() {
     box.append(title(mock ? "Hidden until you are ready to ask it."
                           : "Instructions for the grader"));
 
-    /* Every score goes down under a name, and this is the only place one can be
-       typed, so the pass does not start until there is one. The button says no
-       by being unavailable; the line under it says why. */
+    /* Every score goes down under two names, and this is the only place either
+       is chosen, so the pass does not start until both are. The button says no
+       by being unavailable; the line under it says which one is still missing.
+       It keeps the last name it asked for when it goes quiet, so the line holds
+       its height and nothing on the card moves as the rows are filled. */
     const go = step1("go", "Show question", () => toPhase("reading"));
-    const nudge = el("p", "nudge",
-      "Enter your name first. Every score you give is saved under it.");
+    const asking = who => "Choose the " + who + " first. Every score is saved under both names.";
+    const nudge = el("p", "nudge", asking("interviewee"));
     const gate = () => {
-      const named = GRADER.trim() !== "";
-      go.disabled = !named;
-      nudge.hidden = named;
+      const missing = SUBJECT.trim() === "" ? "interviewee"
+                    : GRADER.trim() === "" ? "grader" : "";
+      go.disabled = missing !== "";
+      if (missing) nudge.textContent = asking(missing);
+      nudge.className = missing ? "nudge" : "nudge quiet";
     };
 
-    box.append(graderRow(gate));
+    box.append(personPicker("subject", SUBJECT, n => { SUBJECT = n; gate(); }),
+               personPicker("grader", GRADER, n => { GRADER = n; gate(); }));
     sheet.append(box);
     mid.append(pane(mock
       ? el("p", "qtext", "Show it, read it to yourself, then read it out loud. "
@@ -1347,31 +1368,127 @@ function metric(m, scored) {
   return wrap;
 }
 
-/* The one place the grader's name is typed. Typing does not redraw the card,
-   so the cursor stays where it was put; `after` is whatever has to keep up with
-   the name as it is typed. */
-function graderRow(after) {
-  const row = el("div", "gname");
-  const lab = el("label", null, "Graded by");
-  lab.setAttribute("for", "grader-step");
-  const inp = el("input");
-  inp.id = "grader-step";
-  inp.type = "text";
-  inp.placeholder = "your name";
-  inp.autocomplete = "off";
-  inp.value = GRADER;
-  inp.oninput = () => {
-    GRADER = inp.value;
-    save();
-    if (after) after();
+/* ---- who is in the room -----------------------------------------------
+   Two names go on every score, and the first step is the only place either is
+   chosen. The list to choose from is worked out from the log rather than kept
+   as a table of its own: a name reaches the other devices as soon as its first
+   score does, one poll later, which is soon enough for a tool two people use in
+   one room. ADDED holds the ones typed here that have not been scored under
+   yet, so a name does not vanish between choosing it and using it. */
+
+const PERSON = {
+  subject: { label: "Interviewee", hint: "who is answering" },
+  grader: { label: "Graded by", hint: "who is scoring" },
+};
+
+/* The option that is not a name. A name is trimmed before it is kept, so
+   nothing anyone can type collides with a value that starts with a space. */
+const NEWNAME = " add";
+
+/* every spelling the log or this device knows for one of the two jobs, once
+   each, the first spelling seen winning over a later difference in case */
+function roster(kind) {
+  const seen = new Map();
+  const add = n => {
+    const name = String(n || "").trim();
+    if (name && !seen.has(name.toLowerCase())) seen.set(name.toLowerCase(), name);
   };
-  row.append(lab, inp);
+  for (const a of ATTEMPTS) add(a[kind]);
+  for (const n of ADDED) add(n);
+  return [...seen.values()].sort((x, y) => x.localeCompare(y));
+}
+
+/* One row: a label and a picker over the roster, with a way in for someone the
+   roster has never heard of. Picking does not redraw the card, so nothing on it
+   moves and the other row keeps whatever it was doing; onPick is both where the
+   name is put and whatever has to keep up with it. */
+function personPicker(kind, current, onPick) {
+  const { label, hint } = PERSON[kind];
+  const row = el("div", "gname");
+
+  const head = forId => {
+    row.textContent = "";
+    const lab = el("label", null, label);
+    lab.setAttribute("for", forId);
+    return lab;
+  };
+
+  /* the picker, as it stands the rest of the time */
+  const draw = () => {
+    const lab = head("who-" + kind);
+    const sel = el("select");
+    sel.id = "who-" + kind;
+    /* the placeholder is unpickable, so the row cannot be put back to nobody
+       once a name is on it */
+    const hold = el("option", null, "choose " + hint + "\u2026");
+    hold.value = "";
+    hold.disabled = true;
+    if (!current) hold.selected = true;
+    sel.append(hold);
+    for (const n of roster(kind)) {
+      const o = el("option", null, n);
+      o.value = n;
+      if (n === current) o.selected = true;
+      sel.append(o);
+    }
+    const more = el("option", null, "Add someone new\u2026");
+    more.value = NEWNAME;
+    sel.append(more);
+    sel.onchange = () => {
+      if (sel.value === NEWNAME) { ask(); return; }
+      current = sel.value;
+      onPick(current);
+      save();
+    };
+    row.append(lab, sel);
+  };
+
+  /* the same row, borrowed by a box to type a name into */
+  const ask = () => {
+    const lab = head("new-" + kind);
+    const inp = el("input");
+    inp.id = "new-" + kind;
+    inp.type = "text";
+    inp.placeholder = "new name";
+    inp.autocomplete = "off";
+    inp.maxLength = NAMEMAX;
+    /* Enter and leaving the box both mean the name is meant; Escape means it
+       was a mistake. Whichever comes first puts the picker back, and the guard
+       is because taking the box off the card can look like leaving it. */
+    let closed = false;
+    const keep = meant => {
+      if (closed) return;
+      closed = true;
+      const name = meant ? inp.value.trim() : "";
+      if (name) {
+        /* a name already on the list, however it was capitalised, is that name:
+           the list gains nothing and the row picks the spelling it already has */
+        const had = roster(kind).find(n => n.toLowerCase() === name.toLowerCase());
+        if (!had) ADDED.push(name);
+        current = had || name;
+        onPick(current);
+        draw();
+        save();
+        return;
+      }
+      draw();
+    };
+    inp.onkeydown = e => {
+      if (e.key === "Enter") keep(true);
+      else if (e.key === "Escape") keep(false);
+    };
+    inp.onblur = () => keep(true);
+    row.append(lab, inp);
+    inp.focus();
+  };
+
+  draw();
   return row;
 }
 
 /* The job, start to finish, in the order the buttons come in. */
 const STEPS = [
-  "Enter your name.",
+  "Choose the interviewee and who is grading.",
   "Click \u201cShow question\u201d to view the interview question.",
   "When you are ready, read the question to the interviewee. Do not click "
     + "\u201cStart the clock\u201d until the question has been fully asked.",
@@ -1487,8 +1604,10 @@ function detail(q, past) {
   if (!past.length) { box.append(el("span", "empty", "No attempts yet.")); return box; }
   for (const a of past) {
     const w = el("div", "att");
-    w.append(el("div", "when", when(a.at) + (a.grader ? " · " + a.grader : "")
-      + " · " + MODES[a.mode].label.toLowerCase()));
+    /* time, who answered, who scored, how it was asked. A row from before there
+       were two names is short one or both, and reads exactly as it always did. */
+    w.append(el("div", "when", [when(a.at), a.subject, a.grader,
+      MODES[a.mode].label.toLowerCase()].filter(Boolean).join(" · ")));
     if (a.seconds || a.fillers) {
       const line = el("div", "line");
       const rate = perMin(a);

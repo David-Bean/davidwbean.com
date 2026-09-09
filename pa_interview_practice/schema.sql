@@ -32,6 +32,12 @@ create table if not exists public.pa_attempts (
   id              text primary key,
   qid             text    not null default ''    check (length(qid) <= 40),
   at              bigint  not null default 0     check (at between 0 and 4102444800000),
+
+  -- the two people a score belongs to: who answered, and who called it. Both
+  -- are plain names chosen in the page, which builds its list of them by
+  -- reading these columns back. Neither is a key to anything.
+  subject         text    not null default ''
+                  constraint pa_subject_len check (length(subject) <= 60),
   grader          text    not null default ''    check (length(grader) <= 60),
   mode            text    not null default 'new' check (mode in ('new', 'review', 'mock')),
 
@@ -57,10 +63,11 @@ create table if not exists public.pa_attempts (
 
 create index if not exists pa_attempts_qid on public.pa_attempts (qid);
 
--- fillers and seconds arrived after the first version of this file. Running it
--- again is how a table that predates them catches up.
+-- fillers and seconds arrived after the first version of this file, and subject
+-- after those. Running it again is how a table that predates them catches up.
 alter table public.pa_attempts add column if not exists fillers integer not null default 0;
 alter table public.pa_attempts add column if not exists seconds integer not null default 0;
+alter table public.pa_attempts add column if not exists subject text not null default '';
 do $$ begin
   alter table public.pa_attempts
     add constraint pa_fillers_sane check (fillers between 0 and 10000);
@@ -69,6 +76,16 @@ do $$ begin
   alter table public.pa_attempts
     add constraint pa_seconds_sane check (seconds between 0 and 86400);
 exception when duplicate_object then null; end $$;
+do $$ begin
+  alter table public.pa_attempts
+    add constraint pa_subject_len check (length(subject) <= 60);
+exception when duplicate_object then null; end $$;
+
+-- Indexed below the catch-up rather than beside pa_attempts_qid, because on a
+-- table that predates the column the create above is a no-op and the column
+-- does not exist yet at that point in the file. One person's scores are read
+-- out far more often than everybody's at once.
+create index if not exists pa_attempts_subject on public.pa_attempts (subject);
 
 -- ------------------------------------------------------------ who can act --
 alter table public.pa_attempts enable row level security;
@@ -151,6 +168,15 @@ create trigger pa_attempts_audit after insert or update or delete on public.pa_a
 --            round(avg(clarity), 2) as clarity, round(avg(motivation), 2) as motivation,
 --            round(avg(judgement), 2) as judgement, round(avg(maturity), 2) as maturity
 --     from public.pa_attempts group by qid order by avg_all nulls first limit 20;
+--
+-- How one interviewee is doing, her weakest question first:
+--     select qid, count(*) as attempts,
+--            round(avg((clarity + motivation + judgement + maturity) / 4.0), 2) as avg_all,
+--            round(sum(fillers) * 60.0 / nullif(sum(seconds), 0), 2) as filler_per_min,
+--            round(avg(clarity), 2) as clarity, round(avg(motivation), 2) as motivation,
+--            round(avg(judgement), 2) as judgement, round(avg(maturity), 2) as maturity
+--     from public.pa_attempts where subject = 'Anna'
+--     group by qid order by avg_all nulls first;
 --
 -- Every note one grader left:
 --     select to_timestamp(at/1000.0)::date as day, qid,
