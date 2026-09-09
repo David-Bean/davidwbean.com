@@ -174,6 +174,10 @@
      under one another rather than each starting wherever its own label ended. */
   .gname label { color: var(--dim); font-size: 13px; min-width: 76px; }
   .gname + .gname { margin-top: 6px; }
+  /* The length of the mock sits under the briefing rather than inside it: it is
+     a choice about the session, not part of what gets read out. */
+  .mocklen { margin-top: 8px; }
+  .mocklen .empty { padding: 4px 0 0; font-size: 13px; }
   .howto { margin: 0; padding-left: 20px; color: var(--dim); font-size: 14px; line-height: 1.45; }
   .howto li { margin-bottom: 5px; }
   .howto b { color: var(--ink); font-weight: 600; }
@@ -542,6 +546,9 @@ let GRADER = "";                     // who is scoring, the same way
 let ADDED = [];                      // names typed on this device, not yet scored under
 let MODE = "new";
 let QUEUE = [], QI = 0;              // the questions this mode lined up, and where we are
+/* How many questions a mock lines up. Not saved with the rest: how long the
+   run is is a choice about the session in front of you, not about the record. */
+let MOCKN = 10;
 let DRAFT = null;                    // scores and notes for the question on screen
 let SORT = "overall";                // what review sorts on
 let OPEN = new Set();                // which table rows are expanded
@@ -840,7 +847,7 @@ const MODES = {
   mock: {
     label: "Mock interview",
     empty: "No mock set loaded. Drop a mock.json in beside this page.",
-    build: () => shuffle(MOCK.slice())
+    build: () => shuffle(MOCK.slice()).slice(0, MOCKN)
   }
 };
 
@@ -850,6 +857,35 @@ function shuffle(xs) {
     const t = xs[i]; xs[i] = xs[j]; xs[j] = t;
   }
   return xs;
+}
+
+/* How long a mock of n questions is likely to take the person being
+   interviewed, said in plain words, or null when nothing in their record was
+   timed and there is nothing to go on. Only answering is in it: the reading
+   and the grading are the grader's own time and vary with how much she wants
+   to say, so quoting them here would make the figure a promise it cannot keep.
+   One or two timed answers is not enough spread to put a range on, so those
+   get a single figure and are told how thin the evidence is. */
+function mockEstimate(n) {
+  const secs = LOG().filter(a => a.seconds > 0).map(a => a.seconds);
+  if (!secs.length) return null;
+  const mean = secs.reduce((t, x) => t + x, 0) / secs.length;
+  const mins = t => Math.round(t / 60);
+  const answers = secs.length + (secs.length === 1 ? " timed answer" : " timed answers");
+  if (secs.length < 3)
+    return "About " + mins(n * mean) + " minutes of answering time, from " + answers + ".";
+
+  const varc = secs.reduce((t, x) => t + (x - mean) * (x - mean), 0) / (secs.length - 1);
+  /* The spread is on the whole run rather than on one question, which is what
+     the square root is doing. A slow answer and a fast one cancel out across a
+     set, so n questions do not wander n times as far from the middle as one
+     does; multiplying a per-question spread by n would quote a range wider
+     than any run that could actually happen. */
+  const half = 1.645 * Math.sqrt(varc) * Math.sqrt(n);
+  const lo = mins(Math.max(0, n * mean - half)), hi = mins(n * mean + half);
+  const span = lo === hi ? lo + " minutes" : lo + " to " + hi + " minutes";
+  return "About " + span + " of answering time for " + n + " questions, going on "
+       + answers + ".";
 }
 
 /* ---- the clock ---------------------------------------------------------
@@ -1149,6 +1185,7 @@ function renderPractice() {
           + "Start the clock as you finish asking, and tap once for every filler "
           + "word. The scores come after, on the grading step.")
       : howto()));
+    if (mock && QI === 0) mid.append(mockLength());
     if (past) mid.append(past);
     gate();
     acts.append(go, skip, back);
@@ -1441,6 +1478,36 @@ function roster(kind) {
    row keeps whatever it was doing; onPick is both where the name is put and
    whatever has to keep up with it. The interviewee is the one pick that does
    rebuild the card, because the record the card reads from changed with it. */
+/* How long the mock runs, picked by whoever is grading it. Changing it builds
+   the queue again, which reshuffles the set as well as resizing it; that is
+   honest, because a run of a different length is a different run. It is offered
+   on the first question alone, so a mock already under way cannot be resized
+   underneath itself. */
+function mockLength() {
+  const wrap = el("div", "mocklen");
+  const row = el("div", "gname");
+  const lab = el("label", null, "Questions");
+  lab.setAttribute("for", "mock-n");
+  const sel = el("select");
+  sel.id = "mock-n";
+  /* A size the set cannot fill is not a size: the whole set is offered once,
+     at the end, and stands in for any round number at or above it. */
+  const sizes = [5, 10, 15, 20].filter(k => k < MOCK.length);
+  sizes.push(MOCK.length);
+  const n = Math.min(MOCKN, MOCK.length);
+  for (const k of sizes) {
+    const o = el("option", null, k === MOCK.length ? "All (" + k + ")" : String(k));
+    o.value = String(k);
+    if (k === n) o.selected = true;
+    sel.append(o);
+  }
+  sel.onchange = () => { MOCKN = Number(sel.value); setMode("mock"); };
+  row.append(lab, sel);
+  wrap.append(row, el("p", "empty", mockEstimate(n)
+    || "No timed answers for this interviewee yet, so no estimate."));
+  return wrap;
+}
+
 function personPicker(kind, current, onPick) {
   const { label, hint } = PERSON[kind];
   const row = el("div", "gname");
