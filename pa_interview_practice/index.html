@@ -8,11 +8,13 @@
   :root {
     --bg: #ffffff; --ink: #16181d; --dim: #5c6270; --line: #dcdfe6;
     --panel: #f6f7f9; --accent: #1f5fd0; --warn: #b23c17; --chip: #eceef2;
+    --ok: #1c7a45;
   }
   @media (prefers-color-scheme: dark) {
     :root {
       --bg: #14161a; --ink: #e6e8ec; --dim: #9aa1ad; --line: #2c3038;
       --panel: #1c1f25; --accent: #6ea3f5; --warn: #e0855f; --chip: #262a31;
+      --ok: #63c48c;
     }
   }
   * { box-sizing: border-box; }
@@ -131,12 +133,30 @@
   .nudge { color: var(--warn); font-size: 13px; margin: 8px 0 0; }
 
   .metric { border-top: 1px solid var(--line); padding: 8px 0; }
-  .metric .mrow { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 6px; }
-  .metric .mname { font-weight: 600; font-size: 14px; }
-  .scale { display: flex; gap: 4px; margin-left: auto; }
+  /* The name on the left, the row of five hard against the right, one line at
+     every width. The name is the only part that gives, so the buttons never
+     drop to a line of their own on a phone. */
+  .metric .mrow { display: flex; gap: 10px; align-items: center; margin-bottom: 6px; }
+  .metric .mname { font-weight: 600; font-size: 14px; flex: 1 1 auto; min-width: 0; }
+  .mshort { display: none; }
+  /* Whether this one has been judged yet, said in the colour the words "not
+     scored" used to be said in, and turning into a check once it has. */
+  .mdot {
+    flex: 0 0 auto; width: 17px; height: 17px; line-height: 15px; text-align: center;
+    font-size: 13px; border-radius: 50%; border: 2px solid var(--warn); color: transparent;
+  }
+  .mdot.done { border-color: transparent; color: var(--ok); font-size: 17px; line-height: 17px; }
+  .scale { display: flex; gap: 4px; margin-left: auto; flex: 0 0 auto; }
   .scale button { width: 34px; padding: 6px 0; text-align: center; }
   .scale button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
-  @media (max-width: 640px) { .scale { margin-left: 0; } .scale button { flex: 1 1 0; } }
+  @media (max-width: 640px) {
+    .metric .mrow { gap: 6px; }
+    .metric .mname { font-size: 13px; }
+    .mfull { display: none; }
+    .mshort { display: inline; }
+    .scale { gap: 3px; }
+    .scale button { width: 30px; padding: 6px 0; }
+  }
 
   .actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
   .empty { color: var(--dim); padding: 8px 0; }
@@ -733,12 +753,15 @@ function step(n) {
   renderPractice();
 }
 
-/* Nothing is written for a question nobody scored: a pass with four blanks is
-   a skip, not a record that the answer was worth nothing. */
+const allGraded = () => METRICS.every(m => DRAFT[m.key] !== null);
+
+/* An attempt goes down with all four called or not at all: a half filled one
+   reads as a low score later rather than as a gap. Walking away without
+   grading is what Skip is for. */
 function commit() {
   const q = QUEUE[QI];
   if (!q) return;
-  if (METRICS.every(m => DRAFT[m.key] === null)) { status("Score at least one metric first."); return; }
+  if (!allGraded()) { status("Give all four a score first."); return; }
   freeze();                            /* saving while it runs still records the time */
   const a = fix(Object.assign({ id: uid(), qid: q.id, at: Date.now(), grader: GRADER.trim(), mode: MODE }, DRAFT));
   ATTEMPTS.push(a);
@@ -949,19 +972,20 @@ function renderPractice() {
   /* ---- answering: clock on top, scores in the middle, taps at the bottom ---- */
   if (PHASE === "answering") {
     sheet.append(block("Answering",
-      "Take simple notes but save final judgement for later. Remember to use the "
-      + "filler word button.", asked(),
+      "Listen. Take notes if you want them, and save every judgement for the "
+      + "grading step. Remember to use the filler word button.", asked(),
       "Click \u201cFiller word +\u201d every time the interviewee uses a word whose "
       + "only purpose is to fill in time while they think: \u201clike\u201d, "
-      + "\u201cummm\u201d, sometimes \u201cI think\u201d. Take simple notes in the "
-      + "box under each criterion that you can use to write cohesive feedback in "
-      + "the grading step. When the answer is fully delivered, click "
+      + "\u201cummm\u201d, sometimes \u201cI think\u201d. There are no scores on "
+      + "this step on purpose: the notes under each criterion are only there to "
+      + "catch what you would otherwise forget, and nothing has to be written in "
+      + "them. When the answer is fully delivered, click "
       + "\u201cAnswer finished\u201d to move on to grading."));
     const bar = el("div", "timer");
     clockNode = el("span", "clock", mmss(onClock()));
     bar.append(clockNode);
     sheet.append(bar);
-    for (const m of METRICS) mid.append(metric(m));
+    for (const m of METRICS) mid.append(metric(m, false));
     if (past) mid.append(past);
 
     const pad = el("div", "pad");
@@ -989,15 +1013,20 @@ function renderPractice() {
       + "you save at the end of the discussion, so every score here can still "
       + "change."));
     mid.append(summary());
-    for (const m of METRICS) mid.append(metric(m));
+    for (const m of METRICS) mid.append(metric(m, true));
     if (past) mid.append(past);
     /* A mock is run start to finish, so nothing is talked through in the
        middle of one. Anywhere else the grades get a step of their own before
        they go down, to be read back to her. */
-    acts.append(MODE === "mock"
+    /* Four blanks and a saved attempt is a record that says nothing, so the
+       way on is shut until all four have been called. Skip is still open: not
+       grading at all is a different thing from grading badly. */
+    const on = MODE === "mock"
       ? step1("go", "Save and next", commit)
-      : step1("go", "Discuss", () => toPhase("discuss")),
-      step1(null, "Keep timing", () => toPhase("answering")), skip);
+      : step1("go", "Discuss", () => toPhase("discuss"));
+    on.disabled = !allGraded();
+    acts.append(on, step1(null, "Keep timing", () => toPhase("answering")), skip);
+    if (!allGraded()) foot.append(el("p", "nudge", "Give all four a score to go on."));
     foot.append(acts);
     finish();
     return;
@@ -1093,19 +1122,29 @@ function graded() {
   return box;
 }
 
-/* one metric: the row of five, and somewhere to say why */
-function metric(m) {
+/* One metric: what it is called, whether it has been called yet, the row of
+   five, and somewhere to say why. While the answer is being given there is no
+   row of five and no dot. That step is for listening, and the notes box is
+   there for whoever wants it. The full name is carried alongside the short one
+   so a narrow screen can show the short one and keep the row to a line. */
+function metric(m, scored) {
   const wrap = el("div", "metric");
   const row = el("div", "mrow");
-  row.append(el("span", "mname", m.label));
-  const scale = el("span", "scale");
-  for (const v of SCALE) {
-    const b = el("button", DRAFT[m.key] === v ? "on" : null, String(v));
-    /* tapping the score already showing takes it back off */
-    b.onclick = () => { DRAFT[m.key] = DRAFT[m.key] === v ? null : v; renderPractice(); };
-    scale.append(b);
+  const name = el("span", "mname");
+  name.append(el("span", "mfull", m.label), el("span", "mshort", m.short));
+  row.append(name);
+  if (scored) {
+    const done = DRAFT[m.key] !== null;
+    row.append(el("span", done ? "mdot done" : "mdot", done ? "\u2713" : "\u00a0"));
+    const scale = el("span", "scale");
+    for (const v of SCALE) {
+      const b = el("button", DRAFT[m.key] === v ? "on" : null, String(v));
+      /* tapping the score already showing takes it back off */
+      b.onclick = () => { DRAFT[m.key] = DRAFT[m.key] === v ? null : v; renderPractice(); };
+      scale.append(b);
+    }
+    row.append(scale);
   }
-  row.append(scale);
   wrap.append(row);
 
   const note = el("textarea");
@@ -1145,11 +1184,11 @@ const STEPS = [
   "Click \u201cShow question\u201d to view the interview question.",
   "When you are ready, read the question to the interviewee. Do not click "
     + "\u201cStart the clock\u201d until the question has been fully asked.",
-  "Listen to the interviewee. Take simple notes if necessary, while they are talking. "
+  "Listen to the interviewee. Take notes if you want them, while they are talking. "
     + "Click the \u201cFiller word\u201d button for phrases that fill in time: "
     + "\u201cLike\u201d, \u201cUmm\u201d, or long pauses.",
-  "Click \u201cAnswer finished\u201d. Take more detailed notes if necessary and grade "
-    + "each subjective criteria.",
+  "Click \u201cAnswer finished\u201d. Take more detailed notes if necessary and give "
+    + "all four criteria a score.",
   "Discuss. Show the interviewee your judgements and discuss each point. Offer "
     + "suggestions and ask follow up questions.",
 ];
@@ -1160,8 +1199,9 @@ function howto() {
   return list;
 }
 
-/* What the pass came to. Anything still unscored is called out in the warning
-   colour rather than left blank, because a blank reads as a zero. */
+/* What the pass came to: the clock, the fillers, and the average once there is
+   one. What is still unscored is said by the dot on the row itself rather than
+   listed over again up here. */
 function summary() {
   const box = el("div", "sum");
 
@@ -1177,14 +1217,12 @@ function summary() {
     + (rate === null ? "" : ", " + fmt(rate) + " a minute")));
   box.append(f);
 
-  const ms = el("div", "sumscores");
-  for (const m of METRICS) {
-    ms.append(el("span", DRAFT[m.key] === null ? "miss" : null,
-                 m.label + " " + (DRAFT[m.key] === null ? "not scored" : DRAFT[m.key])));
-  }
   const o = overall(DRAFT);
-  if (o !== null) ms.append(el("span", null, "Overall " + fmt(o)));
-  box.append(ms);
+  if (o !== null) {
+    const ms = el("div", "sumscores");
+    ms.append(el("span", null, "Overall " + fmt(o)));
+    box.append(ms);
+  }
   return box;
 }
 
