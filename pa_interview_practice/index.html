@@ -213,6 +213,10 @@
   }
   .gtable th, .gtable td { text-align: left; vertical-align: baseline; padding: 5px 10px 5px 0; }
   .gtable th:last-child, .gtable td:last-child { padding-right: 0; }
+  /* Ruled, so the split is on the page rather than left to be inferred from
+     where the words happen to stop. A note that runs short otherwise reads as a
+     narrow column. */
+  .gtable th + th, .gtable td + td { border-left: 1px solid var(--line); padding-left: 10px; }
   .gtable th {
     font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase;
     color: var(--dim); border-bottom: 1px solid var(--line); padding-top: 8px;
