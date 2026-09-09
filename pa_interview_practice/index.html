@@ -27,6 +27,19 @@
   .card { border: 1px solid var(--line); border-radius: 6px; padding: 16px; margin-bottom: 16px; }
   .card h2 { font-size: 16px; margin: 0 0 10px; }
 
+  /* The card the pass is worked in is one size the whole way through, so
+     nothing on it moves as the steps go by. It is a frame of three parts: a
+     head that is always there, a middle that takes the scroll when a step
+     holds more than the one before it, and the buttons kept at the bottom
+     within reach of a thumb. On a phone it is as tall as the screen allows;
+     svh rather than vh, so the address bar sliding away doesn't resize it. */
+  #practice {
+    height: 700px; height: min(700px, calc(100svh - 32px));
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  #practice .mid { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+  #practice .foot { flex: 0 0 auto; border-top: 1px solid var(--line); padding-top: 6px; }
+
   /* ---- the bar of who and how it is going ---- */
   .top { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 14px; }
   .top label { color: var(--dim); font-size: 13px; }
@@ -69,6 +82,8 @@
   .qlead { font-size: 19px; font-weight: 600; line-height: 1.35; margin: 0 0 8px; }
   .qtext { font-size: 15px; line-height: 1.45; color: var(--dim); margin: 0; }
   @media (max-width: 640px) { .qbox { height: 190px; } }  /* narrower, so more lines */
+  /* a phone turned on its side: the frame is short, so the block gives room back */
+  @media (max-height: 560px) { .qbox { height: 104px; } }
   .count { color: var(--dim); font-size: 12.5px; margin-left: auto; }
 
   .metric { border-top: 1px solid var(--line); padding: 10px 0; }
@@ -82,13 +97,12 @@
   .actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
   .empty { color: var(--dim); padding: 8px 0; }
 
-  /* ---- the clock and the filler counter ----
-     Stuck to the top of the screen, because it is tapped while the metrics
-     below it are being scrolled and scored. */
+  /* ---- the clock ----
+     In the head of the card, which is the part that never scrolls, so it is
+     on screen the whole time the scores below it are being worked. */
   .timer {
-    position: sticky; top: 0; z-index: 2; background: var(--bg);
     display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
-    padding: 8px 0 12px; border-bottom: 1px solid var(--line);
+    padding: 0 0 12px; border-bottom: 1px solid var(--line);
   }
   .clock { font-size: 30px; font-variant-numeric: tabular-nums; min-width: 84px; }
 
@@ -741,6 +755,10 @@ function renderPractice() {
   head.append(el("span", "count", (QI + 1) + " of " + QUEUE.length));
   card.append(head);
 
+  /* the three parts of the frame: head is what the card already holds, then
+     the middle that scrolls and the foot that stays put */
+  const mid = el("div", "mid");
+  const foot = el("div", "foot");
   const acts = el("div", "actions");
   const step1 = (cls, txt, fn) => { const b = el("button", cls, txt); b.onclick = fn; return b; };
   /* the fixed block every step opens with, and the question inside it */
@@ -759,18 +777,20 @@ function renderPractice() {
     card.append(block("Hidden until you are ready to ask it.",
       el("p", "qtext", "Show it, read it to yourself, then read it out loud. "
         + "Start the clock as you finish asking, and tap once for every filler word.")));
+    mid.append(history(q));
     acts.append(step1("go", "Show question", () => toPhase("reading")), skip, back);
-    card.append(acts);
-    card.append(history(q));
+    foot.append(acts);
+    card.append(mid, foot);
     return;
   }
 
   /* ---- reading: the instruction leads, the question sits under it ---- */
   if (PHASE === "reading") {
     card.append(block("Read out loud. Start the clock as you finish asking.", asked()));
+    mid.append(history(q));
     acts.append(step1("go", "Start the clock", () => toPhase("answering")), skip, back);
-    card.append(acts);
-    card.append(history(q));
+    foot.append(acts);
+    card.append(mid, foot);
     return;
   }
 
@@ -781,7 +801,8 @@ function renderPractice() {
     clockNode = el("span", "clock", mmss(onClock()));
     bar.append(clockNode);
     card.append(bar);
-    for (const m of METRICS) card.append(metric(m));
+    for (const m of METRICS) mid.append(metric(m));
+    mid.append(history(q));
 
     const pad = el("div", "pad");
     const tap = el("button", "go fill", "Filler word +");
@@ -790,19 +811,20 @@ function renderPractice() {
     tap.onclick = () => bump(1);
     pad.append(tap, step1("undo", "\u2212", () => bump(-1)));
     pad.append(step1("go", "Answer finished", () => toPhase("summary")), skip);
-    card.append(pad);
-    card.append(history(q));
+    foot.append(pad);
+    card.append(mid, foot);
     return;
   }
 
   /* ---- summary: what it came to, still open to a change of mind ---- */
   card.append(block("Answer finished. Check it over, then save.", asked()));
-  card.append(summary());
-  for (const m of METRICS) card.append(metric(m));
+  mid.append(summary());
+  for (const m of METRICS) mid.append(metric(m));
+  mid.append(history(q));
   acts.append(step1("go", "Save and next", commit),
               step1(null, "Keep timing", () => toPhase("answering")), skip);
-  card.append(acts);
-  card.append(history(q));
+  foot.append(acts);
+  card.append(mid, foot);
 }
 
 /* one metric: the row of five, and somewhere to say why */
