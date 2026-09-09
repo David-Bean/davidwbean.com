@@ -277,12 +277,32 @@
   .gtable .miss { color: var(--warn); }
   .gtable .total td { border-top: 1px solid var(--line); padding-top: 8px; font-weight: 600; }
   .gtable .total .reason { font-weight: 400; }
-  .radar { display: block; width: 100%; max-width: 320px; margin: 0 auto 6px; }
-  .radar .web, .radar .spoke { fill: none; stroke: var(--line); }
-  .radar .shape { fill: var(--navy); fill-opacity: .15; stroke: var(--navy);
-                  stroke-width: 2; stroke-linejoin: round; }
-  .radar .dot { fill: var(--navy); }
-  .radar text { fill: var(--dim); font-size: 10px; }
+  /* ---- the five, as lengths ----
+     Five bars off one line, which is the shape a set of scores out of five
+     actually has. Lengths from a common start are compared by eye far more
+     accurately than the arms of a star, where a difference near the middle
+     and the same difference near the rim do not look the same size.
+
+     Thin, because what is being read is where each bar stops, not how much
+     ink it lays down, and because every line the chart does not take is a
+     line the read-back under it gets. The pale track behind each bar is the
+     whole five, so a short bar is short against something rather than short
+     against nothing. */
+  .bars { margin: 2px 0 10px; }
+  .bar {
+    display: grid; grid-template-columns: 80px 1fr 34px;
+    align-items: center; gap: 0 10px; padding: 3px 0;
+  }
+  .bar .bl { font-size: 12px; }
+  .bar .bv { font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; }
+  .bar .bt {
+    position: relative; height: 6px; border-radius: 3px;
+    background: var(--panel); box-shadow: inset 0 0 0 1px var(--line);
+  }
+  .bar i { position: absolute; left: 0; top: 0; height: 100%;
+           background: var(--navy); border-radius: 3px; }
+  /* a criterion nobody has called yet steps back, the way its dash does */
+  .bar.none .bl, .bar.none .bv { color: var(--dim); }
 
   /* ---- the table of everything ---- */
   .filters { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
@@ -1199,7 +1219,7 @@ function renderPractice() {
     "Saving writes the scores and the notes down against this question and moves "
     + "on to the next one. Nothing is kept until you do, so leaving now loses the "
     + "grading."));
-  mid.append(radar(DRAFT), graded());
+  mid.append(bars(DRAFT), graded());
   acts.append(step1("go", "Save and next", commit),
               step1(null, "Back to scores", () => toPhase("summary")), skip);
   foot.append(acts);
@@ -1241,42 +1261,26 @@ function icon(kind) {
   return s;
 }
 
-/* The five together, as one shape, so a lopsided answer looks lopsided. A
-   spoke with nothing scored on it is left out of the shape rather than drawn
-   at the middle, which would read as the nothing it isn't; the dash beside its
-   name says so. */
-function radar(a) {
-  const xs = axes(a), n = xs.length, C = 160, CY = 104, R = 72;
-  const at = (i, r) => {
-    const t = -Math.PI / 2 + i * 2 * Math.PI / n;
-    return [C + r * Math.cos(t), CY + r * Math.sin(t)];
-  };
-  const one = v => Math.round(v * 10) / 10;
-  const ring = r => xs.map((_, i) => at(i, r).map(one).join(",")).join(" ");
-
-  const svg = svgEl("svg", { viewBox: "0 0 320 216", class: "radar" });
-  for (let s = 1; s <= 5; s++) svg.appendChild(svgEl("polygon", { class: "web", points: ring(R * s / 5) }));
-
-  xs.forEach((x, i) => {
-    const p = at(i, R);
-    svg.appendChild(svgEl("line", { class: "spoke", x1: C, y1: CY, x2: one(p[0]), y2: one(p[1]) }));
-    const q = at(i, R + 14);
-    const t = svgEl("text", { x: one(q[0]), y: one(q[1]) + 3,
-                              "text-anchor": q[0] > C + 1 ? "start" : q[0] < C - 1 ? "end" : "middle" });
-    t.textContent = x.label + " " + (x.v === null ? "\u2013" : fmt(x.v));
-    svg.appendChild(t);
-  });
-
-  const on = xs.map((x, i) => ({ v: x.v, i })).filter(o => o.v !== null);
-  if (on.length > 2) {
-    svg.appendChild(svgEl("polygon", { class: "shape",
-      points: on.map(o => at(o.i, R * o.v / 5).map(one).join(",")).join(" ") }));
+/* The five as bars off one line: a length each, all of them starting in the
+   same place, so a lopsided answer is lopsided at a glance and two near-equal
+   ones can still be told apart. A criterion nobody has called yet is left
+   without a bar rather than drawn at nothing, which would read as a score of
+   nothing; the dash where its number goes says which of the two it is. */
+function bars(a) {
+  const box = el("div", "bars");
+  for (const x of axes(a)) {
+    const row = el("div", x.v === null ? "bar none" : "bar");
+    const track = el("span", "bt");
+    if (x.v !== null) {
+      const fill = el("i");
+      fill.setAttribute("style", "width: " + Math.round(x.v * 200) / 10 + "%");
+      track.append(fill);
+    }
+    row.append(el("span", "bl", x.label), track,
+               el("span", "bv", x.v === null ? "\u2013" : fmt(x.v)));
+    box.append(row);
   }
-  for (const o of on) {
-    const p = at(o.i, R * o.v / 5);
-    svg.appendChild(svgEl("circle", { class: "dot", cx: one(p[0]), cy: one(p[1]), r: 3 }));
-  }
-  return svg;
+  return box;
 }
 
 /* The grades read back, one row each, with whatever was written against them
