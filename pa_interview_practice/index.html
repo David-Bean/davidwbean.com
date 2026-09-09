@@ -60,10 +60,15 @@
     background: var(--chip); border-radius: 3px; padding: 1px 6px;
     font-size: 11px; letter-spacing: .04em; color: var(--dim);
   }
-  /* the same two lines at every step, so the card doesn't jump as it moves on:
-     what to do next in bold, and the detail under it */
+  /* One height, held at every step and for every question, so nothing below
+     this ever moves: what to do next in bold, the detail under it. The room is
+     the longest question in the bank, kept whether it is filled or not. A
+     question longer than that scrolls in place rather than pushing the buttons
+     down the screen. */
+  .qbox { height: 170px; overflow-y: auto; margin-bottom: 16px; }
   .qlead { font-size: 19px; font-weight: 600; line-height: 1.35; margin: 0 0 8px; }
-  .qtext { font-size: 15px; line-height: 1.45; color: var(--dim); margin: 0 0 16px; }
+  .qtext { font-size: 15px; line-height: 1.45; color: var(--dim); margin: 0; }
+  @media (max-width: 640px) { .qbox { height: 190px; } }  /* narrower, so more lines */
   .count { color: var(--dim); font-size: 12.5px; margin-left: auto; }
 
   .metric { border-top: 1px solid var(--line); padding: 10px 0; }
@@ -738,15 +743,22 @@ function renderPractice() {
 
   const acts = el("div", "actions");
   const step1 = (cls, txt, fn) => { const b = el("button", cls, txt); b.onclick = fn; return b; };
+  /* the fixed block every step opens with, and the question inside it */
+  const block = (lead, body) => {
+    const box = el("div", "qbox");
+    box.append(el("p", "qlead", lead), body);
+    return box;
+  };
+  const asked = () => rich(el("p", "qtext"), q.text);
   const skip = step1(null, "Skip", () => step(1));
   const back = step1(null, "Back", () => step(-1));
   back.disabled = QI === 0;
 
   /* ---- hidden: what happens next, and nothing else ---- */
   if (PHASE === "hidden") {
-    card.append(el("p", "qlead", "Hidden until you are ready to ask it."));
-    card.append(el("p", "qtext", "Show it, read it to yourself, then read it out loud. "
-      + "Start the clock as you finish asking, and tap once for every filler word."));
+    card.append(block("Hidden until you are ready to ask it.",
+      el("p", "qtext", "Show it, read it to yourself, then read it out loud. "
+        + "Start the clock as you finish asking, and tap once for every filler word.")));
     acts.append(step1("go", "Show question", () => toPhase("reading")), skip, back);
     card.append(acts);
     card.append(history(q));
@@ -755,8 +767,7 @@ function renderPractice() {
 
   /* ---- reading: the instruction leads, the question sits under it ---- */
   if (PHASE === "reading") {
-    card.append(el("p", "qlead", "Read out loud. Start the clock as you finish asking."));
-    card.append(rich(el("p", "qtext"), q.text));
+    card.append(block("Read out loud. Start the clock as you finish asking.", asked()));
     acts.append(step1("go", "Start the clock", () => toPhase("answering")), skip, back);
     card.append(acts);
     card.append(history(q));
@@ -765,11 +776,11 @@ function renderPractice() {
 
   /* ---- answering: clock on top, scores in the middle, taps at the bottom ---- */
   if (PHASE === "answering") {
+    card.append(block("Score it as she answers. Tap for every filler word.", asked()));
     const bar = el("div", "timer");
     clockNode = el("span", "clock", mmss(onClock()));
     bar.append(clockNode);
     card.append(bar);
-    card.append(rich(el("p", "qtext"), q.text));
     for (const m of METRICS) card.append(metric(m));
 
     const pad = el("div", "pad");
@@ -785,7 +796,7 @@ function renderPractice() {
   }
 
   /* ---- summary: what it came to, still open to a change of mind ---- */
-  card.append(rich(el("p", "qtext"), q.text));
+  card.append(block("Answer finished. Check it over, then save.", asked()));
   card.append(summary());
   for (const m of METRICS) card.append(metric(m));
   acts.append(step1("go", "Save and next", commit),
