@@ -85,6 +85,15 @@
   #practice .mid { flex: 1 1 auto; min-height: 0; overflow: hidden; }
   #practice .foot { border-top: 1px solid var(--line); padding-top: 6px; }
 
+  /* the read-back a finished mock ends on. Nothing here is scaled to fit: a
+     run's worth of questions shrunk into the frame would be too small to read,
+     so the line at the top and the button at the bottom hold their places and
+     the list of questions takes what is left over and scrolls. */
+  .brief { display: flex; flex-direction: column; height: 100%; }
+  .brief > .briefhead, .brief > .foot { flex: 0 0 auto; }
+  .briefhead { font-size: 13.5px; margin: 0 0 10px; }
+  .mocklist { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+
   /* ---- the bar of who and how it is going ---- */
   .top { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 14px; }
   #status { color: var(--dim); font-size: 12px; margin-left: auto; text-align: right; }
@@ -549,9 +558,17 @@ let QUEUE = [], QI = 0;              // the questions this mode lined up, and wh
 /* How many questions a mock lines up. Not saved with the rest: how long the
    run is is a choice about the session in front of you, not about the record. */
 let MOCKN = 10;
+/* What a finished mock has to read back: the attempts saved during this run,
+   by id rather than by hand, so a score deleted from the record does not leave
+   a ghost here; and whether the run has reached its end. Both belong to the
+   run in front of you and not to the record, so both go when the queue does. */
+let RUN = [];
+let DEBRIEF = false;
 let DRAFT = null;                    // scores and notes for the question on screen
 let SORT = "overall";                // what review sorts on
 let OPEN = new Set();                // which table rows are expanded
+let DOPEN = new Set();               // and which debrief rows, kept apart from those
+                                     // so the two lists do not open each other's
 let FILTER = { school: "", pool: "", text: "" };
 
 /* One question is worked through in five steps. It stays hidden until the
@@ -945,10 +962,19 @@ function newPass() {
   DRAFT = blank();
 }
 
+/* A new queue is a new run: whatever the last one collected is not this one's
+   to read back. */
+function clearRun() {
+  RUN = [];
+  DEBRIEF = false;
+  DOPEN.clear();
+}
+
 function setMode(m) {
   MODE = MODES[m] ? m : "new";
   QUEUE = MODES[MODE].build();
   QI = 0;
+  clearRun();
   newPass();
   renderAll();
 }
@@ -975,6 +1001,7 @@ function setSubject(n) {
   const i = q ? QUEUE.findIndex(x => x.id === q.id) : -1;
   if (i > 0) QUEUE.unshift(QUEUE.splice(i, 1)[0]);
   QI = 0;
+  clearRun();
   newPass();
   renderAll();
 }
@@ -1001,7 +1028,12 @@ function commit() {
   save();
   syncSoon();
   status("Scored.");
-  if (QI < QUEUE.length - 1) QI++;
+  if (MODE === "mock") RUN.push(a.id);
+  /* The last question of a mock has nowhere to advance to, and standing still
+     would offer the same question over again. The run is done, and what comes
+     after it is the read-back of the whole thing. */
+  if (MODE === "mock" && QI === QUEUE.length - 1) DEBRIEF = true;
+  else if (QI < QUEUE.length - 1) QI++;
   newPass();
   renderAll();
 }
@@ -1081,6 +1113,8 @@ function renderPractice() {
   const card = document.getElementById("practice");
   card.textContent = "";
   clockNode = fillNode = sheetNode = midNode = null;
+  /* a mock that has run out of questions is not on a question any more */
+  if (DEBRIEF) { card.append(debrief()); return; }
   const q = QUEUE[QI];
   if (!q) { card.append(el("p", "empty", MODES[MODE].empty)); return; }
 
@@ -1314,11 +1348,67 @@ function renderPractice() {
     "Saving writes the scores and the notes down against this question and moves "
     + "on to the next one. Nothing is kept until you do, so leaving now loses the "
     + "grading."));
-  mid.append(bars(DRAFT), graded());
+  mid.append(bars(DRAFT), graded(DRAFT));
   acts.append(step1("go", "Save and next", commit),
               step1(null, "Back to scores", () => toPhase("summary")), skip);
   foot.append(acts);
   finish();
+}
+
+/* ---- the end of a mock ------------------------------------------------
+   A run of ten questions goes by with nothing talked through in between, so
+   everything the grader has to say about it she says here. Not a step of the
+   pass and not drawn on the sheet: twenty questions cannot be scaled down into
+   the frame and still be read, so the head and the button stay where they are
+   and the list between them scrolls. Every score on this screen was written
+   down and sent as it was given, so nothing here saves anything. */
+function debrief() {
+  const box = el("div", "brief");
+  /* the attempts are looked up by id rather than held, so one deleted from the
+     record below drops out of the run above rather than lingering in it */
+  const runs = RUN.map(id => ATTEMPTS.find(a => a.id === id)).filter(Boolean);
+  const marks = runs.map(overall).filter(x => x !== null);
+  const avg = marks.length ? marks.reduce((t, x) => t + x, 0) / marks.length : null;
+  const secs = runs.reduce((t, a) => t + a.seconds, 0);
+  box.append(el("p", "briefhead", (SUBJECT.trim() || "Nobody") + ": " + QUEUE.length
+    + (QUEUE.length === 1 ? " question, " : " questions, ") + runs.length + " scored, "
+    + mmss(secs) + " on the clock, "
+    + (avg === null ? "nothing" : fmt(avg)) + " overall."));
+  /* The charts of how the run went land here, between this line and the list. */
+
+  const list = el("div", "mocklist");
+  for (const q of QUEUE) {
+    const a = runs.find(x => x.qid === q.id) || null;
+    const row = el("button", "qrow");
+    row.append(el("span", "arrow", DOPEN.has(q.id) ? "\u25be" : "\u25b8"));
+    row.append(el("span", "chip", SCHOOLS[q.tag] || q.tag));
+    row.append(rich(el("span", "tw"), q.text));
+    row.append(el("span", "sc", a
+      ? METRICS.map(m => a[m.key] === null ? "\u00b7" : a[m.key]).join(" ")
+      : "skipped"));
+    row.onclick = () => {
+      if (DOPEN.has(q.id)) DOPEN.delete(q.id); else DOPEN.add(q.id);
+      renderPractice();
+    };
+    list.append(row);
+    if (DOPEN.has(q.id)) {
+      const open = el("div", "detail");
+      /* the same read-back the Discussion step gives, for the question that
+         got one; a question walked past has nothing to read back */
+      if (a) open.append(bars(a), graded(a));
+      else open.append(el("span", "empty", "Not scored."));
+      list.append(open);
+    }
+  }
+  box.append(list);
+
+  const foot = el("div", "foot"), acts = el("div", "actions");
+  const again = el("button", "go", "Start another mock");
+  again.onclick = () => setMode("mock");
+  acts.append(again);
+  foot.append(acts);
+  box.append(foot);
+  return box;
 }
 
 /* Filler words priced on the same 1 to 5 as everything else, so they can sit on
@@ -1382,7 +1472,7 @@ function bars(a) {
    and the average underneath. A row with nothing called on it carries the same
    dash the chart above uses rather than a number, and says so in words in the
    column the reasoning goes in. */
-function graded() {
+function graded(a) {
   const t = el("table", "gtable");
   const head = el("thead"), hr = el("tr");
   hr.append(el("th", null, "Criterion"), el("th", "num", "Score"), el("th", null, "Reasoning"));
@@ -1396,14 +1486,14 @@ function graded() {
     body.append(r);
   };
   for (const m of METRICS) {
-    row(null, m.label, DRAFT[m.key],
-        DRAFT[m.key + "_note"] || (DRAFT[m.key] === null ? "not scored" : ""));
+    row(null, m.label, a[m.key],
+        a[m.key + "_note"] || (a[m.key] === null ? "not scored" : ""));
   }
-  const r = perMin(DRAFT);
-  row(null, "Filler", fillerScore(DRAFT),
-      r === null ? "not timed" : DRAFT.fillers + (DRAFT.fillers === 1 ? " word" : " words")
-        + " in " + mmss(DRAFT.seconds) + ", " + fmt(r) + " a minute");
-  row("total", "Overall", overall(DRAFT), "average of the four criteria");
+  const r = perMin(a);
+  row(null, "Filler", fillerScore(a),
+      r === null ? "not timed" : a.fillers + (a.fillers === 1 ? " word" : " words")
+        + " in " + mmss(a.seconds) + ", " + fmt(r) + " a minute");
+  row("total", "Overall", overall(a), "average of the four criteria");
   t.append(head, body);
   return t;
 }
