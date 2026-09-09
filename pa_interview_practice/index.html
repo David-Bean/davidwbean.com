@@ -571,6 +571,21 @@ let QUEUE = [], QI = 0;              // the questions this mode lined up, and wh
 /* How many questions a mock lines up. Not saved with the rest: how long the
    run is is a choice about the session in front of you, not about the record. */
 let MOCKN = 10;
+/* Which set each mode has been told to draw from, keyed by mode name: "bank"
+   for the general bank, "mock" for the mock set, "" for both. Not saved either,
+   and for the same reason MOCKN is not: which set you are working through is a
+   choice about the session in front of you, not about the record.
+   A mode nobody has told anything is left out of POOL entirely and works its
+   default out afresh every time it is asked, rather than having one baked in at
+   load. That is what makes a mock.json arriving late land where it should:
+   loadMock() already calls setMode(MODE) once the fetch is in, and mock mode
+   reads the new set at that moment without anything being wired to the fetch. */
+let POOL = {};
+const poolDefault = m => (m === "mock" && MOCK.length) ? "mock" : "bank";
+const poolFor = m => POOL[m] === undefined ? poolDefault(m) : POOL[m];
+/* Every question already says which set it came from, so a mode's source is
+   that one filter over the lot of them, and "" is no filter at all. */
+const inPool = m => QUESTIONS().filter(q => !poolFor(m) || q.pool === poolFor(m));
 /* What a finished mock has to read back: the attempts saved during this run,
    by id rather than by hand, so a score deleted from the record does not leave
    a ghost here; and whether the run has reached its end. Both belong to the
@@ -852,17 +867,17 @@ const fmt = n => n === null ? "" : (Math.round(n * 100) / 100).toString();
 const MODES = {
   new: {
     label: "New questions",
-    empty: "Every question in the bank has been scored at least once. Try Review.",
-    build: () => shuffle(BANK.filter(q => !latestFor(q.id)))
+    empty: "Every question in this set has been scored at least once. Try Review, or another set.",
+    build: () => shuffle(inPool(MODE).filter(q => !latestFor(q.id)))
   },
   review: {
     label: "Review",
-    empty: "Nothing scored yet. Start with New questions.",
+    empty: "Nothing in this set has been scored yet. Start with New questions, or pick another set.",
     /* Weakest first, on the most recent attempt rather than the average of all
        of them: an answer that has since improved should drop down the queue.
        A metric never scored on sorts to the very front, and among equals the
        one left alone longest comes up first. */
-    build: () => QUESTIONS()
+    build: () => inPool(MODE)
       .map(q => ({ q, a: latestFor(q.id) }))
       .filter(x => x.a)
       .sort((x, y) => {
@@ -876,8 +891,9 @@ const MODES = {
   },
   mock: {
     label: "Mock interview",
-    empty: "No mock set loaded. Drop a mock.json in beside this page.",
-    build: () => shuffle(MOCK.slice()).slice(0, MOCKN)
+    empty: "The set this mode is drawing from has no questions in it. Pick another set, "
+         + "or drop a mock.json in beside this page.",
+    build: () => shuffle(inPool(MODE)).slice(0, MOCKN)
   }
 };
 
@@ -1087,6 +1103,24 @@ function renderModes() {
     b.onclick = () => setMode(k);
     box.append(b);
   }
+  /* Which set this mode draws from, drawn in every mode and with all three
+     options in every mode, so where the questions are coming from is answered
+     in the same place whatever you are doing. The mock set stays on the list
+     when there is no mock set, carrying the reason in its label, so an empty
+     run is read off the option rather than found by choosing it. */
+  const p = el("select");
+  const pools = [["bank", "General bank"],
+                 ["mock", MOCK.length ? "Mock set" : "Mock set (none loaded)"],
+                 ["", "Both"]];
+  for (const [v, t] of pools) {
+    const o = el("option", null, t); o.value = v;
+    if (v === poolFor(MODE)) o.selected = true;
+    p.append(o);
+  }
+  /* Changing the set builds the queue again, which reshuffles it as well as
+     refilling it; that is honest, because the questions really did change. */
+  p.onchange = () => { POOL[MODE] = p.value; setMode(MODE); };
+  box.append(p);
   if (MODE === "review") {
     const s = el("select");
     const opts = [["overall", "Weakest overall"]].concat(METRICS.map(m => [m.key, "Weakest on " + m.label]));
@@ -1678,11 +1712,12 @@ function mockLength() {
   sel.id = "mock-n";
   /* A size the set cannot fill is not a size: the whole set is offered once,
      at the end, and stands in for any round number at or above it. */
-  const sizes = [5, 10, 15, 20].filter(k => k < MOCK.length);
-  sizes.push(MOCK.length);
-  const n = Math.min(MOCKN, MOCK.length);
+  const have = inPool("mock").length;
+  const sizes = [5, 10, 15, 20].filter(k => k < have);
+  sizes.push(have);
+  const n = Math.min(MOCKN, have);
   for (const k of sizes) {
-    const o = el("option", null, k === MOCK.length ? "All (" + k + ")" : String(k));
+    const o = el("option", null, k === have ? "All (" + k + ")" : String(k));
     o.value = String(k);
     if (k === n) o.selected = true;
     sel.append(o);
