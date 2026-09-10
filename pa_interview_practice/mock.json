@@ -1,0 +1,1344 @@
+{
+  "questions": [
+    {
+      "tag": "S. PERRY",
+      "text": "Tell me a little bit about yourself."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What do you like to do for fun?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Tell me about some of your hobbies."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What is the last book you read?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What is your life saying?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Tell me what your typical day looks like."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Introduce yourself."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What makes you unique?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Discuss a pastime you enjoy."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Why do you want to be a PA?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What made you interested in medicine?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "How did you find out about the PA profession?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What stood out to you about the profession?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Why do you want to be a PA for the rest of your working career?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Are you passionate about this profession?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What have you done to prepare for PA school and your future career as a PA?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Have you considered medical school?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Did you ever want to be a physical therapist?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Why don't you want to be a doctor?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What influenced your decision to become a PA?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Tell me about your motivations for becoming a PA."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Why have you chosen to pursue the PA profession?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "How did you become interested in becoming a PA?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What part of becoming a PA and practicing medicine as a PA are you looking forward to the most?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Why do you want to attend this program?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What makes you a good candidate for our program?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What can you bring to the class?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "How would the class benefit as a whole from having you as a member?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What makes you diverse?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What would our class be missing if we didn't pick you?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Why should we pick you?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What sets you apart?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What is appealing about the location of (program name)?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What qualities or skills do you have that would make you a valuable student and classmate?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Why did you decide to choose a program that's out of state?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Why did you apply to a program that's close to/far away from your hometown?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Are you aware of what a PA does?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Explain the role of a PA to a patient."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Describe what a PA does."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What have you observed while shadowing?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What have you seen that has influenced your decision to become a PA?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Do you fully understand the role of a PA?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Pretend you are asked to speak to a group of high school students and explain the PA profession."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What makes you an ideal applicant for PA school?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What do you see as the future of PAs?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "How do you see the role of PAs changing in the future?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What have you done to prepare for PA school?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "How have you prepared to be a successful PA?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What specific skills do you have that will benefit you or your classmates during PA school?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What experience in your background will make you a good PA?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "When did you decide to pursue PA school?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "How were you initially introduced to the PA profession?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "How did you discover the PA profession?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "When did you find out about the PA profession?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What have you done to increase your chances of being accepted to a PA program?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What experiences have you had that will influence how you practice as a PA?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What is your biggest weakness?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What is your biggest personality flaw?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What would your co-workers say is your greatest weakness?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What is one thing your classmates dislike about you?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "If you are not accepted into this program, what do you think would be the reason?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What is your biggest strength?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What makes you stand out compared to other candidates?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What is the best thing about your personality?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What would your last employer say about you?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Why should we choose you?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Have you applied elsewhere?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "If you applied elsewhere, how did you choose those programs?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What would make you choose another program over this one?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Where else have you applied?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Have you interviewed anywhere else?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Who is the most important member on a healthcare team?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "How does a PA fit into the healthcare team?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What is a dependent practitioner, and how do you feel about practicing as one?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "If you had to be a member of the healthcare team other than a PA, what would you choose?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Discuss the relationship between a PA and a nurse."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What is the biggest challenge facing PAs?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What will be most difficult for you as a practicing PA?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "How do you feel PAs are limited?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What are difficulties PAs are facing?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What are the negative aspects of being a PA?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What are some of the most significant issues PAs currently face and will have to face in the future?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "If you could change one thing about the PA profession, what would you change?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What do you expect a typical week in PA school to look like?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What do you expect of a typical day in PA school?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Why do you think you would be successful in PA school?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Assure us you will do well in PA school and not drop out."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What study skills do you have?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "How do you stay organized?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Have you been able to speak with current students?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "How many hours a week do you plan on studying while in PA school?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What kind of barriers, besides financial, do you see involved with being a PA student?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What have you done, besides shadowing, to prepare for PA school?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "How has your background prepared you for the intense physical and mental rigor it takes to become a PA?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "In your opinion, what will be your greatest challenge in completing PA school?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Reassure me you will not fail out of the program."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Is there anything that you foresee preventing you from completing the program?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "How do you study best?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Tell me about a time you struggled academically."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Do you study best individually or in a group?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Do you work better as an individual or with a team?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "How would you describe your overall academic performance?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What will be your hardest class if accepted?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "How are you academically prepared for PA school?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "How do you handle blood and gore?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Have you ever seen someone die?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Do you have a weak stomach?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "How would having a family/children affect your performance in PA school?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "How will being a younger/older applicant affect your performance in the program?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What advantages or disadvantages would you have as a younger/older applicant?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Do you feel comfortable with technology?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Tell me about your support system."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Who is going to support you through school?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Is your family supportive of your goal to become a PA?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Who has encouraged you to become a PA?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "How would you get to school?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Where would you live while in PA school?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "How are your time management skills?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Are you able to handle multiple assignments at once?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Are you able to handle a busy schedule?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Tell me about a time you've had to multitask."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Did you work while getting your prerequisites?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What was the most challenging course of your undergraduate studies, and why?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What has been the highlight of your undergraduate years?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What extracurricular activity will benefit you most as a PA?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What was your biggest accomplishment from undergrad?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Can you explain your lower grade/low GRE/lack of shadowing or HCE?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Are there any discrepancies on your application you would like to discuss?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "There's one spot left and it's between you and another candidate. The other candidate has a higher GPA. Who should be chosen?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What are you looking for in a PA program?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Why do you want to go to this specific program?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What does our program have to offer you?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What do you have to offer our program?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Why did you apply here?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Why would you choose our program instead of another program?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What do you find appealing about (program name)?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Why did you choose our program over the others?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What are your plans if not accepted to a PA program this year?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "How do you plan on improving yourself if not accepted into PA school?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What would you do if you were not selected for this program?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What is the difference in the nursing model and medical model?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Did you consider becoming a nurse practitioner (NP)?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What qualities make a successful physician assistant?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "How do you plan to practice as a PA?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "If you were interviewing a potential PA student, what would you look for?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "If you were chosen to hire a PA, what qualities should they have?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Tell me about the last physician you worked for."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Describe your volunteer experience."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What extracurricular activity will help you be successful in PA school?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Describe a leadership role you have held."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Do you plan on continuing to volunteer while in PA school or as a PA?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Is there a specific specialty or ideal job you envision for yourself as a PA?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Where do you see yourself in 5 years?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Where do you see yourself in 10 years?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Is there a particular field that appeals to you?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What are your goals in medicine?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "How do you plan to contribute as a PA professional when finished with the program?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Why do you want to do primary care (or other specialty)?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Why do you want to help underserved populations?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Where do you want to work?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "How will politics influence PAs?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "How do you feel Trumpcare will affect PAs?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "How do you feel the new health bill will impact healthcare?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Tell us about healthcare reform."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Do you think healthcare reform will be positive or negative for PAs? Why?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Do you think HMOs and PPOs are good or bad for the PA profession?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What are the trends of healthcare in the United States?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Would you feel limited by any of the state or national regulations on PAs?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Tell me what you know about laws for PAs in this state."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What law do you think limits PAs the most?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Are there laws you feel limit the PA profession unfairly?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Are there laws you feel should be passed to further the progression of the PA profession?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "If you could change any law pertaining to the PA profession, what would you change, and why?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Are you familiar with any national or state level regulations for PAs?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Are you aware of recent changes in legislation regarding what PAs can and cannot do?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What are your thoughts on the newer online PA programs?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What are your thoughts on the new bridge programs from PA to MD/DO?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Are you using PA school as a stepping stone to become an MD/DO?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Should PA education be standardized?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What are your thoughts on the name \"physician assistant,\" and the push to change to \"physician associate?\""
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What do you know about the history of the PA profession."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What is the most selfless thing you have ever done?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What is the biggest responsibility you have ever been tasked with?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Describe a time you had to overcome adversity."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What is the biggest challenge you've ever faced?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Tell me about a time you've been judged unfairly."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Discuss a time you were unable to meet someone's expectations."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What is the most difficult thing you've ever done?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What is your biggest regret?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What one thing would you change about your undergraduate experience?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Why did you choose your undergraduate major? Are you happy with your choice?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What is one thing you would like to change about yourself?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Describe a disappointing moment from your life."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Tell me about a time you disappointed someone."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Have you ever been disappointed?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Tell me about a time you didn't meet expectations."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What's your worst experience?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "If a student fails a test, is it the student's fault or the teacher's fault?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Tell me about a time you received negative feedback and how you used it to improve yourself."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Discuss a time that you received constructive criticism and how you responded."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Describe a time you have struggled academically, and how you dealt with it."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What was your most difficult class in undergrad?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What is the hardest class you've ever taken?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What non-science undergraduate course will benefit you most in PA school?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "You are a PA. You are at a baseball game and the woman in front of you has a suspicious mole you suspect could be melanoma. What do you do?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "You are a PA. A patient on your schedule insists on seeing an MD. How do you handle it?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "How would you feel if a patient refused to see you because you're a PA?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "How can you earn respect as a PA?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "A patient is not proficient in English, and you are unfamiliar with their language. How can you assist?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What is something difficult you have had to discuss with someone?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Have you ever had to share bad news?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Describe a situation you have had with a difficult patient."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Discuss a situation with a patient that had a significant impact on you."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "How do you deal with high stress situations? Give an example."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "How do you handle stress?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Have you ever been stressed out?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Discuss a high stress situation you have had in the past."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "How will you handle the stress of PA school?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What is the most stressful part of your current job?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What coping mechanisms have you developed for dealing with stress?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Tell me about a time you used teamwork to solve a problem."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Do you prefer to work with others or by yourself?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What is the most important factor between a PA and collaborating physician?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Do you think it's more important to get patients seen or spend time with patients?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "If a patient is late, should they still be seen?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "How much time should be allotted to spend with each patient?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Describe your work ethic."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Would you say you're a hard worker?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What did you have to sacrifice to get to this interview?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Give an example of a goal you reached and tell how you achieved it."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Where do you get your motivation?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What would your best friend say about you?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Tell me about a situation when you had to push yourself."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Would you accept a Facebook friend request from a patient?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "How has technology affected healthcare?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "How do you predict technology will affect healthcare in the future?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Do you think providers should be Facebook friends with patients?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "How would you feel in PA school if you were doing poorly in a subject that you excelled in during undergrad?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Do you ever get angry or frustrated?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "How do you handle disappointment?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Define professionalism."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What does professionalism mean to you?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What does it mean to portray yourself in a professional manner?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Tell me about someone you've worked with who exhibited professionalism."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "If you were to win the lottery, what would you do? Would you still want to be a PA?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Do you realize you'll make less money than a physician?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Should PAs be reimbursed at the same rate as physicians?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "If PAs made $20,000 a year, would you still want to be a PA?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Give an example of a situation in which you exceeded expectations."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Tell me about a time that you surprised yourself."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Discuss a time that you had to help someone else out."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Tell me about a time you broke the rules."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What is the worst mistake you have ever made?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "How has your interview experience been today?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Did you learn anything new about our program today?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What stood out to you most about your experience at the interview today?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Tell me about the last person who interviewed you."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What were the names of the interviewers you already met today?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Is there anything else I need to know about you?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Tell me something that's not on your application."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Tell me something you've never told anyone else."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "If you had a memoir, what would it be called?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "When you leave today what one thing will you wish you could have told us about yourself?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Discuss a current medical ethics issues."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Talk about a time you had to make an ethical decision."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Is it ethical to treat your family members? Would you do it?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "If a patient has AIDS, will you still treat them?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "You have diagnosed a patient with HIV, and they do not want to tell their partner. What do you do?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What would you do if you diagnose a patient with syphilis, but he doesn't plan to tell his girlfriend?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "You are a PA. Your collaborating MD asks you to administer a medication to a patient. You do not agree with his decision and feel it could harm the patient. What do you do?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "You see a co-worker taking medication from the dispense cart and putting it in her bag. What do you do?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "If you found out a classmate had old copies of exams, what would you do?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "You are in a surgery and the anesthesiologist begins to make inappropriate comments about the patient once they are asleep. What do you do in this situation?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "You're in an OR and have suspicions that the surgeon may be intoxicated. What do you do?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "You have an elderly patient who needs to stay at the hospital for overnight observation. The patient is refusing, but the patient's son states the patient has dementia and is incapable of making medical decisions. The patient's son wants the patient admitted. What do you do?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "You are leaving for the day and realize you gave a patient medication they are allergic to. What do you do?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "A patient comes in for follow-up and you realize they were prescribed the wrong medication, but one with a similar name. What do you do?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "You are working as a PA. You realize your nurse sent in the wrong medication for a patient. What do you do?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "You realize you sent an adult dosage of medication for a child. What do you do?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "You've prescribed an antibiotic, but after the patient leaves you realize there's a contraindication with one of their other medications. What do you do?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "A patient calls back for their culture results, and you realize the test was never sent in. The sample is no longer good. What do you do?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "When is honesty not the best policy?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "You are seeing a Jehovah's Witness patient. Due to religious beliefs, he/she does not accept blood transfusions, but it could be life-saving. What do you do?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "A child is brought in with injuries from falling out of a tree at a friend's house. His parents are out of town. After evaluation, it is determined that he requires a blood transfusion. Before giving the transfusion, you find a card in his pocket stating he is Jehovah's Witness and to not give blood transfusions. The procedure would save his life, but no parents are present. What do you do?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "You are a PA and you prescribed birth control pills for a 13-year-old. The patient's mother is angry about this decision. What do you say?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What would you do if you hit your neighbor's dog?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What would you do if you hit a car in a parking lot? You're unsure of the owner."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "If you were a tree, what kind would you be and why?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "If you were a color, what color would you be, and why?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "If you were dressing up for a halloween party for kids, what would you dress up as, and why?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "If you were a car, what kind would you be, and why?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "If you were a candy bar, what kind would you be, and why?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "If you could have any super power, what would you choose, and why?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "If you were an animal, what would you be, and why?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What three people, living or dead, would you invite to dinner? What would you serve them?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Name three role models and why you look up to them."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What characteristics make a person a good role model?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "If you could spend a day with one person, who would you choose, and why? What would you do?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What would you do if you were president for a day?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Help this student complete the following task..."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Give directions for putting on a pair of gloves."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Give instructions for making a peanut butter and jelly sandwich."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "While sitting back to back, tell the person in the room how to draw a tree."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Explain how to make a paper airplane."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Help the patient in the room fill out their intake form. (Once in the room, you find that the patient is homeless, cannot read, and does not know much of the information.)"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Interpret the graph displayed in the room."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Enter the room and perform the following calculations..."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Convert the medication amount from milligrams to grams."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Discuss a pastime outside of school and how the skills acquired will help in your career."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "If you could have any other job, besides being a PA or working in the medical field, what would you do?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Discuss an experience that allowed you to learn something important about yourself."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What do you enjoy outside of work and school?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "You are on the committee to hire a new faculty member for the PA program. What characteristics and/or qualities would you look for when selecting an effective teacher?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What are the 3 most important aspects in evaluating a PA program? What about a PA student?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What can our faculty do for you?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What accommodations will you need to successfully complete this program?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "If you could do anything else and know you would be successful, what would you do?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Discuss a time you had to resolve a conflict."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Tell me about a time you worked with someone you didn't like."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Discuss a time you had to communicate effectively under pressure."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Talk about a time you had to disagree with someone to get a positive outcome."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What are you famous for?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What are you well known for?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Why do people recognize you?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "You are caring for an obese patient on multiple medications, some of which are causing side effects. Would you recommend a change in medications or lifestyle?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "You discover a classmate is romantically involved with her preceptor. What should be done, if anything? Enter the room and discuss your position."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What would you do if you saw a classmate cheating on an exam?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "A friend in your class confides in you that his mother was recently diagnosed with breast cancer. He is overwhelmed and may drop out of school to spend time with his mother. How do you counsel your friend?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "You are a dermatology PA. A patient states they are out of opioid pain medication and unable to get more from their pain management physician for another few weeks. What do you do?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "You are seeing a patient who is a gymnast and currently training for the Olympics. The patient's mother is upset because the patient recently gained 3 pounds. Enter the room and address this situation."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "A boat is sinking. There is a lifeboat for one person. The passengers include a 75-year-old physician, 50-year-old army officer, 24-year-old teacher, and a 6-year old. Who gets the spot?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "Tell me about a time you had to take a step back."
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What leads your moral compass?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "What drives you in your decisions?"
+    },
+    {
+      "tag": "S. PERRY",
+      "text": "If you were a car sitting on a car lot, how would you sell yourself?"
+    }
+  ]
+}
