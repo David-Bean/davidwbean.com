@@ -96,6 +96,11 @@
   .brief > .briefhead, .brief > .foot { flex: 0 0 auto; }
   .briefhead { font-size: 13.5px; margin: 0 0 10px; }
   .mocklist { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+  /* the briefing is read once and is longer than the frame, so it scrolls in
+     the same place the list of questions does */
+  .briefbody { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+  .briefbody p { color: var(--dim); font-size: 14px; line-height: 1.5; margin: 0 0 11px; }
+  .briefbody > .gname { margin-top: 12px; }
 
   /* the strip chart of the run, above that list. A CSS variable does not
      resolve inside an SVG presentation attribute, so every colour on the chart
@@ -489,6 +494,13 @@ const CATEGORY = Object.fromEntries(RUBRIC.map(c => [c.key, c]));
 const NA = "na";
 const RUBRIC_METRICS = RUBRIC.flatMap(c => c.metrics);
 
+/* The one line that stands on every question of a mock. It names the three
+   categories off RUBRIC rather than saying them again, so a category reworded
+   on the sheet is reworded here with it and the reminder cannot come to name
+   something the assessment does not ask about. */
+const LISTENING = "Listening for: " + RUBRIC.map(c => c.label).join(", ")
+  + ". Note what you notice. It all gets rated at the end.";
+
 const SCHOOLS = { ALL: "General", CDU: "CDU", HSU: "HSU", WSU: "WSU", SMU: "SMU", "S. PERRY": "S. Perry" };
 
 /* ---- the bank ---------------------------------------------------------
@@ -648,24 +660,32 @@ const poolFor = m => POOL[m] === undefined ? poolDefault(m) : POOL[m];
 /* Every question already says which set it came from, so a mode's source is
    that one filter over the lot of them, and "" is no filter at all. */
 const inPool = m => QUESTIONS().filter(q => !poolFor(m) || q.pool === poolFor(m));
-/* What a finished mock has to read back: the attempts saved during this run,
-   by id rather than by hand, so a score deleted from the record does not leave
-   a ghost here; and whether the run has reached its end. Both belong to the
-   run in front of you and not to the record, so both go when the queue does. */
+/* The mock in front of you: the questions actually put to her so far, one
+   entry apiece; the id of the row they went down as once the questions are
+   done, so a run deleted from the record drops off the screen reading it back
+   rather than lingering there; and which end of the run is on screen. All four
+   belong to the run and not to the record, so all four go when the queue does. */
 let RUN = [];
-let DEBRIEF = false;
+let RUNID = "";
+let BRIEFING = false;
+let DISCUSSION = false;
 let DRAFT = null;                    // scores and notes for the question on screen
 let SORT = "overall";                // what review sorts on
 let OPEN = new Set();                // which table rows are expanded
-let DOPEN = new Set();               // and which debrief rows, kept apart from those
-                                     // so the two lists do not open each other's
+let DOPEN = new Set();               // and which rows at the end of a mock, kept apart
+                                     // from those so the two lists do not open each other's
 let FILTER = { school: "", pool: "", text: "" };
 
 /* One question is worked through in five steps. It stays hidden until the
    interviewer asks for it, is shown so she can read it once before reading it
    out loud, then timed while it is answered, then totted up, then talked
-   through with her. Scoring stops at the summary: discuss only reads it back. */
+   through with her. Scoring stops at the summary: discuss only reads it back.
+
+   A mock has none of it. The question is on the card the moment the card is
+   drawn and nothing is scored against it there, so a mock question is one step
+   and the five belong to the other two modes. */
 let PHASE = "hidden";                // hidden -> reading -> answering -> summary -> discuss
+                                     // in a mock, "asking" and nothing else
 let NAGGED = false;                  // whether the way on has been tried and refused
 let T0 = 0;                          // when the clock last started; 0 when stopped
 let clockTimer = 0;
@@ -681,7 +701,9 @@ const NOTEMAX = 2000;
 const uid = () => "a" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 
 const blank = () => {
-  const d = { fillers: 0, seconds: 0 };
+  /* note is the mock's free box. fix() does not carry it, so nothing written
+     in it can reach an attempt row. */
+  const d = { fillers: 0, seconds: 0, note: "" };
   for (const m of METRICS) { d[m.key] = null; d[m.key + "_note"] = ""; }
   return d;
 };
@@ -1151,19 +1173,23 @@ function bump(n) {
   if (fillNode) fillNode.textContent = String(DRAFT.fillers);
 }
 
-/* a fresh question is a hidden one: nothing on screen until she asks for it */
+/* A fresh question is a hidden one: nothing on screen until she asks for it.
+   A mock question is not, because a mock is run by whoever put it together and
+   there is nobody there to keep it from. */
 function newPass() {
   stopTick();
   T0 = 0;
-  PHASE = "hidden";
+  PHASE = MODE === "mock" ? "asking" : "hidden";
   DRAFT = blank();
 }
 
 /* A new queue is a new run: whatever the last one collected is not this one's
-   to read back. */
+   to read back. A mock opens on its briefing, and no other mode has one. */
 function clearRun() {
   RUN = [];
-  DEBRIEF = false;
+  RUNID = "";
+  BRIEFING = MODE === "mock";
+  DISCUSSION = false;
   DOPEN.clear();
 }
 
@@ -1179,9 +1205,9 @@ function setMode(m) {
 /* Every queue, count and average on the page is one person's record, so
    changing who is being interviewed is the same reset as changing mode: a new
    name has been asked nothing, and gets the whole bank back. The picker sits
-   on the hidden step alone, before the clock has started and before the
-   question has been shown, so there is never a pass in flight for this to pull
-   out from under. */
+   on the hidden step and on a mock's briefing, both of them before the clock
+   has started and before any question has been shown, so there is never a pass
+   in flight for this to pull out from under. */
 function setSubject(n) {
   SUBJECT = n;
   /* Nobody can be picked off the list but the earlier scores: the placeholder
@@ -1213,10 +1239,16 @@ const allGraded = () => METRICS.every(m => DRAFT[m.key] !== null);
 
 /* An attempt goes down with all four called or not at all: a half filled one
    reads as a low score later rather than as a gap. Walking away without
-   grading is what Skip is for. */
+   grading is what Skip is for.
+
+   A mock writes no attempt row at all. A question put to her in a mock was not
+   graded on its own and must not read later as though it had been, so it stays
+   out of the log New questions mode and Review are built on and what it came
+   to goes on the run instead. */
 function commit() {
   const q = QUEUE[QI];
   if (!q) return;
+  if (MODE === "mock") { mockNext(true); return; }
   if (!allGraded()) { status("Give all four a score first."); return; }
   freeze();                            /* saving while it runs still records the time */
   const a = fix(Object.assign({ id: uid(), qid: q.id, at: Date.now(), subject: SUBJECT.trim(),
@@ -1225,14 +1257,40 @@ function commit() {
   save();
   syncSoon();
   status("Scored.");
-  if (MODE === "mock") RUN.push(a.id);
-  /* The last question of a mock has nowhere to advance to, and standing still
-     would offer the same question over again. The run is done, and what comes
-     after it is the read-back of the whole thing. */
-  if (MODE === "mock" && QI === QUEUE.length - 1) DEBRIEF = true;
-  else if (QI < QUEUE.length - 1) QI++;
+  if (QI < QUEUE.length - 1) QI++;
   newPass();
   renderAll();
+}
+
+/* Moving on in a mock. A question that was put to her goes onto the run with
+   what it came to; a question skipped goes nowhere at all, because a zero
+   would read later as an answer that scored nothing rather than as a question
+   she was never asked. Either way the last one has nowhere to advance to and
+   standing still would offer it over again, so it ends the run. */
+function mockNext(record) {
+  const q = QUEUE[QI];
+  if (!q) return;
+  freeze();                            /* moving on while it runs still records the time */
+  if (record) RUN.push({ qid: q.id, seconds: DRAFT.seconds,
+                         fillers: DRAFT.fillers, note: DRAFT.note });
+  if (QI === QUEUE.length - 1) endMock();
+  else QI++;
+  newPass();
+  renderAll();
+}
+
+/* The questions are done, so the run goes down: unrated, because in a mock
+   nothing has been rated yet. Slice 3 opens the assessment sheet here, between
+   the last question and the screen after it, and fills this same row in. */
+function endMock() {
+  const run = fixRun({ at: Date.now(), subject: SUBJECT.trim(),
+                       grader: GRADER.trim(), asked: RUN, ratings: {} });
+  RUNS.push(run);
+  RUNID = run.id;
+  save();
+  syncSoon();
+  status("Interview saved.");
+  DISCUSSION = true;
 }
 
 function removeAttempt(id) {
@@ -1324,13 +1382,59 @@ function fitCard(sheet, mid) {
   }
 }
 
+/* The clock and its controls, and the filler counter, are the same on the
+   answering step of a graded pass as they are on a mock question, because it
+   is the same clock counting the same answer. Drawn in one place so that
+   staying the same does not depend on anyone noticing they should. */
+function clockBox() {
+  const bar = el("div", "timer");
+  const tbox = el("div", "tbox");
+  clockNode = el("span", ticking() ? "clock" : "clock off", mmss(onClock()));
+  /* The two are drawn rather than written: a word sitting against a running
+     clock reads as part of the time. What each one is called stays on it for
+     whoever is hovering, or listening rather than looking. */
+  const tbtn = (kind, name, fn) => {
+    const b = el("button", null, "");
+    b.onclick = fn;
+    b.append(icon(kind));
+    b.title = name;
+    b.setAttribute("aria-label", name);
+    return b;
+  };
+  tbox.append(clockNode,
+              ticking() ? tbtn("pause", "Pause", pauseClock)
+                        : tbtn("play", onClock() ? "Resume" : "Start", resumeClock));
+  /* nothing to put back to zero on a clock that is already there */
+  const zero = tbtn("reset", "Reset", resetClock);
+  zero.disabled = !ticking() && onClock() === 0;
+  tbox.append(zero);
+  bar.append(tbox);
+  return bar;
+}
+
+function fillerPad() {
+  const pad = el("div", "pad");
+  const tap = el("button", "go fill", "Filler word +");
+  fillNode = el("b", null, String(DRAFT.fillers));
+  tap.append(fillNode);
+  tap.onclick = () => bump(1);
+  const less = el("button", "undo", "\u2212");
+  less.onclick = () => bump(-1);
+  pad.append(tap, less);
+  return pad;
+}
+
 function renderPractice() {
   const card = document.getElementById("practice");
   card.textContent = "";
   clockNode = fillNode = sheetNode = midNode = null;
-  /* a mock that has run out of questions is not on a question any more */
-  if (DEBRIEF) { card.append(debrief()); return; }
   const q = QUEUE[QI];
+  /* Before its first question and after its last, a mock is not on a question.
+     Neither screen is drawn on the sheet: both run longer than the frame and
+     would have to be scaled past reading to be got inside it. An empty set has
+     nothing to brief anybody about, so it says so instead. */
+  if (BRIEFING && q) { card.append(briefing()); return; }
+  if (DISCUSSION) { card.append(discussion()); return; }
   if (!q) { card.append(el("p", "empty", MODES[MODE].empty)); return; }
 
   /* the card is the frame; the sheet is what is drawn on it and scaled to fit */
@@ -1400,18 +1504,16 @@ function renderPractice() {
   const finish = () => { sheet.append(mid, foot); fitCard(sheet, mid); };
 
   /* ---- hidden: who is grading, and what the job is ----
-     A mock is run by whoever put it together, so it opens with the short
-     version. Anywhere else the first step is the briefing: the link can be
-     handed to someone who has never seen the page and they can run an
-     interview off it without being talked through it first. */
+     The first step says what the job is, so the link can be handed to someone
+     who has never seen the page and they can run an interview off it without
+     being talked through it first. A mock says it on its own screen instead
+     and never comes here. */
   if (PHASE === "hidden") {
-    const mock = MODE === "mock";
     const box = el("div", "qbox");
-    box.append(title(mock ? "Hidden until you are ready to ask it."
-                          : "Instructions for the grader"));
+    box.append(title("Instructions for the grader"));
 
-    /* Every score goes down under two names, and this is the only place either
-       is chosen, so the pass does not start until both are. The button says no
+    /* Every score goes down under two names, and in a graded pass this is the
+       only place either is chosen, so the pass does not start until both are. The button says no
        by being unavailable; the line under it says which one is still missing.
        It keeps the last name it asked for when it goes quiet, so the line holds
        its height and nothing on the card moves as the rows are filled. */
@@ -1429,12 +1531,7 @@ function renderPractice() {
     box.append(personPicker("subject", SUBJECT, setSubject),
                personPicker("grader", GRADER, n => { GRADER = n; gate(); }));
     sheet.append(box);
-    mid.append(pane(mock
-      ? el("p", "qtext", "Show it, read it to yourself, then read it out loud. "
-          + "Start the clock as you finish asking, and tap once for every filler "
-          + "word. The scores come after, on the grading step.")
-      : howto()));
-    if (mock && QI === 0) mid.append(mockLength());
+    mid.append(pane(howto()));
     if (past) mid.append(past);
     gate();
     acts.append(go, skip, back);
@@ -1476,38 +1573,47 @@ function renderPractice() {
       + "clock back to 0:00 if it was started too early. When the answer is "
       + "fully delivered, click \u201cAnswer finished\u201d to move on to "
       + "grading."));
-    const bar = el("div", "timer");
-    const tbox = el("div", "tbox");
-    clockNode = el("span", ticking() ? "clock" : "clock off", mmss(onClock()));
-    /* The two are drawn rather than written: a word sitting against a running
-       clock reads as part of the time. What each one is called stays on it for
-       whoever is hovering, or listening rather than looking. */
-    const tbtn = (kind, name, fn) => {
-      const b = step1(null, "", fn);
-      b.append(icon(kind));
-      b.title = name;
-      b.setAttribute("aria-label", name);
-      return b;
-    };
-    tbox.append(clockNode,
-                ticking() ? tbtn("pause", "Pause", pauseClock)
-                          : tbtn("play", onClock() ? "Resume" : "Start", resumeClock));
-    /* nothing to put back to zero on a clock that is already there */
-    const zero = tbtn("reset", "Reset", resetClock);
-    zero.disabled = !ticking() && onClock() === 0;
-    tbox.append(zero);
-    bar.append(tbox);
-    sheet.append(bar);
+    sheet.append(clockBox());
     for (const m of METRICS) mid.append(metric(m, false));
     if (past) mid.append(past);
 
-    const pad = el("div", "pad");
-    const tap = el("button", "go fill", "Filler word +");
-    fillNode = el("b", null, String(DRAFT.fillers));
-    tap.append(fillNode);
-    tap.onclick = () => bump(1);
-    pad.append(tap, step1("undo", "\u2212", () => bump(-1)));
+    const pad = fillerPad();
     pad.append(step1("go", "Answer finished", () => toPhase("summary")), skip);
+    foot.append(pad);
+    finish();
+    return;
+  }
+
+  /* ---- asking: a mock question, on the card from the moment it is drawn ----
+     No reveal step and no reading step. A mock is run by whoever put it
+     together, so there is nobody to hold the question back from, and the reveal
+     was only ever there to let a grader read it once to herself first.
+
+     Nothing is scored here. What the card collects is the clock, the fillers
+     and whatever she writes down, and all of it waits for the assessment at the
+     end, which is what the standing reminder under the heading is for. */
+  if (PHASE === "asking") {
+    const box = el("div", "qbox");
+    /* A mock runs without a break in it, so where you are in the run is
+       nowhere else on the screen to be found. */
+    box.append(title("Question " + (QI + 1) + " of " + QUEUE.length),
+               el("p", "qsub", LISTENING), pane(asked()));
+    sheet.append(box, clockBox());
+
+    const note = el("textarea");
+    note.rows = 4;
+    note.placeholder = "notes on this answer, for the assessment at the end";
+    /* the database's ceiling, said here rather than found later when the row
+       is cut on the way down and the last of the typing is gone */
+    note.maxLength = NOTEMAX;
+    note.value = DRAFT.note;
+    note.oninput = () => { DRAFT.note = note.value; };
+    mid.append(note);
+
+    const last = QI === QUEUE.length - 1;
+    const pad = fillerPad();
+    pad.append(step1("go", last ? "Finish the interview" : "Next question", commit),
+               step1(null, "Skip", () => mockNext(false)));
     foot.append(pad);
     finish();
     return;
@@ -1530,15 +1636,10 @@ function renderPractice() {
     mid.append(summary());
     for (const m of METRICS) mid.append(metric(m, true));
     if (past) mid.append(past);
-    /* A mock is run start to finish, so nothing is talked through in the
-       middle of one. Anywhere else the grades get a step of their own before
-       they go down, to be read back to her. */
     /* Four blanks and a saved attempt is a record that says nothing, so the
        way on is shut until all four have been called. Skip is still open: not
        grading at all is a different thing from grading badly. */
-    const on = MODE === "mock"
-      ? step1("go", "Save and next", commit)
-      : step1("go", "Discuss", () => toPhase("discuss"));
+    const on = step1("go", "Discuss", () => toPhase("discuss"));
     /* Shut, but not dead: a button that does nothing at all when it is pressed
        does not say why, so this one keeps the look of one that is off and
        answers by putting the reason under it. The reason is on the card either
@@ -1570,48 +1671,85 @@ function renderPractice() {
   finish();
 }
 
-/* ---- the end of a mock ------------------------------------------------
-   A run of ten questions goes by with nothing talked through in between, so
-   everything the grader has to say about it she says here. Not a step of the
-   pass and not drawn on the sheet: twenty questions cannot be scaled down into
-   the frame and still be read, so the head and the button stay where they are
-   and the list between them scrolls. Every score on this screen was written
-   down and sent as it was given, so nothing here saves anything. */
-function debrief() {
+/* ---- the start of a mock ----------------------------------------------
+   A mock is graded once at the end, which is not how the rest of the tool
+   works and not what a grader who has run a pass here before will expect, so
+   the whole of it is said before the first question rather than in pieces on
+   the way through. It is a screen and not a paragraph on the first card
+   because it is read once and then not again for the rest of the run.
+
+   The two names and the length of the run are settled here for the same
+   reason. There is no hidden step in a mock to carry them, and a run already
+   under way cannot be resized underneath itself. */
+function briefing() {
   const box = el("div", "brief");
-  /* the attempts are looked up by id rather than held, so one deleted from the
-     record below drops out of the run above rather than lingering in it */
-  const runs = RUN.map(id => ATTEMPTS.find(a => a.id === id)).filter(Boolean);
-  const marks = runs.map(overall).filter(x => x !== null);
-  const avg = marks.length ? marks.reduce((t, x) => t + x, 0) / marks.length : null;
-  const secs = runs.reduce((t, a) => t + a.seconds, 0);
+  box.append(el("p", "briefhead", "Before you start"));
+
+  const body = el("div", "briefbody");
+  for (const t of BRIEFING_COPY) body.append(el("p", null, t));
+
+  /* Every score goes down under two names, and this is the only place either
+     is chosen in a mock, so the run does not start until both are. The button
+     says no by being unavailable; the line under it says which one is still
+     missing. It keeps the last name it asked for when it goes quiet, so the
+     line holds its height and nothing moves as the rows are filled. */
+  const go = el("button", "go", "Start the interview");
+  const asking = who => "Choose the " + who + " first. Every score is saved under both names.";
+  const nudge = el("p", "nudge", asking("interviewee"));
+  const gate = () => {
+    const missing = SUBJECT.trim() === "" ? "interviewee"
+                  : GRADER.trim() === "" ? "grader" : "";
+    go.disabled = missing !== "";
+    if (missing) nudge.textContent = asking(missing);
+    nudge.className = missing ? "nudge" : "nudge quiet";
+  };
+  go.onclick = () => { BRIEFING = false; newPass(); renderPractice(); };
+  body.append(personPicker("subject", SUBJECT, setSubject),
+              personPicker("grader", GRADER, n => { GRADER = n; gate(); }),
+              mockLength());
+  gate();
+  box.append(body);
+
+  const foot = el("div", "foot"), acts = el("div", "actions");
+  acts.append(go);
+  foot.append(acts, nudge);
+  box.append(foot);
+  return box;
+}
+
+/* ---- the end of a mock ------------------------------------------------
+   The questions are done and the run is already down, so nothing here saves
+   anything. Slice 3 opens the assessment sheet between the last question and
+   this screen, and slice 4 puts the discussion in place of it.
+
+   Not a step of the pass and not drawn on the sheet: twenty questions cannot
+   be scaled down into the frame and still be read, so the head and the button
+   stay where they are and the list between them scrolls. */
+function discussion() {
+  const box = el("div", "brief");
+  /* the run is read back off the record by id rather than held, so one deleted
+     from the log below drops off this screen rather than lingering on it */
+  const run = RUNS.find(r => r.id === RUNID);
+  const asked = run ? run.asked : [];
+  const secs = asked.reduce((t, a) => t + a.seconds, 0);
+  const fill = asked.reduce((t, a) => t + a.fillers, 0);
+  /* Nothing was scored, so there is no average to give and no shape to draw.
+     What the run came to is the clock and the fillers over the whole of it,
+     which is the part of a mock that does not wait for the assessment. */
   box.append(el("p", "briefhead", (SUBJECT.trim() || "Nobody") + ": " + QUEUE.length
-    + (QUEUE.length === 1 ? " question, " : " questions, ") + runs.length + " scored, "
-    + mmss(secs) + " on the clock, "
-    + (avg === null ? "nothing" : fmt(avg)) + " overall."));
-  /* The chart of the run goes between that line and the list, so the shape of
-     the session reads before any single question of it does. It sits in the
-     part of the column that does not scroll, so it is kept short. A run where
-     nothing at all was scored has no shape to draw and gets no chart. */
-  const said = new Map(QUEUE.map(q => [q.id, q.text]));
-  const marksOn = key => runs
-    .map(a => ({ v: scoreOn(a, key), text: said.get(a.qid) || "", id: a.id }))
-    .filter(d => d.v !== null);
-  const chart = METRICS.map(m => ({ label: m.short, values: marksOn(m.key) }))
-    .concat([{ label: "Overall", values: marksOn("overall"), apart: true }]);
-  if (chart.some(r => r.values.length)) box.append(strip(chart));
+    + (QUEUE.length === 1 ? " question, " : " questions, ") + asked.length + " asked, "
+    + mmss(secs) + " on the clock, " + fill
+    + (fill === 1 ? " filler word." : " filler words.")));
 
-
+  const put = new Map(asked.map(a => [a.qid, a]));
   const list = el("div", "mocklist");
   for (const q of QUEUE) {
-    const a = runs.find(x => x.qid === q.id) || null;
+    const a = put.get(q.id) || null;
     const row = el("button", "qrow");
     row.append(el("span", "arrow", DOPEN.has(q.id) ? "\u25be" : "\u25b8"));
     row.append(el("span", "chip", SCHOOLS[q.tag] || q.tag));
     row.append(rich(el("span", "tw"), q.text));
-    row.append(el("span", "sc", a
-      ? METRICS.map(m => a[m.key] === null ? "\u00b7" : a[m.key]).join(" ")
-      : "skipped"));
+    row.append(el("span", "sc", a ? mmss(a.seconds) + " \u00b7 " + a.fillers + "f" : "skipped"));
     row.onclick = () => {
       if (DOPEN.has(q.id)) DOPEN.delete(q.id); else DOPEN.add(q.id);
       renderPractice();
@@ -1619,10 +1757,10 @@ function debrief() {
     list.append(row);
     if (DOPEN.has(q.id)) {
       const open = el("div", "detail");
-      /* the same read-back the Discussion step gives, for the question that
-         got one; a question walked past has nothing to read back */
-      if (a) open.append(bars(a), graded(a));
-      else open.append(el("span", "empty", "Not scored."));
+      /* what the grader wrote while she was answering, which is the only thing
+         a mock question carries of its own; a question walked past has none */
+      if (a && a.note.trim()) open.append(el("span", null, a.note));
+      else open.append(el("span", "empty", a ? "Nothing written down." : "Not asked."));
       list.append(open);
     }
   }
@@ -1688,7 +1826,7 @@ const STRIP = { w: 560, pad: 4, row: 24, apart: 9, foot: 15, lab: 66, x1: 82, x5
 const stripX = v => STRIP.x1 + (v - 1) * (STRIP.x5 - STRIP.x1) / 4;
 
 /* The nudge is taken off the attempt's own id rather than a random number.
-   Opening a row redraws the whole debrief, and dots that moved every time it
+   Opening a row redraws the whole screen, and dots that moved every time it
    was redrawn would read as the chart changing rather than the row opening. */
 function stripJitter(id) {
   const n = parseInt(hash(String(id)).slice(-5), 36) % 9973;
@@ -1991,6 +2129,29 @@ function personPicker(kind, current, onPick) {
   draw();
   return row;
 }
+
+/* What a mock is and how it differs from a graded pass, said once before the
+   first question. A grader who has used the rest of the tool will expect to
+   score as she goes, so the reason she is not going to is here rather than
+   left to be worked out from a card with no scores on it. */
+const BRIEFING_COPY = [
+  "You are running a full mock interview. Ask every question in order, and do "
+    + "not stop to grade anything along the way.",
+  "Each card gives you the question, a clock, a filler word counter, and "
+    + "somewhere to write. Start the clock when she starts answering, pause it "
+    + "if she is interrupted, and move on when she is done. The notes are "
+    + "yours. Nothing in them is scored. They are there to catch what you would "
+    + "otherwise have forgotten by question ten.",
+  "Do not react to an answer the way you would in practice. No coaching, no "
+    + "hints, no telling her that one went well. A mock is only worth running "
+    + "if it feels like the real thing.",
+  "The grading happens once, at the end, across all twenty criteria together. "
+    + "That is deliberate. Scoring as you go pulls your attention off listening, "
+    + "and a score given in the moment tends to be a score of the last answer "
+    + "rather than of the interview.",
+  "When the last question is done you go to the assessment sheet, and after "
+    + "that to the discussion.",
+];
 
 /* The job, start to finish, in the order the buttons come in. */
 const STEPS = [
