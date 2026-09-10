@@ -88,19 +88,35 @@
   #practice .mid { flex: 1 1 auto; min-height: 0; overflow: hidden; }
   #practice .foot { border-top: 1px solid var(--line); padding-top: 6px; }
 
-  /* the read-back a finished mock ends on. Nothing here is scaled to fit: a
-     run's worth of questions shrunk into the frame would be too small to read,
-     so the line at the top and the button at the bottom hold their places and
-     the list of questions takes what is left over and scrolls. */
+  /* The three screens of a mock that are not a question: the briefing before
+     it, the assessment sheet after it, the read-back it ends on. Nothing here
+     is scaled to fit, because a run's worth of questions or twenty rows of the
+     sheet shrunk into the frame would be too small to read. The line at the top
+     and the buttons at the bottom hold their places and the middle scrolls. */
   .brief { display: flex; flex-direction: column; height: 100%; }
   .brief > .briefhead, .brief > .foot { flex: 0 0 auto; }
   .briefhead { font-size: 13.5px; margin: 0 0 10px; }
-  .mocklist { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
-  /* the briefing is read once and is longer than the frame, so it scrolls in
-     the same place the list of questions does */
-  .briefbody { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+  /* the middle of each of them, all three scrolling the same way */
+  .mocklist, .briefbody, .assess { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
   .briefbody p { color: var(--dim); font-size: 14px; line-height: 1.5; margin: 0 0 11px; }
   .briefbody > .gname { margin-top: 12px; }
+
+  /* A category of the sheet: its name, its running total hard against the
+     right, its lines, and a box to write in under them. The total is beside
+     the name rather than under the last line so it is found in the same place
+     in all three, whether the category is four lines long or nine. */
+  .acat + .acat { margin-top: 18px; }
+  .cathead { display: flex; gap: 10px; align-items: baseline; }
+  .catname {
+    font-size: 11px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase;
+  }
+  .catscore { margin-left: auto; color: var(--dim); font-size: 13px;
+              font-variant-numeric: tabular-nums; }
+  .assess textarea { margin-top: 8px; }
+  /* the sheet's own total, in the foot where it stays put while the lines
+     above it scroll */
+  .sheettotal { font-size: 14px; font-weight: 600; margin: 0 0 2px;
+               font-variant-numeric: tabular-nums; }
 
   /* ---- the bar of who and how it is going ---- */
   .top { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 14px; }
@@ -220,6 +236,9 @@
   .scale { display: flex; gap: 4px; margin-left: auto; flex: 0 0 auto; }
   .scale button { width: 34px; padding: 6px 0; text-align: center; }
   .scale button.on { background: var(--navy); border-color: var(--navy); color: var(--gold); }
+  /* the sixth control the one optional line gets, sitting with the five rather
+     than off on its own, and given the room its two letters need */
+  .scale button.na { width: auto; padding: 6px 8px; font-size: 13px; }
   @media (max-width: 640px) {
     .metric .mrow { gap: 6px; }
     .metric .mname { font-size: 13px; }
@@ -227,6 +246,7 @@
     .mshort { display: inline; }
     .scale { gap: 3px; }
     .scale button { width: 30px; padding: 6px 0; }
+    .scale button.na { width: auto; padding: 6px 6px; font-size: 12px; }
   }
 
   .actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
@@ -648,15 +668,19 @@ const poolFor = m => POOL[m] === undefined ? poolDefault(m) : POOL[m];
    that one filter over the lot of them, and "" is no filter at all. */
 const inPool = m => QUESTIONS().filter(q => !poolFor(m) || q.pool === poolFor(m));
 /* The mock in front of you: the questions actually put to her so far, one
-   entry apiece; the id of the row they went down as once the questions are
-   done, so a run deleted from the record drops off the screen reading it back
-   rather than lingering there; which end of the run is on screen; and whether
-   the last one ended with nothing asked at all. All of it belongs to the run
-   and not to the record, so all of it goes when the queue does. */
+   entry apiece; the run being assessed, held here and nowhere else until the
+   sheet is saved; the id of the row it went down as once it is, so a run
+   deleted from the record drops off the screen reading it back rather than
+   lingering there; which end of the run is on screen; whether the way out of
+   the sheet has been tried and refused; and whether the last one ended with
+   nothing asked at all. All of it belongs to the run and not to the record, so
+   all of it goes when the queue does. */
 let RUN = [];
+let ASSESSING = null;
 let RUNID = "";
 let BRIEFING = false;
 let DISCUSSION = false;
+let ASSESSNAG = false;
 let NOTHINGASKED = false;
 let DRAFT = null;                    // scores and notes for the question on screen
 let SORT = "overall";                // what review sorts on
@@ -1176,9 +1200,11 @@ function newPass() {
    to read back. A mock opens on its briefing, and no other mode has one. */
 function clearRun() {
   RUN = [];
+  ASSESSING = null;
   RUNID = "";
   BRIEFING = MODE === "mock";
   DISCUSSION = false;
+  ASSESSNAG = false;
   NOTHINGASKED = false;
   DOPEN.clear();
 }
@@ -1269,9 +1295,10 @@ function mockNext(record) {
   renderAll();
 }
 
-/* The questions are done, so the run goes down: unrated, because in a mock
-   nothing has been rated yet. Slice 3 opens the assessment sheet here, between
-   the last question and the screen after it, and fills this same row in.
+/* The questions are done, so the run is made up and put on the assessment
+   sheet. It is not written anywhere yet. Nothing was rated on the way through
+   and a run row is only worth having rated, so the record hears about this one
+   at Save and not before.
 
    Unless nothing was put to her, in which case there was no interview and
    there is nothing to assess. A row with an empty asked would be a sheet to
@@ -1286,14 +1313,31 @@ function endMock() {
     NOTHINGASKED = true;
     return;
   }
-  const run = fixRun({ at: Date.now(), subject: SUBJECT.trim(),
-                       grader: GRADER.trim(), asked: RUN, ratings: {} });
-  RUNS.push(run);
-  RUNID = run.id;
+  ASSESSING = fixRun({ at: Date.now(), subject: SUBJECT.trim(),
+                       grader: GRADER.trim(), asked: RUN });
+}
+
+/* The sheet is full, so the run goes down with its scores on it and the mock
+   ends on the discussion.
+
+   The alternative was to write the row when the questions ran out and fill in
+   the ratings here, which is what the last slice left behind. It was dropped
+   because a grader who closes the tab on the sheet would leave a row that
+   scored nothing out of a hundred sitting in the shared log, and there is no
+   screen anywhere that rates a run already written, so nobody could ever go
+   back and correct it. An interview that reads as nought and cannot be fixed
+   is a worse thing to leave behind than an interview that was not kept, and
+   what a mock is for is the assessment: the clock and the notes without it are
+   not worth the row on their own. */
+function saveAssessment() {
+  RUNS.push(ASSESSING);
+  RUNID = ASSESSING.id;
+  ASSESSING = null;
   save();
   syncSoon();
   status("Interview saved.");
   DISCUSSION = true;
+  renderPractice();
 }
 
 function removeAttempt(id) {
@@ -1433,10 +1477,11 @@ function renderPractice() {
   clockNode = fillNode = sheetNode = midNode = null;
   const q = QUEUE[QI];
   /* Before its first question and after its last, a mock is not on a question.
-     Neither screen is drawn on the sheet: both run longer than the frame and
-     would have to be scaled past reading to be got inside it. An empty set has
-     nothing to brief anybody about, so it says so instead. */
+     None of those screens is drawn on the sheet: they all run longer than the
+     frame and would have to be scaled past reading to be got inside it. An
+     empty set has nothing to brief anybody about, so it says so instead. */
   if (BRIEFING && q) { card.append(briefing()); return; }
+  if (ASSESSING) { card.append(assessment()); return; }
   if (DISCUSSION) { card.append(discussion()); return; }
   if (!q) {
     card.append(el("p", "empty", NOTHINGASKED
@@ -1725,10 +1770,164 @@ function briefing() {
   return box;
 }
 
+/* ---- the assessment ---------------------------------------------------
+   The questions are done and nothing has been scored, so the whole of the
+   book's sheet is filled in here in one sitting: three categories, twenty
+   lines, five points a line. A line is scored with the same widget and the
+   same tap the four criteria are scored with, because it is the same gesture
+   and a second look for it would only mean learning it twice.
+
+   Not a step of the pass and not drawn on the sheet: twenty lines cannot be
+   scaled down into the frame and still be read, so the head and the foot stay
+   where they are and the lines between them scroll. */
+function assessment() {
+  const run = ASSESSING;
+  const box = el("div", "brief");
+  box.append(el("p", "briefhead", (run.subject.trim() || "Nobody") + ": "
+    + run.asked.length + (run.asked.length === 1 ? " question" : " questions")
+    + " asked. Score every line, then save."));
+
+  /* Every part of the page that reads a number off the run, so that scoring a
+     line can repaint the line, the totals over it and the count of what is
+     left, and nothing else. Drawing the whole screen again on every tap would
+     throw away where the grader had scrolled to and whatever she was in the
+     middle of typing, twenty times over. */
+  const paint = [];
+  const repaint = () => { for (const f of paint) f(); };
+  const blanks = () => RUBRIC_METRICS.filter(m => run.ratings[m.key] === null);
+  const rows = new Map();          // metric key -> its row, for the jump to the next blank
+  const cut = n => Math.round(n * 100) + "%";
+
+  /* One line of the sheet: what it asks, whether it has been called yet, and
+     the row of five. Tapping the score already showing takes it back off, the
+     way it does on the four criteria. */
+  const line = m => {
+    const wrap = el("div", "metric");
+    const row = el("div", "mrow");
+    const dot = el("span", "mdot");
+    const scale = el("span", "scale");
+    const btns = [];
+    const set = v => { run.ratings[m.key] = run.ratings[m.key] === v ? null : v; repaint(); };
+    const control = (v, cls, txt) => {
+      const b = el("button", cls, txt);
+      b.onclick = () => set(v);
+      btns.push({ b, v, cls });
+      scale.append(b);
+      return b;
+    };
+    for (const v of SCALE) control(v, null, String(v));
+    /* The sixth control, and only on the line the sheet marks optional. A
+       grader who could set aside eye contact could take the ceiling down to
+       whatever she had felt like answering, and every interview would be a
+       good one. */
+    if (m.optional)
+      control(NA, "na", "N/A").title = "Not applicable: takes this line out of the total";
+    row.append(el("span", "mname", m.label), dot, scale);
+    wrap.append(row);
+    paint.push(() => {
+      const v = run.ratings[m.key];
+      dot.className = v === null ? "mdot" : "mdot done";
+      dot.textContent = v === null ? "\u00a0" : "\u2713";
+      for (const c of btns) c.b.className = ((c.cls || "") + (v === c.v ? " on" : "")).trim();
+    });
+    rows.set(m.key, wrap);
+    return wrap;
+  };
+
+  /* a category and its lines, headed by its name and what it stands at */
+  const section = (name, score) => {
+    const cat = el("div", "acat");
+    const head = el("div", "cathead");
+    head.append(el("span", "catname", name));
+    if (score) head.append(score);
+    cat.append(head);
+    return cat;
+  };
+
+  const body = el("div", "assess");
+  for (const c of RUBRIC) {
+    const score = el("span", "catscore");
+    paint.push(() => {
+      const p = points(run, c);
+      score.textContent = p.got + " / " + p.max + " \u00b7 " + cut(pct(run, c));
+    });
+    const cat = section(c.label, score);
+    for (const m of c.metrics) cat.append(line(m));
+    cat.append(notebox("notes on " + c.label.toLowerCase(), run.notes[c.key],
+                       v => { run.notes[c.key] = v; }));
+    body.append(cat);
+  }
+  /* the box for the interview rather than for one part of it, under the three
+     because it is written last. It has no score of its own: what the whole of
+     it came to is in the foot. */
+  const whole = section("The interview as a whole", null);
+  whole.append(notebox("what she should take away from the whole of it", run.note,
+                       v => { run.note = v; }));
+  body.append(whole);
+  box.append(body);
+
+  const foot = el("div", "foot"), acts = el("div", "actions");
+  /* The one number the sheet comes to, in the foot rather than at the end of
+     the lines, so it is on the screen the whole way down them. Out of 100, or
+     out of 95 with appearance set aside. */
+  const total = el("p", "sheettotal");
+  paint.push(() => {
+    const t = totalPoints(run);
+    total.textContent = "Overall " + t.got + " / " + t.max
+      + " \u00b7 " + cut(t.max ? t.got / t.max : 0);
+  });
+
+  /* Every line has to be called before this can be saved. A blank line is
+     worth nothing against a ceiling that does not move, so a sheet saved half
+     filled reads afterwards as a bad interview rather than as an unfinished
+     sheet, and there is nothing on the page that would let anyone finish it.
+
+     Shut, but not dead, the way the grading step is: the button keeps the look
+     of one that is off and answers by saying how many lines are still blank.
+     On a sheet this long the count on its own would only start a hunt, so it
+     takes her to the first of them as well, and again to the next one each
+     time it is pressed. */
+  const nudge = el("p", "nudge quiet", "");
+  const go = el("button", "go", "Save the assessment");
+  go.onclick = () => {
+    const left = blanks();
+    if (!left.length) { saveAssessment(); return; }
+    ASSESSNAG = true;
+    repaint();
+    rows.get(left[0].key).scrollIntoView({ block: "center", behavior: "smooth" });
+  };
+  paint.push(() => {
+    const n = blanks().length;
+    go.setAttribute("aria-disabled", n ? "true" : "false");
+    if (n) nudge.textContent = n === 1
+      ? "One line is still blank. Press save again to go to it."
+      : n + " lines are still blank. Press save again to go to the next one.";
+    nudge.className = ASSESSNAG && n ? "nudge" : "nudge quiet";
+  });
+
+  acts.append(go);
+  foot.append(total, nudge, acts);
+  box.append(foot);
+  repaint();
+  return box;
+}
+
+/* a box of prose that says what it is for, keeps its own ceiling and hands
+   back what is typed in it. The ceiling is the database's, said here rather
+   than found later when the row is cut on the way down. */
+function notebox(hint, value, put) {
+  const note = el("textarea");
+  note.rows = 2;
+  note.placeholder = hint;
+  note.maxLength = NOTEMAX;
+  note.value = value;
+  note.oninput = () => put(note.value);
+  return note;
+}
+
 /* ---- the end of a mock ------------------------------------------------
-   The questions are done and the run is already down, so nothing here saves
-   anything. Slice 3 opens the assessment sheet between the last question and
-   this screen, and slice 4 puts the discussion in place of it.
+   The run is down and rated by the time this is drawn, so nothing here saves
+   anything. Slice 4 puts the discussion in place of it.
 
    Not a step of the pass and not drawn on the sheet: twenty questions cannot
    be scaled down into the frame and still be read, so the head and the button
