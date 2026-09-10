@@ -7,7 +7,7 @@
 -- and therefore known to anyone who opens the page. That is the point -- anyone
 -- with the link can grade -- but it means the guard rails have to live here
 -- rather than in the page. They are:
---   * only this table is reachable, and only these columns
+--   * only these two tables are reachable, and only these columns
 --   * scores are 1 to 5 or nothing at all, and notes have a ceiling
 --   * an answer can't be a day long or carry ten thousand filler words
 --   * the log has a row limit, so it can't be filled until it costs money
@@ -160,6 +160,116 @@ drop trigger if exists pa_attempts_audit on public.pa_attempts;
 create trigger pa_attempts_audit after insert or update or delete on public.pa_attempts
   for each row execute function public.pa_watch();
 
+-- ------------------------------------------------------------ mock runs --
+-- One row per mock interview. A mock is assessed once at the end against the
+-- sheet the questions came from rather than question by question, so nothing
+-- here is an attempt and none of it belongs in pa_attempts. A question put to
+-- her in a mock is not scored on its own and is not recorded as seen.
+--
+-- asked is what was actually put to her, in the order it was asked:
+-- [{qid, seconds, fillers, note}]. ratings is one score a line, keyed by the
+-- metric keys in the page's RUBRIC. notes is one box a category, keyed by
+-- category key. Those keys are permanent -- renaming one in the page orphans
+-- every rating already filed under it, here as well as there.
+--
+-- Twenty lines at five points is a hundred exactly, so a total read out of this
+-- table needs no scaling. Nine of the twenty are communication, which is
+-- therefore 45 percent of the score by design.
+--
+-- A rating is 1 to 5, or null for a line nobody has marked yet. The single
+-- exception is appearance, which may also be the string "na": a phone or video
+-- interview gives a grader nothing to judge. Set aside that way it comes off
+-- the ceiling too, so the sheet is out of 95. No other line may hold "na", and
+-- the check below is what keeps a hand-typed row from lowering a ceiling it
+-- has no business lowering.
+--
+-- All three are jsonb rather than a column apiece. The sheet is twenty lines
+-- long today and the book may print a twenty-first, and a shape that changes is
+-- a poor fit for twenty columns. The checks below are what the column types
+-- would otherwise have given: 1 to 5 or nothing, prose with a ceiling, and a
+-- row that can't be filled until it costs money.
+
+create table if not exists public.pa_mock_runs (
+  id         text primary key,
+  at         bigint not null default 0 check (at between 0 and 4102444800000),
+
+  subject    text not null default ''
+             constraint pa_run_subject_len check (length(subject) <= 60),
+  grader     text not null default ''
+             constraint pa_run_grader_len  check (length(grader)  <= 60),
+
+  asked      jsonb not null default '[]'::jsonb
+             constraint pa_run_asked_shape check (
+               jsonb_typeof(asked) = 'array'
+               and jsonb_array_length(asked) <= 100
+               and not jsonb_path_exists(asked, '$[*] ? (@.type() != "object")')
+               and length(asked::text) <= 200000),
+
+  ratings    jsonb not null default '{}'::jsonb
+             constraint pa_run_ratings_shape check (
+               jsonb_typeof(ratings) = 'object'
+               and length(ratings::text) <= 4000
+               -- every line but one is a number 1 to 5, or null for unmarked
+               and not jsonb_path_exists(ratings - 'appearance',
+                     '$.* ? (@.type() != "null" && (@.type() != "number" || @ < 1 || @ > 5))')
+               -- and appearance is that, or set aside
+               and coalesce(ratings -> 'appearance', 'null'::jsonb) in
+                     ('null'::jsonb, '"na"'::jsonb,
+                      '1'::jsonb, '2'::jsonb, '3'::jsonb, '4'::jsonb, '5'::jsonb)),
+
+  notes      jsonb not null default '{}'::jsonb
+             constraint pa_run_notes_shape check (
+               jsonb_typeof(notes) = 'object'
+               and length(notes::text) <= 20000
+               and not jsonb_path_exists(notes, '$.* ? (@.type() != "string")')),
+
+  note       text not null default '' check (length(note) <= 2000),
+
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists pa_mock_runs_subject on public.pa_mock_runs (subject);
+
+-- Same rights as pa_attempts, and for the same reason: anyone with the link
+-- grades, so the guard rails are the checks above and the audit below.
+alter table public.pa_mock_runs enable row level security;
+grant select, insert, update, delete on public.pa_mock_runs to anon;
+
+drop policy if exists anyone_read   on public.pa_mock_runs;
+drop policy if exists anyone_add    on public.pa_mock_runs;
+drop policy if exists anyone_change on public.pa_mock_runs;
+drop policy if exists anyone_remove on public.pa_mock_runs;
+create policy anyone_read   on public.pa_mock_runs for select to anon using (true);
+create policy anyone_add    on public.pa_mock_runs for insert to anon with check (true);
+create policy anyone_change on public.pa_mock_runs for update to anon using (true) with check (true);
+create policy anyone_remove on public.pa_mock_runs for delete to anon using (true);
+
+drop trigger if exists pa_mock_runs_touch on public.pa_mock_runs;
+create trigger pa_mock_runs_touch before update on public.pa_mock_runs
+  for each row execute function public.pa_touch();
+
+-- A whole interview is a rarer thing than a single question, so the ceiling is
+-- lower. pa_cap reads the table it fires on, so it needs nothing new here.
+drop trigger if exists pa_mock_runs_cap on public.pa_mock_runs;
+create trigger pa_mock_runs_cap after insert on public.pa_mock_runs
+  for each statement execute function public.pa_cap('5000');
+
+drop trigger if exists pa_mock_runs_audit on public.pa_mock_runs;
+create trigger pa_mock_runs_audit after insert or update or delete on public.pa_mock_runs
+  for each row execute function public.pa_watch();
+
+-- One row per line of the sheet rather than one per interview, so a question
+-- about a single metric is a group by rather than twenty hand-written keys.
+-- A line nobody marked is null in the jsonb, and an appearance set aside is
+-- "na"; neither is a number, so neither is here. That is what makes an average
+-- over this view an average of lines actually scored.
+create or replace view public.pa_mock_lines as
+select r.id as run_id, r.at, r.subject, r.grader,
+       k.key as metric, (k.value #>> '{}')::int as score
+from public.pa_mock_runs r, lateral jsonb_each(r.ratings) k
+where jsonb_typeof(k.value) = 'number';
+revoke all on public.pa_mock_lines from anon;   -- read it from the SQL editor
+
 -- ------------------------------------------------------------- reading it --
 -- How she is doing, worst first:
 --     select qid, count(*) as attempts,
@@ -193,3 +303,56 @@ create trigger pa_attempts_audit after insert or update or delete on public.pa_a
 -- Start over. Unlike the game there is no seed to refill from: an empty table
 -- means nobody has been graded yet, and every open page will adopt that.
 --     delete from public.pa_attempts;
+
+-- Every line of one mock, weakest first:
+--     select metric, score from public.pa_mock_lines
+--     where run_id = 'a1b2c3d4e5' order by score nulls first;
+--
+-- Which lines she is weakest on across every mock she has sat:
+--     select metric, count(*) as scored, round(avg(score), 2) as avg_score
+--     from public.pa_mock_lines where subject = 'Anna'
+--     group by metric order by avg_score nulls first;
+--
+-- Each mock as the book totals it, with how fast she was talking through it.
+-- points is already out of 100, or out of 95 where appearance was set aside,
+-- which is what lines_rated tells you. The categories are different lengths on
+-- purpose, so the total leans on communication harder than on presence:
+--     select to_timestamp(at/1000.0)::date as day, subject, grader,
+--            jsonb_array_length(asked) as questions,
+--            (select sum((v.value #>> '{}')::int) from jsonb_each(ratings) v
+--              where jsonb_typeof(v.value) = 'number') as points,
+--            round(sum((a.value->>'fillers')::int) * 60.0
+--                  / nullif(sum((a.value->>'seconds')::int), 0), 2) as filler_per_min
+--     from public.pa_mock_runs r, lateral jsonb_array_elements(r.asked) a
+--     group by r.id order by at desc;
+--
+-- Is she improving from one mock to the next:
+--     select to_timestamp(at/1000.0) at time zone 'America/Denver' as sat,
+--            round(avg(score), 2) as avg_line
+--     from public.pa_mock_lines where subject = 'Anna'
+--     group by run_id, at order by at;
+--
+-- What was said about a run, category by category, and about the whole of it:
+--     select notes, note from public.pa_mock_runs where id = 'a1b2c3d4e5';
+--
+-- Which questions have been put to her in a mock, most recently first. Mocks
+-- do not write to pa_attempts, so this is the only record that they were asked:
+--     select a.value->>'qid' as qid, count(*) as times, max(r.at) as last_asked
+--     from public.pa_mock_runs r, lateral jsonb_array_elements(r.asked) a
+--     where r.subject = 'Anna' group by 1 order by last_asked desc;
+--
+-- Put back a mock deleted this afternoon:
+--     insert into public.pa_mock_runs
+--     select (jsonb_populate_record(null::public.pa_mock_runs, before)).*
+--     from public.pa_audit
+--     where op = 'DELETE' and before ? 'ratings' and at > now() - interval '1 day'
+--     on conflict (id) do nothing;
+--
+-- Start the mocks over without touching the question by question scores:
+--     delete from public.pa_mock_runs;
+
+-- How often there was nothing to judge about appearance, and so how many of
+-- these sheets were out of 95 rather than 100:
+--     select count(*) filter (where ratings->>'appearance' = 'na') as set_aside,
+--            count(*) as mocks
+--     from public.pa_mock_runs where subject = 'Anna';

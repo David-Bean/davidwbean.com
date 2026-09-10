@@ -435,6 +435,60 @@ const METRICS = [
 ];
 const SCALE = [1, 2, 3, 4, 5];
 
+/* ---- what a whole mock is scored on -----------------------------------
+   The four metrics above are for one question. This is for the interview as
+   a whole, and it is the book's own sheet: three categories, twenty lines,
+   each line 1 to 5. Nothing here touches new questions or review.
+
+   Twenty lines at five points is a hundred exactly, so the total is already a
+   percentage and wants no scaling anywhere. Communication is nine of those
+   twenty lines and therefore 45 percent of the score. That is the sheet as the
+   book prints it, not an oversight. Do not even it out.
+
+   optional marks the one line that may not apply: a phone or video interview
+   gives a grader nothing to say about how she was dressed. Only a line marked
+   optional can be set aside, and setting it aside takes its five points off
+   the ceiling as well as out of the total. Every other line must be rated.
+
+   Every key below is permanent. A rating is stored under its metric key and a
+   note under its category key, so renaming one leaves the ratings already
+   given filed under a key nothing reads, which is to say it orphans them.
+   Reword a label freely; leave the keys alone. */
+const RUBRIC = [
+  { key: "communication", label: "Communication", metrics: [
+    { key: "clear_articulation", label: "Clearly articulated thoughts" },
+    { key: "specific_examples",  label: "Used specific examples" },
+    { key: "answer_length",      label: "Answers were an appropriate length" },
+    { key: "no_slang",           label: "No slang or distracting words and phrases" },
+    { key: "grammar",            label: "Correct grammar" },
+    { key: "genuine",            label: "Answers were genuine, not rehearsed or robotic" },
+    { key: "beyond_resume",      label: "Conveyed information not on the application or resume" },
+    { key: "personal_traits",    label: "Discussed personal traits" },
+    { key: "why_successful",     label: "Conveyed why she would be a successful PA" },
+  ]},
+  { key: "presence", label: "Presence", metrics: [
+    { key: "appearance",   label: "Professional appearance (if applicable)", optional: true },
+    { key: "eye_contact",  label: "Good eye contact" },
+    { key: "tone_volume",  label: "Appropriate tone and volume of voice" },
+    { key: "no_fidgeting", label: "Free from fidgeting and nervous habits" },
+    { key: "composure",    label: "Maintained composure even when challenged" },
+  ]},
+  { key: "self_confidence", label: "Self-confidence and attitude", metrics: [
+    { key: "at_ease",          label: "Appeared at ease" },
+    { key: "enthusiasm",       label: "Showed enthusiasm" },
+    { key: "confidence_level", label: "Appropriate level of confidence" },
+    { key: "disposition",      label: "Pleasant disposition" },
+    { key: "assertive",        label: "Responded assertively to questions" },
+    { key: "passion",          label: "Portrayed passion for the PA profession" },
+  ]},
+];
+const CATEGORY = Object.fromEntries(RUBRIC.map(c => [c.key, c]));
+/* what an optional line holds once it has been set aside, kept apart from null
+   so that "she wasn't marked on this" and "nobody has marked this yet" are two
+   different things on the page and in the database */
+const NA = "na";
+const RUBRIC_METRICS = RUBRIC.flatMap(c => c.metrics);
+
 const SCHOOLS = { ALL: "General", CDU: "CDU", HSU: "HSU", WSU: "WSU", SMU: "SMU", "S. PERRY": "S. Perry" };
 
 /* ---- the bank ---------------------------------------------------------
@@ -565,6 +619,11 @@ const byId = id => QUESTIONS().find(q => q.id === id) || null;
 
 const KEY = "pa-interview-v1";
 let ATTEMPTS = [];                   // one row per pass at a question
+/* One row per mock interview, kept apart from ATTEMPTS because a mock is
+   assessed once at the end against RUBRIC rather than question by question.
+   A question put to her in a mock is not an attempt and does not count as
+   one anywhere else in the tool. */
+let RUNS = [];
 let SUBJECT = "";                    // who is answering, by name; "" until chosen
 let LOOKBACK = false;                // "" means the earlier scores, not nobody yet
 let GRADER = "";                     // who is scoring, the same way
@@ -616,6 +675,8 @@ let sheetNode = null, midNode = null;    // the sheet and the part of it that is
 /* what the database lets a name be, so a name too long to store is cut here
    rather than refused there and stalling the sync behind it. See schema.sql. */
 const NAMEMAX = 60;
+/* and what it lets a box of prose on a mock run be, cut for the same reason */
+const NOTEMAX = 2000;
 
 const uid = () => "a" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 
@@ -629,7 +690,7 @@ function status(msg) { document.getElementById("status").textContent = msg; }
 
 function save() {
   try {
-    localStorage.setItem(KEY, JSON.stringify({ attempts: ATTEMPTS, subject: SUBJECT,
+    localStorage.setItem(KEY, JSON.stringify({ attempts: ATTEMPTS, runs: RUNS, subject: SUBJECT,
                                                grader: GRADER, added: ADDED, sent: sentOut() }));
     if (!SHARED) status("Saved in this browser.");
   } catch (e) {
@@ -645,13 +706,16 @@ function load() {
     const d = JSON.parse(raw);
     if (!Array.isArray(d.attempts)) throw 0;
     ATTEMPTS = d.attempts.map(fix);
+    /* every blob written before mocks were assessed as a whole is missing this
+       one, and reads back as no mock ever run, which is true of that device */
+    RUNS = Array.isArray(d.runs) ? d.runs.map(fixRun) : [];
     /* a blob written before there were two names has neither of the last two,
        and reads back as nobody chosen, which is what the gate wants anyway */
     SUBJECT = typeof d.subject === "string" ? d.subject : "";
     GRADER = typeof d.grader === "string" ? d.grader : "";
     ADDED = Array.isArray(d.added) ? d.added.filter(n => typeof n === "string" && n.trim()) : [];
     SENT = sentIn(d.sent);
-  } catch (e) { ATTEMPTS = []; }
+  } catch (e) { ATTEMPTS = []; RUNS = []; }
 }
 
 /* a saved row from an older shape, or a hand-edited one, made safe to render */
@@ -669,6 +733,84 @@ function fix(a) {
   return o;
 }
 
+/* The same job for a mock run: a row written by an older shape of the page, or
+   typed into the SQL editor by hand, comes back safe to render. asked is one
+   entry per question actually put to her, in the order they were asked.
+   ratings covers every metric in RUBRIC and nothing else, so a key retired
+   from the sheet stops being read the moment it leaves the constant. A rating
+   is 1 to 5, null for a line nobody has marked yet, or NA for the one line
+   that may not apply. */
+function fixRun(r) {
+  r = r && typeof r === "object" ? r : {};
+  const o = { id: r.id || uid(), at: +r.at || 0,
+              subject: String(r.subject || "").slice(0, NAMEMAX),
+              grader: String(r.grader || "").slice(0, NAMEMAX),
+              asked: [], ratings: {}, notes: {},
+              note: String(r.note || "").slice(0, NOTEMAX) };
+  for (const q of Array.isArray(r.asked) ? r.asked : []) {
+    const a = q && typeof q === "object" ? q : {};
+    o.asked.push({ qid: String(a.qid || "").slice(0, 40),
+                   seconds: clamp(a.seconds, 86400),
+                   fillers: clamp(a.fillers, 10000),
+                   note: String(a.note || "").slice(0, NOTEMAX) });
+  }
+  const rat = r.ratings && typeof r.ratings === "object" ? r.ratings : {};
+  const nts = r.notes && typeof r.notes === "object" ? r.notes : {};
+  for (const m of RUBRIC_METRICS) {
+    /* only a line the sheet marks optional may be set aside. NA anywhere else
+       reads back as unrated, so a hand-edited row can't take five points off
+       the ceiling of a line that has to be answered. */
+    if (m.optional && rat[m.key] === NA) { o.ratings[m.key] = NA; continue; }
+    /* a number, or a number typed as text into the SQL editor. Anything else
+       is unrated rather than talked into a score: true would otherwise land
+       on the sheet as a 1. */
+    const raw = rat[m.key];
+    const v = typeof raw === "number" || typeof raw === "string" ? Math.round(+raw) : NaN;
+    o.ratings[m.key] = v >= 1 && v <= 5 ? v : null;
+  }
+  for (const c of RUBRIC) o.notes[c.key] = String(nts[c.key] || "").slice(0, NOTEMAX);
+  return o;
+}
+/* the ceilings are the database's, so a hand-edited row is cut here rather
+   than refused there and stalling the sync behind it */
+const clamp = (v, hi) => Math.min(hi, Math.max(0, Math.round(+v) || 0));
+
+/* ---- scoring a run ----------------------------------------------------
+   Five points a line: communication is out of 45, presence out of 25, self
+   confidence out of 30, and the whole sheet out of 100. Being out of 100
+   already, the total is a percentage and wants no scaling. Communication is
+   45 of those points and so weighs nearly twice what presence does. That is
+   the book's sheet, not an oversight. pct is here so each category can still
+   be read on its own and a short weak one can't hide inside a long strong one.
+
+   A line left unrated is worth nothing against a ceiling that does not move,
+   so a half-filled sheet reads low until it is finished. The one exception is
+   an optional line set aside, which comes off the ceiling as well: presence is
+   then out of 20 and the sheet out of 95. Nothing else may shrink the ceiling.
+   A ceiling that quietly followed whatever had been filled in would turn a bad
+   interview into a good score and give nobody any reason to look. */
+function points(run, category) {
+  const c = typeof category === "string" ? CATEGORY[category] : category;
+  if (!c) return { got: 0, max: 0 };
+  const rat = (run && run.ratings) || {};
+  let got = 0, max = 0;
+  for (const m of c.metrics) {
+    if (m.optional && rat[m.key] === NA) continue;
+    got += rat[m.key] || 0;
+    max += 5;
+  }
+  return { got, max };
+}
+function pct(run, category) {
+  const p = points(run, category);
+  return p.max ? p.got / p.max : 0;
+}
+function totalPoints(run) {
+  let got = 0, max = 0;
+  for (const c of RUBRIC) { const p = points(run, c); got += p.got; max += p.max; }
+  return { got, max };
+}
+
 /* ---- the shared log ---------------------------------------------------
    The same Supabase project the game uses, and the same rules, with one
    difference that matters. The game replaces what a browser is holding with
@@ -684,10 +826,14 @@ const SUPABASE_KEY = "sb_publishable_xptTzZ-QmmdK6CyBj-wySw_Vm7Fxvfr";
 const SHARED = !!(SUPABASE_URL && SUPABASE_KEY);
 const POLL_MS = 5000;
 
+/* Each table says where it lives, how to read the page's copy of it, how to
+   put a row on the wire and how to take one off. set is what the poll and the
+   cold start write back through, so neither has to name a table it is syncing. */
 const ROWS = {
   attempts: {
     table: "pa_attempts",
     all: () => ATTEMPTS,
+    set: rows => { ATTEMPTS = rows; },
     out: a => {
       const o = { id: a.id, qid: a.qid, at: a.at, subject: a.subject, grader: a.grader,
                   mode: a.mode, fillers: a.fillers, seconds: a.seconds };
@@ -698,6 +844,19 @@ const ROWS = {
                    mode: r.mode, fillers: r.fillers, seconds: r.seconds,
                    ...Object.fromEntries(METRICS.flatMap(m =>
                      [[m.key, r[m.key]], [m.key + "_note", r[m.key + "_note"]]])) })
+  },
+  /* asked, ratings and notes go up as jsonb rather than as columns. The sheet
+     is twenty lines long and the book may add a twenty-first, and a shape that
+     changes is a poor fit for a column apiece. fixRun on the way in is what
+     keeps a row written by an older shape readable. */
+  runs: {
+    table: "pa_mock_runs",
+    all: () => RUNS,
+    set: rows => { RUNS = rows; },
+    out: r => ({ id: r.id, at: r.at, subject: r.subject, grader: r.grader,
+                 asked: r.asked, ratings: r.ratings, notes: r.notes, note: r.note }),
+    in: r => fixRun({ id: r.id, at: +r.at, subject: r.subject, grader: r.grader,
+                      asked: r.asked, ratings: r.ratings, notes: r.notes, note: r.note })
   }
 };
 const TABLES = Object.keys(ROWS);
@@ -791,11 +950,10 @@ async function pull() {
 function adopt(d) {
   const now = snapshot();
   if (unsent(now)) return;                 // our own unsent scores outrank the poll
-  const inc = d.attempts;
-  const same = inc.length === now.attempts.size &&
-    inc.every(a => now.attempts.get(a.id) === JSON.stringify(ROWS.attempts.out(a)));
-  if (same) return;
-  ATTEMPTS = inc;
+  const changed = TABLES.filter(k => !(d[k].length === now[k].size &&
+    d[k].every(o => now[k].get(o.id) === JSON.stringify(ROWS[k].out(o)))));
+  if (!changed.length) return;
+  for (const k of changed) ROWS[k].set(d[k]);
   SENT = snapshot();
   save();
   renderRecord();
@@ -808,10 +966,17 @@ async function sync() {
   try {
     if (!SENT) {
       const d = await pull();
-      const server = new Map(d.attempts.map(a => [a.id, a]));
-      const mine = ATTEMPTS.filter(a => !server.has(a.id));
-      ATTEMPTS = d.attempts.concat(mine);
-      SENT = { attempts: new Map(d.attempts.map(a => [a.id, JSON.stringify(ROWS.attempts.out(a))])) };
+      /* built to one side and put in place whole, so a table that throws on
+         the way through can't leave SENT knowing about some tables and not
+         others, which is a state nothing downstream is written to survive */
+      const sent = {};
+      for (const k of TABLES) {
+        const server = new Map(d[k].map(o => [o.id, o]));
+        const mine = ROWS[k].all().filter(o => !server.has(o.id));
+        ROWS[k].set(d[k].concat(mine));
+        sent[k] = new Map(d[k].map(o => [o.id, JSON.stringify(ROWS[k].out(o))]));
+      }
+      SENT = sent;
       save();
       await push();                        // whatever this device scored while it was alone
       renderRecord();
