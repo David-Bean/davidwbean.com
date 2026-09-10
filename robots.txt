@@ -1,0 +1,4 @@
+# The interview practice tool is a private study aid, not part of the site.
+# Nothing links to it, so there is nothing to index and nothing to follow.
+User-agent: *
+Disallow: /pa_interview_practice/
