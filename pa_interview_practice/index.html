@@ -289,23 +289,38 @@
   .clock.off { color: var(--dim); }
   .tbox button { padding: 5px; border-radius: 8px; line-height: 0; }
   /* A mock's clock runs from before the answer does, so the box has to say
-     which of the two it is counting. The word is for whoever reads it; the
-     colour behind it is what carries across a desk. Blue is only ever the lead
-     in, so it is the one place on the page that wears it. */
+     which of the two it is counting. Blue is only ever the lead in, so it is
+     the one place on the page that wears it. */
   .tbox.ask { border-color: var(--ask); background: #e8eff8; }
   .tbox.ans { border-color: var(--ok);  background: #e9f0e4; }
   .tbox.ask .clock { color: var(--ask); }
   .tbox.ans .clock { color: var(--ok); }
-  .phase { text-transform: uppercase; letter-spacing: .06em; font-size: 13px; font-weight: 600; }
-  .phase.ask { color: var(--ask); }
-  .phase.ans { color: var(--ok); }
-  .phase.off { color: var(--dim); }
-  /* The one control pressed in the middle of a conversation, so it is named
-     rather than drawn: an icon is one more thing to have learned beforehand. */
-  .tbox button.now {
-    line-height: 1.5; padding: 5px 10px;
-    text-transform: uppercase; letter-spacing: .04em; font-size: 13px;
+
+  /* A mock's clock starts itself and crosses over on its own, so it is no
+     longer the thing the card is built around and does not need the size that
+     went with being started by hand. It goes to the foot of the card, under
+     the notes, where it can be glanced at rather than worked. */
+  .timer.low { border-bottom: 0; padding: 0 0 8px; }
+  .timer.low .clock { font-size: 20px; min-width: 62px; }
+  .timer.low .tbox { padding: 4px 8px; }
+
+  /* Both halves are named, not just the one running, so what is about to
+     happen is on the card before it happens. The arrow between them is the
+     press that brings it forward, and it sits on the side the clock has got
+     to: at the crossing it moves from one end of the button to the other,
+     which is a change you can catch without reading either word. */
+  .rail { display: flex; align-items: center; gap: 8px; }
+  .pw { text-transform: uppercase; letter-spacing: .06em; font-size: 13px; color: var(--dim); }
+  .pw.on { font-weight: 600; }
+  .pw.on.ask { color: var(--ask); }
+  .pw.on.ans { color: var(--ok); }
+  .sw {
+    display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px;
+    text-transform: uppercase; letter-spacing: .04em; font-size: 12px;
   }
+  .sw.ask { border-color: var(--ask); color: var(--ask); }
+  .sw.ans { border-color: var(--ok);  color: var(--ok); flex-direction: row-reverse; }
+  .swa { font-size: 15px; line-height: 1; }
   .ico { display: block; width: 18px; height: 18px; }
 
   /* The two taps live under the scores rather than above them: this is worked
@@ -737,7 +752,7 @@ let NAGGED = false;                  // whether the way on has been tried and re
 let T0 = 0;                          // when the clock last started; 0 when stopped
 let clockTimer = 0;
 let clockNode = null, fillNode = null;   // repainted on their own, so a note keeps focus
-let tboxNode = null, phaseNode = null;   // the same, for the phase the clock is in
+let tboxNode = null, askNode = null, ansNode = null, swNode = null;  // the same, for the phase
 let sheetNode = null, midNode = null;    // the sheet and the part of it that is measured
 
 /* what the database lets a name be, so a name too long to store is cut here
@@ -1247,17 +1262,19 @@ function paintClock() {
   paintPhase();
 }
 
-/* Asking becomes answering when the lead in runs out, and nothing is pressed
-   at that moment, so the change has to come off the tick like the numbers do.
-   Mock only: the other two modes have no lead in to be on the near side of. */
+/* Ask becomes answer when the lead in runs out, and nothing is pressed at that
+   moment, so the change has to come off the tick like the numbers do. A
+   stopped clock is on neither of the two: it is not counting anything, and
+   lighting a half of the rail would say it was. Mock only, because the other
+   two modes have no lead in to be on the near side of. */
 function paintPhase() {
   if (!tboxNode || MODE !== "mock") return;
-  const on = ticking();
-  const ans = onClock() >= 0;
-  tboxNode.className = on ? (ans ? "tbox ans" : "tbox ask") : "tbox";
-  if (!phaseNode) return;
-  phaseNode.className = on ? (ans ? "phase ans" : "phase ask") : "phase off";
-  phaseNode.textContent = ans ? "answering" : "asking";
+  const side = !ticking() ? "off" : (onClock() >= 0 ? "ans" : "ask");
+  tboxNode.className = side === "off" ? "tbox" : "tbox " + side;
+  if (!swNode) return;
+  swNode.className = "sw " + side;
+  askNode.className = side === "ask" ? "pw on ask" : "pw";
+  ansNode.className = side === "ans" ? "pw on ans" : "pw";
 }
 
 function startTick() { stopTick(); clockTimer = setInterval(paintClock, 1000); }
@@ -1272,13 +1289,13 @@ function pauseClock() { freeze(); stopTick(); renderPractice(); }
 function resumeClock() { T0 = Date.now(); startTick(); renderPractice(); }
 function resetClock() { freeze(); stopTick(); DRAFT.seconds = 0; renderPractice(); }
 
-/* Her answer starts here. Read the question out faster than the lead in and
-   this skips the rest of it; run over and it takes the overrun off instead.
-   Either way the clock lands on 0:00 and keeps going, because it is pressed in
-   the middle of a sentence and cannot be the kind of button that leaves the
-   clock waiting on a second press. That is where it parts company with Reset,
-   which stops. */
-function startNow() { DRAFT.seconds = 0; T0 = Date.now(); startTick(); renderPractice(); }
+/* Ask to answer, now rather than when the lead in says so. Read the question
+   out faster than ten seconds and this skips the rest of it; run over and it
+   takes the overrun off instead. Either way the clock lands on 0:00 and keeps
+   going, because it is pressed in the middle of a sentence and cannot be the
+   kind of button that leaves the clock waiting on a second press. That is
+   where it parts company with Reset, which stops. */
+function switchNow() { DRAFT.seconds = 0; T0 = Date.now(); startTick(); renderPractice(); }
 
 /* The clock runs on the answering step and nowhere else, but coming back to
    that step is not the same as starting the answer again: only the button that
@@ -1593,7 +1610,7 @@ function fitCard(sheet, mid) {
    is the same clock counting the same answer. Drawn in one place so that
    staying the same does not depend on anyone noticing they should. */
 function clockBox() {
-  const bar = el("div", "timer");
+  const bar = el("div", MODE === "mock" ? "timer low" : "timer");
   const tbox = tboxNode = el("div", "tbox");
   clockNode = el("span", ticking() ? "clock" : "clock off", mmss(onClock()));
   /* The two are drawn rather than written: a word sitting against a running
@@ -1614,19 +1631,25 @@ function clockBox() {
   const zero = tbtn("reset", "Reset", resetClock);
   zero.disabled = !ticking() && onClock() === 0;
   tbox.append(zero);
-  /* Mock only, both of them. The other two modes start the clock by hand once
-     the question has been read, so there is no lead in to skip and no pair of
-     phases to tell apart. */
-  if (MODE === "mock") {
-    const now = el("button", "now", "Start now");
-    now.onclick = startNow;
-    tbox.append(now);
-    phaseNode = el("span", "phase");
-  }
   bar.append(tbox);
-  if (phaseNode) bar.append(phaseNode);
+  /* Mock only. The other two modes start the clock by hand once the question
+     has been read, so there is no lead in to skip and no pair of halves to
+     tell apart, and the rail would name a crossing that never happens. */
+  if (MODE === "mock") {
+    askNode = el("span", "pw", "Ask");
+    ansNode = el("span", "pw", "Answer");
+    /* The arrow is the press rather than a picture beside it. The words on it
+       are what makes it safe to reach for mid conversation: the other three
+       are learned before the interview, this one is found during it. */
+    swNode = el("button", "sw");
+    swNode.append(el("span", "swa", "\u2192"), el("span", null, "Switch now"));
+    swNode.onclick = switchNow;
+    const rail = el("div", "rail");
+    rail.append(askNode, swNode, ansNode);
+    bar.append(rail);
+  }
   /* drawn by the same code that repaints it every second, so the two cannot
-     drift into disagreeing about which phase the clock is in */
+     drift into disagreeing about which side of the crossing the clock is on */
   paintPhase();
   return bar;
 }
@@ -1647,7 +1670,7 @@ function renderPractice() {
   const card = document.getElementById("practice");
   card.textContent = "";
   clockNode = fillNode = sheetNode = midNode = null;
-  tboxNode = phaseNode = null;
+  tboxNode = askNode = ansNode = swNode = null;
   const q = QUEUE[QI];
   /* Before its first question and after its last, a mock is not on a question.
      None of those screens is drawn on the sheet: they all run longer than the
@@ -1832,7 +1855,7 @@ function renderPractice() {
     const nth = seen >= 0 ? seen + 1 : RUN.length + 1;
     box.append(title("Question " + nth + " of " + mockLen()),
                el("p", "qsub", LISTENING), pane(asked()));
-    sheet.append(box, clockBox());
+    sheet.append(box);
 
     const note = el("textarea");
     note.rows = 4;
@@ -1854,7 +1877,11 @@ function renderPractice() {
        press away rather than gone for the rest of the run. */
     pad.append(step1("go", last ? "Finish the interview" : "Next question", commit),
                step1(null, "New card", () => mockNext(false)), back);
-    foot.append(pad);
+    /* Under the notes rather than over the question, and at the foot of the
+       card because the foot is what holds its place when the middle gives. A
+       clock that is read rather than worked belongs where the hand already
+       is, beside the buttons. */
+    foot.append(clockBox(), pad);
     finish();
     return;
   }
@@ -2543,12 +2570,12 @@ const BRIEFING_COPY = [
   "You are running a full mock interview. Ask every question in order, and do "
     + "not stop to grade anything along the way.",
   "Each card gives you the question, a clock, a filler word counter, and "
-    + "somewhere to write. The clock starts itself when the card comes up, ten "
-    + "seconds under zero. That is your lead in for reading the question out: "
-    + "it counts down in blue and says asking, and at zero it turns green and "
-    + "says answering, which is the part being timed. If you finish reading "
-    + "sooner or later than that, press \u201cStart now\u201d as she starts "
-    + "and the clock goes to 0:00 and keeps running. Pause it if she is "
+    + "somewhere to write. The clock at the foot of the card starts itself ten "
+    + "seconds under zero. That is your lead in for reading the question out, "
+    + "and Ask is lit blue beside it. At zero it crosses to Answer and turns "
+    + "green, and that is the part being timed. If you finish reading sooner "
+    + "or later than ten seconds, press \u201cSwitch now\u201d as she starts: "
+    + "the clock goes to 0:00 and keeps running. Pause it if she is "
     + "interrupted, and move on when she is done. The notes are "
     + "yours. Nothing in them is scored. They are there to catch what you would "
     + "otherwise have forgotten by question ten.",
