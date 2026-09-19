@@ -287,6 +287,20 @@
   .clock { font-size: 28px; font-variant-numeric: tabular-nums; min-width: 84px; }
   .clock.off { color: var(--dim); }
   .tbox button { padding: 5px; border-radius: 8px; line-height: 0; }
+  /* A mock's clock starts itself, so whether it is running is no longer
+     something the grader did and can be assumed. It wears the navy the page
+     puts on anything that is on rather than offered, which carries the length
+     of the box across a desk where a colour on the digits alone would not. */
+  .tbox.run { background: var(--navy); border-color: var(--navy); }
+  .tbox.run .clock { color: var(--gold); }
+  .tbox.run button { background: transparent; border-color: var(--gold); color: var(--gold); }
+  .tbox.run button:hover { background: var(--gold); color: var(--navy); }
+  /* The one control pressed in the middle of a conversation, so it is named
+     rather than drawn: an icon is one more thing to have learned beforehand. */
+  .tbox button.now {
+    line-height: 1.5; padding: 5px 10px;
+    text-transform: uppercase; letter-spacing: .04em; font-size: 13px;
+  }
   .ico { display: block; width: 18px; height: 18px; }
 
   /* The two taps live under the scores rather than above them: this is worked
@@ -1228,6 +1242,13 @@ function pauseClock() { freeze(); stopTick(); renderPractice(); }
 function resumeClock() { T0 = Date.now(); startTick(); renderPractice(); }
 function resetClock() { freeze(); stopTick(); DRAFT.seconds = 0; renderPractice(); }
 
+/* A mock's clock has been running since the card went up, which covers reading
+   the question out. This drops those seconds without stopping anything: it
+   says her answer starts here. It is pressed in the middle of a sentence, so
+   it cannot be the kind of button that leaves the clock waiting on a second
+   press, which is where it parts company with Reset. */
+function startNow() { DRAFT.seconds = 0; T0 = Date.now(); startTick(); renderPractice(); }
+
 /* The clock runs on the answering step and nowhere else, but coming back to
    that step is not the same as starting the answer again: only the button that
    says so starts it. Back leaves the clock where it was, with Resume beside
@@ -1261,6 +1282,21 @@ function newPass() {
   const q = QUEUE[QI];
   const a = q && RUN.find(x => x.qid === q.id);
   if (a) { DRAFT.seconds = a.seconds; DRAFT.fillers = a.fillers; DRAFT.note = a.note; }
+  /* A mock question is being put to her from the moment it is on the card, so
+     its clock starts with it. There is nothing left for the grader to remember
+     in the middle of a conversation, and no question can come out of a run
+     with no time on it at all. A forgotten clock used to be silent: seconds of
+     0 are filtered out of the estimate and the discussion screen then has
+     nothing to say about that question. "Start now" is how the seconds spent
+     reading it out are dropped.
+
+     A question she has already been asked is the one card that opens stopped.
+     Its time is finished, and a clock running on a revisit would add to a
+     number that was arrived at once already.
+
+     The briefing and the assessment sheet stand in front of the card. A clock
+     started behind either is counting a question nobody is being asked. */
+  else if (MODE === "mock" && q && !BRIEFING && !ASSESSING) { T0 = Date.now(); startTick(); }
 }
 
 /* A new queue is a new run: whatever the last one collected is not this one's
@@ -1515,7 +1551,7 @@ function fitCard(sheet, mid) {
    staying the same does not depend on anyone noticing they should. */
 function clockBox() {
   const bar = el("div", "timer");
-  const tbox = el("div", "tbox");
+  const tbox = el("div", ticking() ? "tbox run" : "tbox");
   clockNode = el("span", ticking() ? "clock" : "clock off", mmss(onClock()));
   /* The two are drawn rather than written: a word sitting against a running
      clock reads as part of the time. What each one is called stays on it for
@@ -1535,6 +1571,14 @@ function clockBox() {
   const zero = tbtn("reset", "Reset", resetClock);
   zero.disabled = !ticking() && onClock() === 0;
   tbox.append(zero);
+  /* Mock only. The other two modes start the clock by hand once the question
+     has been read, so there are no reading seconds on it to throw away and
+     nothing here for this to say. */
+  if (MODE === "mock") {
+    const now = el("button", "now", "Start now");
+    now.onclick = startNow;
+    tbox.append(now);
+  }
   bar.append(tbox);
   return bar;
 }
@@ -2450,8 +2494,10 @@ const BRIEFING_COPY = [
   "You are running a full mock interview. Ask every question in order, and do "
     + "not stop to grade anything along the way.",
   "Each card gives you the question, a clock, a filler word counter, and "
-    + "somewhere to write. Start the clock when she starts answering, pause it "
-    + "if she is interrupted, and move on when she is done. The notes are "
+    + "somewhere to write. The clock starts itself when the card comes "
+    + "up, so press \u201cStart now\u201d as she starts answering and the time "
+    + "you spent reading the question out drops off it. Pause it if she is "
+    + "interrupted, and move on when she is done. The notes are "
     + "yours. Nothing in them is scored. They are there to catch what you would "
     + "otherwise have forgotten by question ten.",
   "Do not react to an answer the way you would in practice. No coaching, no "
