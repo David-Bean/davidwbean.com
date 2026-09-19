@@ -96,8 +96,10 @@
   .brief { display: flex; flex-direction: column; height: 100%; }
   .brief > .briefhead, .brief > .foot { flex: 0 0 auto; }
   .briefhead { font-size: 13.5px; margin: 0 0 10px; }
-  /* the middle of each of them, all three scrolling the same way */
-  .mocklist, .briefbody, .assess { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+  /* The middle of each of them, all three scrolling the same way. The briefing
+     and the read-back at the end are both prose with rows under it, so the two
+     of them are the same body. */
+  .briefbody, .assess { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
   .briefbody p { color: var(--dim); font-size: 14px; line-height: 1.5; margin: 0 0 11px; }
   .briefbody > .gname { margin-top: 12px; }
 
@@ -117,6 +119,19 @@
      above it scroll */
   .sheettotal { font-size: 14px; font-weight: 600; margin: 0 0 2px;
                font-variant-numeric: tabular-nums; }
+
+  /* The sheet read back at the end of a mock, with the controls gone: a line
+     and what it was given, and under the category what was written about it.
+     A score sits against the same edge the category's total does, so every
+     figure in a category is found down one column. */
+  .dline { display: flex; gap: 10px; align-items: baseline; font-size: 13.5px;
+           border-top: 1px solid var(--line); padding: 7px 0; }
+  .dline .dname { flex: 1 1 auto; min-width: 0; }
+  .dline .dsc { flex: 0 0 auto; color: var(--dim); font-variant-numeric: tabular-nums; }
+  .dsaid { color: var(--dim); font-size: 13px; line-height: 1.5; margin-top: 10px;
+           border-left: 2px solid var(--line); padding-left: 11px; }
+  /* a question the bank no longer holds, so there are no words to put in the row */
+  .qrow .gone { color: var(--dim); font-style: italic; }
 
   /* ---- the bar of who and how it is going ---- */
   .top { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 14px; }
@@ -845,6 +860,10 @@ function totalPoints(run) {
   for (const c of RUBRIC) { const p = points(run, c); got += p.got; max += p.max; }
   return { got, max };
 }
+/* a share as a whole percent, which is the only shape a percentage is put in
+   anywhere here. Both screens that read a run back use it, so the sheet and
+   the discussion round the same way and cannot disagree. */
+const cut = n => Math.round(n * 100) + "%";
 
 /* ---- the shared log ---------------------------------------------------
    The same Supabase project the game uses, and the same rules, with one
@@ -1796,7 +1815,6 @@ function assessment() {
   const repaint = () => { for (const f of paint) f(); };
   const blanks = () => RUBRIC_METRICS.filter(m => run.ratings[m.key] === null);
   const rows = new Map();          // metric key -> its row, for the jump to the next blank
-  const cut = n => Math.round(n * 100) + "%";
 
   /* One line of the sheet: what it asks, whether it has been called yet, and
      the row of five. Tapping the score already showing takes it back off, the
@@ -1926,59 +1944,132 @@ function notebox(hint, value, put) {
 }
 
 /* ---- the end of a mock ------------------------------------------------
-   The run is down and rated by the time this is drawn, so nothing here saves
-   anything. Slice 4 puts the discussion in place of it.
+   The questions are asked and the sheet is filled in, and now the two of them
+   go through it together. So the whole of the sheet is read back here: what
+   each category came to, the lines behind it, what was written under it, and
+   the questions it took to get there.
 
-   Not a step of the pass and not drawn on the sheet: twenty questions cannot
-   be scaled down into the frame and still be read, so the head and the button
-   stay where they are and the list between them scrolls. */
+   Nothing on this screen saves anything and nothing on it can be changed.
+   Every value it shows was written and sent when the assessment was saved, so
+   a reader looking for the write that backs this screen will not find one and
+   does not want one.
+
+   Not a step of the pass and not drawn on the sheet: twenty lines and a run of
+   questions under them cannot be scaled down into the frame and still be read,
+   so the head and the button hold their places and the middle scrolls. */
 function discussion() {
   const box = el("div", "brief");
   /* the run is read back off the record by id rather than held, so one deleted
      from the log below drops off this screen rather than lingering on it */
   const run = RUNS.find(r => r.id === RUNID);
-  const asked = run ? run.asked : [];
-  const secs = asked.reduce((t, a) => t + a.seconds, 0);
-  const fill = asked.reduce((t, a) => t + a.fillers, 0);
-  /* Nothing was scored, so there is no average to give and no shape to draw.
-     What the run came to is the clock and the fillers over the whole of it,
-     which is the part of a mock that does not wait for the assessment. */
-  box.append(el("p", "briefhead", (SUBJECT.trim() || "Nobody") + ": " + QUEUE.length
-    + (QUEUE.length === 1 ? " question, " : " questions, ") + asked.length + " asked, "
-    + mmss(secs) + " on the clock, " + fill
-    + (fill === 1 ? " filler word." : " filler words.")));
-
-  const put = new Map(asked.map(a => [a.qid, a]));
-  const list = el("div", "mocklist");
-  for (const q of QUEUE) {
-    const a = put.get(q.id) || null;
-    const row = el("button", "qrow");
-    row.append(el("span", "arrow", DOPEN.has(q.id) ? "\u25be" : "\u25b8"));
-    row.append(el("span", "chip", SCHOOLS[q.tag] || q.tag));
-    row.append(rich(el("span", "tw"), q.text));
-    row.append(el("span", "sc", a ? mmss(a.seconds) + " \u00b7 " + a.fillers + "f" : "skipped"));
-    row.onclick = () => {
-      if (DOPEN.has(q.id)) DOPEN.delete(q.id); else DOPEN.add(q.id);
-      renderPractice();
-    };
-    list.append(row);
-    if (DOPEN.has(q.id)) {
-      const open = el("div", "detail");
-      /* what the grader wrote while she was answering, which is the only thing
-         a mock question carries of its own; a question walked past has none */
-      if (a && a.note.trim()) open.append(el("span", null, a.note));
-      else open.append(el("span", "empty", a ? "Nothing written down." : "Not asked."));
-      list.append(open);
-    }
-  }
-  box.append(list);
 
   const foot = el("div", "foot"), acts = el("div", "actions");
   const again = el("button", "go", "Start another mock");
   again.onclick = () => setMode("mock");
   acts.append(again);
   foot.append(acts);
-  box.append(foot);
+  if (!run) {
+    box.append(el("p", "empty", "That interview is no longer in the log."));
+    box.append(foot);
+    return box;
+  }
+
+  const t = totalPoints(run);
+  box.append(el("p", "briefhead", (run.subject.trim() || "Nobody") + ": " + t.got
+    + " / " + t.max + " \u00b7 " + cut(t.max ? t.got / t.max : 0) + " overall."));
+
+  const body = el("div", "briefbody");
+  for (const s of DISCUSSION_COPY) body.append(el("p", null, s));
+
+  /* a headed block with a figure hard against the right, the way the sheet
+     heads its categories, so the three of them and the questions under them
+     are all read the same way */
+  const section = (name, score) => {
+    const cat = el("div", "acat");
+    const head = el("div", "cathead");
+    head.append(el("span", "catname", name));
+    if (score) head.append(el("span", "catscore", score));
+    cat.append(head);
+    body.append(cat);
+    return cat;
+  };
+  /* what was written in a box, or that it was left empty. An empty one keeps
+     its place, because a category nothing was written under is worth seeing
+     beside two that have something. */
+  const said = (cat, text) =>
+    cat.append(el("div", "dsaid", text.trim() || "Nothing written down."));
+
+  for (const c of RUBRIC) {
+    const p = points(run, c);
+    const cat = section(c.label, p.got + " / " + p.max + " \u00b7 " + cut(pct(run, c)));
+    for (const m of c.metrics) {
+      const v = run.ratings[m.key];
+      const row = el("div", "dline");
+      row.append(el("span", "dname", m.label));
+      /* The sheet cannot be saved with a line unrated, so an unrated line
+         here came off a row written by an older shape of the page or typed
+         into the SQL editor by hand. It says so rather than sitting in the
+         column as a nought nobody gave her. */
+      row.append(el("span", "dsc", v === NA ? "set aside"
+                                : v === null ? "not rated" : v + " / 5"));
+      cat.append(row);
+    }
+    said(cat, run.notes[c.key]);
+  }
+  said(section("The interview as a whole", null), run.note);
+
+  /* The questions off the run's own list rather than off QUEUE. The queue is
+     the pool the run was drawn from and can be longer than the interview, so
+     walking it would put questions on the screen that were never asked. The
+     run is also the only one of the two that is still there after a reload. */
+  const asked = run.asked;
+  const secs = asked.reduce((n, a) => n + a.seconds, 0);
+  const fill = asked.reduce((n, a) => n + a.fillers, 0);
+  const qs = section("Questions asked", asked.length
+    + (asked.length === 1 ? " question \u00b7 " : " questions \u00b7 ")
+    + mmss(secs) + " \u00b7 " + fill + "f");
+  for (const a of asked) {
+    const row = el("button", "qrow");
+    const arrow = el("span", "arrow", "");
+    row.append(arrow);
+    /* A run keeps a question by its id, and a question reworded since is a new
+       question under a new id, so the words it was asked in are nowhere to be
+       had. The row keeps its place and says so, the way the log leaves an
+       attempt whose question has gone. The clock, the fillers and the note are
+       the run's own and are all still there. */
+    const q = byId(a.qid);
+    if (q) {
+      row.append(el("span", "chip", SCHOOLS[q.tag] || q.tag));
+      row.append(rich(el("span", "tw"), q.text));
+    } else {
+      row.append(el("span", "tw gone", "This question is no longer in the bank."));
+    }
+    row.append(el("span", "sc", mmss(a.seconds) + " \u00b7 " + a.fillers + "f"));
+
+    const open = el("div", "detail");
+    /* what the grader wrote while she was answering, which is the only thing
+       a mock question carries of its own */
+    open.append(el("span", a.note.trim() ? null : "empty",
+                   a.note.trim() || "Nothing written down."));
+    /* Opened in place rather than by drawing the screen again: the questions
+       sit under twenty lines of the sheet, and a redraw would take the grader
+       back to the top of them mid sentence. DOPEN is still what says which are
+       open, so a redraw from anywhere else finds them as she left them. */
+    const mark = () => {
+      const on = DOPEN.has(a.qid);
+      arrow.textContent = on ? "\u25be" : "\u25b8";
+      open.hidden = !on;
+      row.setAttribute("aria-expanded", on ? "true" : "false");
+    };
+    row.onclick = () => {
+      if (DOPEN.has(a.qid)) DOPEN.delete(a.qid); else DOPEN.add(a.qid);
+      mark();
+    };
+    mark();
+    qs.append(row, open);
+  }
+
+  box.append(body, foot);
   return box;
 }
 
@@ -2286,6 +2377,35 @@ const BRIEFING_COPY = [
     + "rather than of the interview.",
   "When the last question is done you go to the assessment sheet, and after "
     + "that to the discussion.",
+];
+
+/* How to run the conversation the interview ends on, said the way the briefing
+   says how to run the interview. Every sentence in here is fixed. Anything the
+   screen says about this particular run, a total, a percentage, a count of
+   questions, is built where it is drawn, so rewriting what the grader is told
+   stays an edit to this array and nothing else. */
+const DISCUSSION_COPY = [
+  "The interview is over and scored. Now go through it with her. Everything "
+    + "below is what you just wrote, read back in the order you wrote it, and "
+    + "none of it changes from here.",
+  "Start with the whole of it before the parts. Say what the overall score "
+    + "means and what it does not. It is one reading of one interview by one "
+    + "person, and it is a place to work from rather than a verdict.",
+  "Then take the three categories in turn. Read her the score, the lines "
+    + "behind it and what you wrote underneath, and say what earned each one. "
+    + "A number on its own teaches nobody anything. The low lines are where "
+    + "the time goes.",
+  "Ask before you tell. Ask her how she thought it went, which answers she "
+    + "would give again and which she would take back. She will name half of "
+    + "it herself, and what she names herself is what she will remember.",
+  "Go through the questions last, with the clock and the filler count beside "
+    + "each one. A long answer is not automatically a bad one and a short one "
+    + "is not automatically a good one, so read the numbers against what she "
+    + "actually said. Open a question to see what you wrote while she was "
+    + "answering it.",
+  "End on two or three things to work on, not ten, and write them down "
+    + "somewhere she will look again. Then start another mock, on another day, "
+    + "and see whether they moved.",
 ];
 
 /* The job, start to finish, in the order the buttons come in. */
