@@ -305,22 +305,31 @@
   .timer.low .tbox { padding: 4px 8px; }
 
   /* Both halves are named, not just the one running, so what is about to
-     happen is on the card before it happens. The arrow between them is the
-     press that brings it forward, and it sits on the side the clock has got
-     to: at the crossing it moves from one end of the button to the other,
-     which is a change you can catch without reading either word. */
+     happen is on the card before it happens. The button between them keeps an
+     arrow at each end and shows only the one it would take you to, so the
+     press points at its own outcome and the crossing reads as the arrow
+     leaving one edge of the button for the other. The label does not move
+     when it does. A word that shifts under the eye is the thing that gets
+     read, and the clock is what should be. */
   .rail { display: flex; align-items: center; gap: 8px; }
   .pw { text-transform: uppercase; letter-spacing: .06em; font-size: 13px; color: var(--dim); }
   .pw.on { font-weight: 600; }
   .pw.on.ask { color: var(--ask); }
   .pw.on.ans { color: var(--ok); }
   .sw {
-    display: inline-flex; align-items: center; gap: 6px; padding: 4px 9px;
+    position: relative; padding: 4px 26px;
     text-transform: uppercase; letter-spacing: .04em; font-size: 12px;
   }
   .sw.ask { border-color: var(--ask); color: var(--ask); }
-  .sw.ans { border-color: var(--ok);  color: var(--ok); flex-direction: row-reverse; }
-  .swa { font-size: 15px; line-height: 1; }
+  .sw.ans { border-color: var(--ok);  color: var(--ok); }
+  .swa {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    font-size: 15px; line-height: 1; opacity: 0; transition: opacity .15s linear;
+  }
+  .swa.l { left: 8px; }
+  .swa.r { right: 8px; }
+  .sw.ask .swa.r { opacity: 1; }
+  .sw.ans .swa.l { opacity: 1; }
   .ico { display: block; width: 18px; height: 18px; }
 
   /* The two taps live under the scores rather than above them: this is worked
@@ -1289,13 +1298,22 @@ function pauseClock() { freeze(); stopTick(); renderPractice(); }
 function resumeClock() { T0 = Date.now(); startTick(); renderPractice(); }
 function resetClock() { freeze(); stopTick(); DRAFT.seconds = 0; renderPractice(); }
 
-/* Ask to answer, now rather than when the lead in says so. Read the question
-   out faster than ten seconds and this skips the rest of it; run over and it
-   takes the overrun off instead. Either way the clock lands on 0:00 and keeps
-   going, because it is pressed in the middle of a sentence and cannot be the
-   kind of button that leaves the clock waiting on a second press. That is
-   where it parts company with Reset, which stops. */
-function switchNow() { DRAFT.seconds = 0; T0 = Date.now(); startTick(); renderPractice(); }
+/* One press, both ways. Forward is the common one: read the question out
+   faster than ten seconds and this skips the rest of the lead in, run over and
+   it takes the overrun off instead, and either way the clock lands on 0:00 and
+   keeps going, because it is pressed in the middle of a sentence and cannot be
+   the kind of button that leaves the clock waiting on a second press. Back is
+   for the press that came too early, where she was drawing breath rather than
+   answering: it hands the lead in back whole and drops the seconds that were
+   put on her answer by mistake. Only a running clock goes back, since a paused
+   one is holding an answer worth keeping. That is where this parts company
+   with Reset, which stops. */
+function switchNow() {
+  DRAFT.seconds = ticking() && onClock() >= 0 ? -LEADIN : 0;
+  T0 = Date.now();
+  startTick();
+  renderPractice();
+}
 
 /* The clock runs on the answering step and nowhere else, but coming back to
    that step is not the same as starting the answer again: only the button that
@@ -1638,11 +1656,16 @@ function clockBox() {
   if (MODE === "mock") {
     askNode = el("span", "pw", "Ask");
     ansNode = el("span", "pw", "Answer");
-    /* The arrow is the press rather than a picture beside it. The words on it
-       are what makes it safe to reach for mid conversation: the other three
-       are learned before the interview, this one is found during it. */
+    /* The arrow is the press rather than a picture beside it, and there is one
+       at each end because the press goes both ways. The words on it are what
+       makes it safe to reach for mid conversation: the other three are learned
+       before the interview, this one is found during it. */
     swNode = el("button", "sw");
-    swNode.append(el("span", "swa", "\u2192"), el("span", null, "Switch now"));
+    const lft = el("span", "swa l", "\u2190"), rgt = el("span", "swa r", "\u2192");
+    /* the label is the whole of the name; the arrows draw the same thing again */
+    lft.setAttribute("aria-hidden", "true");
+    rgt.setAttribute("aria-hidden", "true");
+    swNode.append(lft, el("span", null, "Switch now"), rgt);
     swNode.onclick = switchNow;
     const rail = el("div", "rail");
     rail.append(askNode, swNode, ansNode);
@@ -2575,7 +2598,9 @@ const BRIEFING_COPY = [
     + "and Ask is lit blue beside it. At zero it crosses to Answer and turns "
     + "green, and that is the part being timed. If you finish reading sooner "
     + "or later than ten seconds, press \u201cSwitch now\u201d as she starts: "
-    + "the clock goes to 0:00 and keeps running. Pause it if she is "
+    + "the clock goes to 0:00 and keeps running. Press it again and the lead in "
+    + "comes back, for the time you call the start of an answer that turns out "
+    + "to be a pause. Pause the clock if she is "
     + "interrupted, and move on when she is done. The notes are "
     + "yours. Nothing in them is scored. They are there to catch what you would "
     + "otherwise have forgotten by question ten.",
