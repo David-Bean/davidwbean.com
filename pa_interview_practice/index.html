@@ -1067,6 +1067,20 @@ const LOG = () => ATTEMPTS.filter(a => a.subject === SUBJECT.trim());
    name, and is what a SUBJECT of "" reads back. */
 const anyUnnamed = () => ATTEMPTS.some(a => a.subject === "");
 
+/* Every question already put to whoever is being interviewed, across all the
+   mocks they have sat. Per person and not per device, the same way LOG() is:
+   two people practising off one page should not be shortening each other's
+   pool between them. A mock question leaves no attempt row, so this is the
+   only record that it was ever asked. */
+function shownTo() {
+  const seen = new Set();
+  for (const r of RUNS) {
+    if (r.subject !== SUBJECT.trim()) continue;
+    for (const a of r.asked) seen.add(a.qid);
+  }
+  return seen;
+}
+
 const attemptsFor = qid => LOG().filter(a => a.qid === qid).sort((x, y) => y.at - x.at);
 const latestFor = qid => {
   let best = null;
@@ -1115,7 +1129,7 @@ const MODES = {
     label: "Mock interview",
     empty: "The set this mode is drawing from has no questions in it. Pick another set, "
          + "or drop a mock.json in beside this page.",
-    build: () => shuffle(inPool(MODE)).slice(0, MOCKN)
+    build: mockQueue
   }
 };
 
@@ -1125,6 +1139,33 @@ function shuffle(xs) {
     const t = xs[i]; xs[i] = xs[j]; xs[j] = t;
   }
   return xs;
+}
+
+/* The questions a mock has to draw on, best first: the ones this interviewee
+   has not been asked before, then the ones they have. A preference and not a
+   filter, which is why the second lot is on the end rather than left off. Ten
+   questions out of eight unasked ones is still ten questions.
+
+   The whole set is in the queue, not the first MOCKN of it, because New card
+   means "not that one, give me another" and the tail is where the another
+   comes from. What ends the run is the count actually put to them, so the
+   queue being longer than the interview costs nothing and is never shown. */
+function mockQueue() {
+  const seen = shownTo();
+  const fresh = [], again = [];
+  for (const q of inPool("mock")) (seen.has(q.id) ? again : fresh).push(q);
+  return shuffle(fresh).concat(shuffle(again));
+}
+
+/* How long the run is: the number asked for, or the whole set when the set is
+   shorter than that. A set of eight cannot be made to yield a mock of ten. */
+const mockLen = () => Math.min(MOCKN, inPool("mock").length);
+
+/* How many of the run will be questions this interviewee has had before. */
+function mockRepeats() {
+  const seen = shownTo();
+  const fresh = inPool("mock").filter(q => !seen.has(q.id)).length;
+  return Math.max(0, mockLen() - fresh);
 }
 
 /* How long a mock of n questions is likely to take the person being
@@ -1213,6 +1254,13 @@ function newPass() {
   T0 = 0;
   PHASE = MODE === "mock" ? "asking" : "hidden";
   DRAFT = blank();
+  /* A question already put to her in this run opens on what it came to, so
+     going back to one and forward again is a look at it rather than a fresh
+     start that throws away the clock and the notes. RUN is empty in every
+     other mode, so this does nothing there. */
+  const q = QUEUE[QI];
+  const a = q && RUN.find(x => x.qid === q.id);
+  if (a) { DRAFT.seconds = a.seconds; DRAFT.fillers = a.fillers; DRAFT.note = a.note; }
 }
 
 /* A new queue is a new run: whatever the last one collected is not this one's
@@ -1298,17 +1346,30 @@ function commit() {
 }
 
 /* Moving on in a mock. A question that was put to her goes onto the run with
-   what it came to; a question skipped goes nowhere at all, because a zero
-   would read later as an answer that scored nothing rather than as a question
-   she was never asked. Either way the last one has nowhere to advance to and
-   standing still would offer it over again, so it ends the run. */
+   what it came to; a question passed over for a new card goes nowhere at all,
+   because a zero would read later as an answer that scored nothing rather than
+   as a question she was never asked.
+
+   A question asked twice is still one question. Back and forward again lands
+   here a second time, and what it collected the second time is what it came
+   to, so the entry is written over rather than added beside.
+
+   A mock of ten asks ten. The run ends on the tenth question put to her and
+   not on the tenth card, so two cards dealt away cost the queue two questions
+   and the interview none. It ends early only when the set itself runs out,
+   which is the one case where there is nothing left to offer. */
 function mockNext(record) {
   const q = QUEUE[QI];
   if (!q) return;
   freeze();                            /* moving on while it runs still records the time */
-  if (record) RUN.push({ qid: q.id, seconds: DRAFT.seconds,
-                         fillers: DRAFT.fillers, note: DRAFT.note });
-  if (QI === QUEUE.length - 1) endMock();
+  if (record) {
+    const e = { qid: q.id, seconds: DRAFT.seconds,
+                fillers: DRAFT.fillers, note: DRAFT.note };
+    const i = RUN.findIndex(x => x.qid === q.id);
+    if (i >= 0) RUN[i] = e;
+    else RUN.push(e);
+  }
+  if (RUN.length >= mockLen() || QI === QUEUE.length - 1) endMock();
   else QI++;
   newPass();
   renderAll();
@@ -1504,7 +1565,7 @@ function renderPractice() {
   if (DISCUSSION) { card.append(discussion()); return; }
   if (!q) {
     card.append(el("p", "empty", NOTHINGASKED
-      ? "Every question was skipped, so nothing was asked and nothing was saved."
+      ? "The set ran out with nothing asked, so nothing was saved."
       : MODES[MODE].empty));
     return;
   }
@@ -1667,8 +1728,16 @@ function renderPractice() {
   if (PHASE === "asking") {
     const box = el("div", "qbox");
     /* A mock runs without a break in it, so where you are in the run is
-       nowhere else on the screen to be found. */
-    box.append(title("Question " + (QI + 1) + " of " + QUEUE.length),
+       nowhere else on the screen to be found.
+
+       Counted in questions actually put to her, out of the length of the run.
+       The queue under it is the whole set and runs far past the interview, so
+       counting the card instead would read "Question 3 of 335" and would move
+       on a new card, which is the one thing a new card must not do. A question
+       she has already been asked keeps the number it had. */
+    const seen = RUN.findIndex(a => a.qid === q.id);
+    const nth = seen >= 0 ? seen + 1 : RUN.length + 1;
+    box.append(title("Question " + nth + " of " + mockLen()),
                el("p", "qsub", LISTENING), pane(asked()));
     sheet.append(box, clockBox());
 
@@ -1682,10 +1751,16 @@ function renderPractice() {
     note.oninput = () => { DRAFT.note = note.value; };
     mid.append(note);
 
-    const last = QI === QUEUE.length - 1;
+    const last = nth >= mockLen() || QI === QUEUE.length - 1;
     const pad = fillerPad();
+    /* Not Skip, which is what this was and what the other two modes still
+       have. Skip walks past a question and puts nothing in its place, and in a
+       mock nothing is what it no longer does: the run is ten questions long
+       whatever happens here, so all this can do is deal a different one. Back
+       is the change of mind after it, so a card swapped out by accident is one
+       press away rather than gone for the rest of the run. */
     pad.append(step1("go", last ? "Finish the interview" : "Next question", commit),
-               step1(null, "Skip", () => mockNext(false)));
+               step1(null, "New card", () => mockNext(false)), back);
     foot.append(pad);
     finish();
     return;
@@ -1779,6 +1854,17 @@ function briefing() {
   body.append(personPicker("subject", SUBJECT, setSubject),
               personPicker("grader", GRADER, n => { GRADER = n; gate(); }),
               mockLength());
+  /* A run longer than what is left unasked is still run at its full length,
+     and the questions coming round again are worth knowing about before the
+     interview rather than halfway through it. */
+  const again = mockRepeats(), fresh = mockLen() - again, who = SUBJECT.trim();
+  if (again > 0 && who)
+    body.append(el("p", "empty", fresh === 0
+      ? "Every question in this set has been put to " + who + " before, so all "
+        + mockLen() + " of these will come round again."
+      : "This set has only " + fresh + (fresh === 1 ? " question " : " questions ")
+        + who + " has not been asked, so the other " + again + " of the " + mockLen()
+        + " will come round again."));
   gate();
   box.append(body);
 
@@ -2247,7 +2333,7 @@ function mockLength() {
   const have = inPool("mock").length;
   const sizes = [5, 10, 15, 20].filter(k => k < have);
   sizes.push(have);
-  const n = Math.min(MOCKN, have);
+  const n = mockLen();
   for (const k of sizes) {
     const o = el("option", null, k === have ? "All (" + k + ")" : String(k));
     o.value = String(k);
