@@ -308,8 +308,8 @@
      happen is on the card before it happens. The button between them keeps an
      arrow at each end and shows only the one on the side the clock has got to,
      so the crossing reads as the arrow leaving one edge of the button for the
-     other. It points the way the interview goes in both places, since that is
-     the one direction time runs in whatever the button is for. The label does
+     other. Each points outward, at the half it is beside, so the arrow says
+     which word is live rather than which way the interview runs. The label does
      not move when the arrow does. A word that shifts under the eye is the
      thing that gets read, and the clock is what should be. */
   .rail { display: flex; align-items: center; gap: 8px; }
@@ -1662,7 +1662,7 @@ function clockBox() {
        makes it safe to reach for mid conversation: the other three are learned
        before the interview, this one is found during it. */
     swNode = el("button", "sw");
-    const lft = el("span", "swa l", "\u2192"), rgt = el("span", "swa r", "\u2192");
+    const lft = el("span", "swa l", "\u2190"), rgt = el("span", "swa r", "\u2192");
     /* the label is the whole of the name; the arrows draw the same thing again */
     lft.setAttribute("aria-hidden", "true");
     rgt.setAttribute("aria-hidden", "true");
