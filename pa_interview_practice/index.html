@@ -511,6 +511,12 @@
 
   <div class="card" id="practice"></div>
 
+  <div class="card" id="runs" hidden>
+    <h2>Past mock interviews</h2>
+    <div class="filters" id="run-filters"></div>
+    <div id="runs-body"></div>
+  </div>
+
   <div class="card">
     <h2>All questions</h2>
     <div class="filters">
@@ -791,8 +797,10 @@ let NOTHINGASKED = false;
 let DRAFT = null;                    // scores and notes for the question on screen
 let SORT = "overall";                // what review sorts on
 let OPEN = new Set();                // which table rows are expanded
-let DOPEN = new Set();               // and which rows at the end of a mock, kept apart
-                                     // from those so the two lists do not open each other's
+let DOPEN = new Set();               // and which question rows at the end of a mock, keyed
+                                     // by run and question and held apart from the card that
+                                     // reads past interviews, so the two that draw a run's
+                                     // questions do not open each other's
 let FILTER = { school: "", pool: "", text: "" };
 
 /* One question is worked through in five steps. It stays hidden until the
@@ -1103,6 +1111,7 @@ function adopt(d) {
   SENT = snapshot();
   save();
   renderRecord();
+  renderRuns();
   status("Someone else's scores just came in.");
 }
 
@@ -1126,6 +1135,7 @@ async function sync() {
       save();
       await push();                        // whatever this device scored while it was alone
       renderRecord();
+      renderRuns();
       status("Everyone with the link is grading into this same log.");
     } else {
       const had = unsent();
@@ -1580,6 +1590,7 @@ function saveAssessment() {
   status("Interview saved.");
   DISCUSSION = true;
   renderPractice();
+  renderRuns();
 }
 
 function removeAttempt(id) {
@@ -2233,43 +2244,24 @@ function notebox(hint, value, put) {
   return note;
 }
 
-/* ---- the end of a mock ------------------------------------------------
-   The questions are asked and the sheet is filled in, and now the two of them
-   go through it together. So the whole of the sheet is read back here: what
-   each category came to, the lines behind it, what was written under it, and
-   the questions it took to get there.
+/* ---- a run read back ---------------------------------------------------
+   A saved assessment drawn whole: what each category came to as points and as
+   a percentage, the lines behind it and what each was given, what was written
+   under it, what was written about the interview as a whole, and the questions
+   it took to get there. The screen a mock ends on and the card that reads a
+   past interview back both put this same node on the page, so the two cannot
+   come to disagree about what a run says.
 
-   Nothing on this screen saves anything and nothing on it can be changed.
-   Every value it shows was written and sent when the assessment was saved, so
-   a reader looking for the write that backs this screen will not find one and
-   does not want one.
+   Nothing drawn here saves anything and nothing on it can be changed. Every
+   value was written and sent when the assessment was saved, so a reader
+   looking for the write that backs it will not find one and does not want one.
 
-   Not a step of the pass and not drawn on the sheet: twenty lines and a run of
-   questions under them cannot be scaled down into the frame and still be read,
-   so the head and the button hold their places and the middle scrolls. */
-function discussion() {
-  const box = el("div", "brief");
-  /* the run is read back off the record by id rather than held, so one deleted
-     from the log below drops off this screen rather than lingering on it */
-  const run = RUNS.find(r => r.id === RUNID);
-
-  const foot = el("div", "foot"), acts = el("div", "actions");
-  const again = el("button", "go", "Start another mock");
-  again.onclick = () => setMode("mock");
-  acts.append(again);
-  foot.append(acts);
-  if (!run) {
-    box.append(el("p", "empty", "That interview is no longer in the log."));
-    box.append(foot);
-    return box;
-  }
-
-  const t = totalPoints(run);
-  box.append(el("p", "briefhead", (run.subject.trim() || "Nobody") + ": " + t.got
-    + " / " + t.max + " \u00b7 " + cut(t.max ? t.got / t.max : 0) + " overall."));
-
-  const body = el("div", "briefbody");
-  for (const s of DISCUSSION_COPY) body.append(el("p", null, s));
+   The open set belongs to the caller. Both screens can be on the page at once
+   with the same interview on each, and a question opened on one must not open
+   on the other. Its keys carry the run as well as the question, so two
+   interviews that asked the same question do not open in step either. */
+function runReadback(run, open) {
+  const box = el("div", "readback");
 
   /* a headed block with a figure hard against the right, the way the sheet
      heads its categories, so the three of them and the questions under them
@@ -2280,7 +2272,7 @@ function discussion() {
     head.append(el("span", "catname", name));
     if (score) head.append(el("span", "catscore", score));
     cat.append(head);
-    body.append(cat);
+    box.append(cat);
     return cat;
   };
   /* what was written in a box, or that it was left empty. An empty one keeps
@@ -2336,28 +2328,65 @@ function discussion() {
     }
     row.append(el("span", "sc", mmss(a.seconds) + " \u00b7 " + a.fillers + "f"));
 
-    const open = el("div", "detail");
     /* what the grader wrote while she was answering, which is the only thing
        a mock question carries of its own */
-    open.append(el("span", a.note.trim() ? null : "empty",
+    const note = el("div", "detail");
+    note.append(el("span", a.note.trim() ? null : "empty",
                    a.note.trim() || "Nothing written down."));
     /* Opened in place rather than by drawing the screen again: the questions
        sit under twenty lines of the sheet, and a redraw would take the grader
-       back to the top of them mid sentence. DOPEN is still what says which are
-       open, so a redraw from anywhere else finds them as she left them. */
+       back to the top of them mid sentence. The set is still what says which
+       are open, so a redraw from anywhere else finds them as she left them. */
+    const key = run.id + "/" + a.qid;
     const mark = () => {
-      const on = DOPEN.has(a.qid);
+      const on = open.has(key);
       arrow.textContent = on ? "\u25be" : "\u25b8";
-      open.hidden = !on;
+      note.hidden = !on;
       row.setAttribute("aria-expanded", on ? "true" : "false");
     };
     row.onclick = () => {
-      if (DOPEN.has(a.qid)) DOPEN.delete(a.qid); else DOPEN.add(a.qid);
+      if (open.has(key)) open.delete(key); else open.add(key);
       mark();
     };
     mark();
-    qs.append(row, open);
+    qs.append(row, note);
   }
+
+  return box;
+}
+
+/* ---- the end of a mock ------------------------------------------------
+   The questions are asked and the sheet is filled in, and now the two of them
+   go through it together, so the sheet is read back here with what the grader
+   is told before it and the way out of the run after it.
+
+   Not a step of the pass and not drawn on the sheet: twenty lines and a run of
+   questions under them cannot be scaled down into the frame and still be read,
+   so the head and the button hold their places and the middle scrolls. */
+function discussion() {
+  const box = el("div", "brief");
+  /* the run is read back off the record by id rather than held, so one deleted
+     from the log below drops off this screen rather than lingering on it */
+  const run = RUNS.find(r => r.id === RUNID);
+
+  const foot = el("div", "foot"), acts = el("div", "actions");
+  const again = el("button", "go", "Start another mock");
+  again.onclick = () => setMode("mock");
+  acts.append(again);
+  foot.append(acts);
+  if (!run) {
+    box.append(el("p", "empty", "That interview is no longer in the log."));
+    box.append(foot);
+    return box;
+  }
+
+  const t = totalPoints(run);
+  box.append(el("p", "briefhead", (run.subject.trim() || "Nobody") + ": " + t.got
+    + " / " + t.max + " \u00b7 " + cut(t.max ? t.got / t.max : 0) + " overall."));
+
+  const body = el("div", "briefbody");
+  for (const s of DISCUSSION_COPY) body.append(el("p", null, s));
+  body.append(runReadback(run, DOPEN));
 
   box.append(body, foot);
   return box;
@@ -2864,6 +2893,108 @@ function detail(q, past) {
 
 const renderRecord = () => { renderStats(); renderTable(); renderClear(); };
 
+/* ---- past mock interviews ---------------------------------------------
+   An interview was readable once, on the screen the mock ended on, and only
+   until that screen was left: nothing wrote RUNID down and nothing else put a
+   run on the page. Twenty lines are scored every time so that they can be
+   watched moving, which takes more than one sitting of them.
+
+   The card is not a mode and does not live on #practice. #practice is the pass
+   that is running; a past interview is read while nothing is running. */
+let RUNSUBJECT = "";                 // whose interviews are listed; "" is everyone
+let RUNOPEN = new Set();             // which of them are open
+let ROPEN = new Set();               // and which questions inside them
+let RUNCONFIRM = null;               // the run whose Delete has been pressed once
+
+function renderRuns() {
+  const card = document.getElementById("runs");
+  /* a heading over nothing is furniture */
+  card.hidden = !RUNS.length;
+  if (!RUNS.length) return;
+
+  /* The names come off the runs themselves rather than off SUBJECT. This is
+     read when no pass is running, so whoever was last interviewed is not the
+     question being asked here and is not inherited as the answer; everyone is.
+     A run saved under no name has none to offer and is on the list only under
+     everyone. */
+  const names = [...new Set(RUNS.map(r => r.subject.trim()).filter(Boolean))].sort();
+  if (RUNSUBJECT && !names.includes(RUNSUBJECT)) RUNSUBJECT = "";
+  const pick = el("select");
+  for (const [v, t] of [["", "Everyone"]].concat(names.map(n => [n, n]))) {
+    const o = el("option", null, t);
+    o.value = v;
+    pick.append(o);
+  }
+  pick.value = RUNSUBJECT;
+  pick.onchange = () => { RUNSUBJECT = pick.value; RUNCONFIRM = null; renderRuns(); };
+  const filters = document.getElementById("run-filters");
+  filters.textContent = "";
+  filters.append(pick);
+
+  const box = document.getElementById("runs-body");
+  box.textContent = "";
+  /* Newest first, off a copy. RUNS is in the order the interviews were saved
+     and everything else reads it that way. */
+  const shown = RUNS.filter(r => !RUNSUBJECT || r.subject.trim() === RUNSUBJECT)
+                    .slice().sort((a, b) => b.at - a.at);
+  if (!shown.length) { box.append(el("p", "empty", "Nothing matches that.")); return; }
+
+  for (const r of shown) {
+    /* the overall off totalPoints, which is what the screen at the end of a
+       mock reads it off, so the two agree rather than both being careful */
+    const t = totalPoints(r);
+    const on = RUNOPEN.has(r.id);
+    const row = el("button", "qrow");
+    row.append(el("span", "arrow", on ? "\u25be" : "\u25b8"));
+    /* the name stays on the row whoever is picked, because a list of everyone
+       has to read */
+    row.append(el("span", "chip", r.subject.trim() || "Nobody"));
+    row.append(el("span", "tw", when(r.at) + " \u00b7 " + r.asked.length
+      + (r.asked.length === 1 ? " question" : " questions")));
+    row.append(el("span", "sc", t.got + " / " + t.max
+      + " \u00b7 " + cut(t.max ? t.got / t.max : 0)));
+    row.setAttribute("aria-expanded", on ? "true" : "false");
+    row.onclick = () => {
+      if (RUNOPEN.has(r.id)) RUNOPEN.delete(r.id); else RUNOPEN.add(r.id);
+      RUNCONFIRM = null;
+      renderRuns();
+    };
+    box.append(row);
+    if (on) box.append(runDetail(r));
+  }
+}
+
+/* Opened, a run is the whole assessment, drawn by the function the screen at
+   the end of a mock draws it with. Delete sits under it rather than on the row
+   because the row is a button, and it takes two presses the way an attempt's
+   does: forty minutes of an interview is not something to lose to a thumb. */
+function runDetail(r) {
+  const box = el("div", "detail");
+  box.append(runReadback(r, ROPEN));
+  const del = el("button", "danger", RUNCONFIRM === r.id ? "Really delete" : "Delete");
+  del.onclick = () => {
+    if (RUNCONFIRM === r.id) { removeRun(r.id); return; }
+    RUNCONFIRM = r.id;
+    renderRuns();
+  };
+  const acts = el("div", "actions");
+  acts.append(del);
+  box.append(acts);
+  return box;
+}
+
+/* The sync layer works a deletion out from the difference between what is on
+   the page and what it last sent, so a run taken out here goes from the server
+   with nothing said about runs. */
+function removeRun(id) {
+  RUNS = RUNS.filter(r => r.id !== id);
+  RUNOPEN.delete(id);
+  RUNCONFIRM = null;
+  save();
+  syncSoon();
+  renderAll();
+}
+
 /* Clearing empties the log for every grader at once rather than only here, so
    it takes two clicks and the second one says how much it is about to destroy.
    Arming lapses after a few seconds: a button left sitting on "Yes, delete" is
@@ -2907,7 +3038,7 @@ function wireClear() {
   };
   renderClear();
 }
-const renderAll = () => { renderModes(); renderPractice(); renderRecord(); };
+const renderAll = () => { renderModes(); renderPractice(); renderRecord(); renderRuns(); };
 
 /* ---- wiring ------------------------------------------------------------ */
 
