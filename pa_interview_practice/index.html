@@ -214,35 +214,41 @@
      skip over on question nine without having to decide to. */
   .listen { font-style: italic; font-size: 13px; line-height: 1.4; color: var(--dim); margin: 0; }
   /* A mock card is two boxes and nothing else: what she was asked, and what
-     you are writing down. Neither is worth more of the card than the other,
-     and neither can be sized off what is in it, since a question is however
-     long it is and the notes are empty when the card opens and full when it
-     closes. So they are given a half each of whatever the foot and the
-     reminder leave, and they hold those halves all the way through.
+     you are writing down. Neither can be sized off what is in it, since a
+     question is however long it is and the notes are empty when the card opens
+     and full when it closes. So the two split whatever the foot and the
+     reminder leave, in a fixed ratio they then hold all the way through.
+
+     Two parts to the question, one to the notes. The question is read aloud at
+     twice the size of anything else on the card and is the thing being got
+     right; the notes are written in glances and can be scrolled, since nobody
+     reads back a note while still taking it.
 
      Past a squeeze each box scrolls on its own. What the card used to do was
      scale the whole sheet down, which paid for a long question by shrinking
      the clock and the buttons with it, and those two are the parts that have
      to stay the size a hand and an eye can use in the middle of an
      interview. */
-  #practice .fit > .qbox.qhalf { flex: 1 1 0; display: flex; }
-  #practice .fit > .qbox.qhalf > .pane { flex: 1 1 auto; min-height: 0; display: flex; }
-  #practice .qhalf .qask { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+  #practice .fit > .qbox.qsplit { flex: 2 1 0; display: flex; }
+  #practice .fit > .qbox.qsplit > .pane { flex: 1 1 auto; min-height: 0; display: flex; }
+  #practice .qsplit .qask { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
   /* The name of the compartment holds still and the question scrolls under it.
      A question scrolled halfway is one you have lost your place in unless the
      heading is where you left it. */
-  #practice .qhalf .qcap { flex: 0 0 auto; }
-  #practice .qhalf .qtext { flex: 1 1 auto; min-height: 0; overflow: auto; }
-  /* The notes take the other half, and the reminder is pinned to the rule over
-     the buttons rather than left sitting under them, so it keeps the same
-     place on a one line question and a five line one. */
+  #practice .qsplit .qcap { flex: 0 0 auto; }
+  #practice .qsplit .qtext { flex: 1 1 auto; min-height: 0; overflow: auto; }
+  /* The notes take the third that is left, and the reminder is pinned to the
+     rule over the buttons rather than left sitting under them, so it keeps the
+     same place on a one line question and a five line one. */
   #practice .mid.qmid { flex: 1 1 0; display: flex; flex-direction: column; }
   #practice .mid.qmid > textarea { flex: 1 1 0; min-height: 0; }
   #practice .mid.qmid > .listen { margin-top: auto; padding-top: 10px; }
-  /* A floor under both halves, well under what either wants: below it the
-     sheet goes back to scaling itself, because two boxes squeezed to nothing
-     on a short screen is not a card at all. */
-  #practice .fit > .qbox.qhalf, #practice .mid.qmid { min-height: 72px; }
+  /* A floor under both, well under what either wants: below it the sheet goes
+     back to scaling itself, because two boxes squeezed to nothing on a short
+     screen is not a card at all. The smaller box gets the smaller floor, in
+     the same two to one, so the ratio survives the squeeze. */
+  #practice .fit > .qbox.qsplit { min-height: 96px; }
+  #practice .mid.qmid { min-height: 48px; }
   @media (max-width: 640px) { .qbox { min-height: 148px; } }  /* narrower, so more lines */
   /* a phone turned on its side: the frame is short, so the block gives room back */
   @media (max-height: 560px) { .qbox { min-height: 88px; } }
@@ -1925,7 +1931,7 @@ function renderPractice() {
     /* Nothing over the compartment. The step does not need naming when there
        is only one of it, and the number that was named up here is on the
        compartment now, so the question is the first thing on the card. */
-    const box = el("div", "qbox qhalf");
+    const box = el("div", "qbox qsplit");
     const nth = nthAsked();
     box.append(pane(asked()));
     sheet.append(box);
