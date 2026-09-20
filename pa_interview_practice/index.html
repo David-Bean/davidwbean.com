@@ -1278,13 +1278,33 @@ function mockRepeats() {
    One or two timed answers is not enough spread to put a range on, so those
    get a single figure and are told how thin the evidence is. */
 function mockEstimate(n) {
-  const secs = LOG().filter(a => a.seconds > 0).map(a => a.seconds);
+  /* A mock leaves no attempt row, so the record of how long a question put to
+     a person takes is the run it was asked in and nowhere else. Per question
+     and not per run: a past run was whatever length it was, and n is whatever
+     is being set up now. Attempt rows written in mock mode belong to a page
+     that predates runs, and their clock was started by hand once the question
+     had been read, so they measure a shorter thing than a mock now does and
+     are left out rather than allowed to pull the mean down. */
+  const runSecs = [];
+  for (const r of RUNS) {
+    if (r.subject !== SUBJECT.trim()) continue;
+    for (const a of r.asked) if (a.seconds > 0) runSecs.push(a.seconds);
+  }
+  /* Practice is the fallback and only the fallback. An answer given to a card
+     runs shorter than one given to a person, so it is worth quoting to someone
+     who has sat no interview yet and worth dropping the moment there is one. */
+  const live = runSecs.length > 0;
+  const secs = live ? runSecs
+    : LOG().filter(a => a.mode !== "mock" && a.seconds > 0).map(a => a.seconds);
   if (!secs.length) return null;
   const mean = secs.reduce((t, x) => t + x, 0) / secs.length;
   const mins = t => Math.round(t / 60);
-  const answers = secs.length + (secs.length === 1 ? " timed answer" : " timed answers");
+  const answers = secs.length + " timed " + (live ? "" : "practice ")
+                + (secs.length === 1 ? "answer" : "answers")
+                + (live ? " from past interviews" : "");
   if (secs.length < 3)
-    return "About " + mins(n * mean) + " minutes of answering time, from " + answers + ".";
+    return "About " + mins(n * mean) + " minutes of answering time, going on "
+         + answers + ".";
 
   const varc = secs.reduce((t, x) => t + (x - mean) * (x - mean), 0) / (secs.length - 1);
   /* The spread is on the whole run rather than on one question, which is what
