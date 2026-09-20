@@ -306,11 +306,12 @@
 
   /* Both halves are named, not just the one running, so what is about to
      happen is on the card before it happens. The button between them keeps an
-     arrow at each end and shows only the one it would take you to, so the
-     press points at its own outcome and the crossing reads as the arrow
-     leaving one edge of the button for the other. The label does not move
-     when it does. A word that shifts under the eye is the thing that gets
-     read, and the clock is what should be. */
+     arrow at each end and shows only the one on the side the clock has got to,
+     so the crossing reads as the arrow leaving one edge of the button for the
+     other. It points the way the interview goes in both places, since that is
+     the one direction time runs in whatever the button is for. The label does
+     not move when the arrow does. A word that shifts under the eye is the
+     thing that gets read, and the clock is what should be. */
   .rail { display: flex; align-items: center; gap: 8px; }
   .pw { text-transform: uppercase; letter-spacing: .06em; font-size: 13px; color: var(--dim); }
   .pw.on { font-weight: 600; }
@@ -328,8 +329,8 @@
   }
   .swa.l { left: 8px; }
   .swa.r { right: 8px; }
-  .sw.ask .swa.r { opacity: 1; }
-  .sw.ans .swa.l { opacity: 1; }
+  .sw.ask .swa.l { opacity: 1; }
+  .sw.ans .swa.r { opacity: 1; }
   .ico { display: block; width: 18px; height: 18px; }
 
   /* The two taps live under the scores rather than above them: this is worked
@@ -1661,7 +1662,7 @@ function clockBox() {
        makes it safe to reach for mid conversation: the other three are learned
        before the interview, this one is found during it. */
     swNode = el("button", "sw");
-    const lft = el("span", "swa l", "\u2190"), rgt = el("span", "swa r", "\u2192");
+    const lft = el("span", "swa l", "\u2192"), rgt = el("span", "swa r", "\u2192");
     /* the label is the whole of the name; the arrows draw the same thing again */
     lft.setAttribute("aria-hidden", "true");
     rgt.setAttribute("aria-hidden", "true");
