@@ -99,8 +99,13 @@
   .briefhead { font-size: 13.5px; margin: 0 0 10px; }
   /* The middle of each of them, all three scrolling the same way. The briefing
      and the read-back at the end are both prose with rows under it, so the two
-     of them are the same body. */
-  .briefbody, .assess { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+     of them are the same body. The room on the right is for the scroll bar: a
+     Mac draws it over the content rather than beside it, and the row of five
+     runs hard against the right edge, so without the room the bar lands on the
+     last button and the sheet has to be moved to score a line 5. */
+  .briefbody, .assess {
+    flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-right: 14px;
+  }
   .briefbody p { color: var(--dim); font-size: 14px; line-height: 1.5; margin: 0 0 11px; }
   .briefbody > .gname { margin-top: 12px; }
 
