@@ -432,6 +432,10 @@
   .gtable .miss { color: var(--warn); }
   .gtable .total td { border-top: 1px solid var(--line); padding-top: 8px; font-weight: 600; }
   .gtable .total .reason { font-weight: 400; }
+  /* what was written about the answer, under the table rather than in it: one
+     box for the question does not belong in a column beside one category */
+  .gnote { font-size: 13.5px; line-height: 1.45; margin: 8px 0 0; white-space: pre-wrap; }
+  .gnote.none { color: var(--dim); font-style: italic; }
   /* ---- the five, as lengths ----
      Five bars off one line, which is the shape a set of scores out of five
      actually has. Lengths from a common start are compared by eye far more
@@ -551,10 +555,12 @@
 
 <script src="../nav.js"></script>
 <script>
-/* ---- what gets scored -------------------------------------------------
-   The four metrics drive everything downstream: the buttons on screen, the
-   columns in the database, the sort options in review. Adding a fifth means
-   adding a column in schema.sql and nothing else here. */
+/* ---- what used to get scored ------------------------------------------
+   The four criteria a question was scored on before it was scored on the
+   rubric. Nothing is written under them now and nothing new should be: CRITERIA
+   below is what a pass collects. They stay because the attempts already in the
+   log were graded on them, and a score reads back in the words it was given
+   rather than in words nobody used. */
 /* short is what fits beside a spoke of the chart */
 const METRICS = [
   { key: "clarity",    label: "Clarity",                              short: "Clarity" },
@@ -624,6 +630,20 @@ const RUBRIC_METRICS = RUBRIC.flatMap(c => c.metrics);
    something the assessment does not ask about. */
 const LISTENING = "Listening for: " + RUBRIC.map(c => c.label).join(", ")
   + ". Note what you notice. It all gets rated at the end.";
+
+/* ---- what one question is scored on -----------------------------------
+   The three categories above, one rating of 1 to 5 each, and one note for the
+   whole answer. A mock is scored on this rubric twenty lines deep and a single
+   question three lines deep, so an answer graded on its own and an interview
+   graded whole are said in one vocabulary rather than two.
+
+   The keys are RUBRIC's own, read off it rather than written out again, so a
+   category cannot come to mean one thing here and another on the sheet. short
+   is what fits in a row that ends in five buttons; the long name is the
+   sheet's, and the sheet's is too long for that row on a narrow screen. */
+const SHORT = { communication: "Communication", presence: "Presence",
+                self_confidence: "Self-confidence" };
+const CRITERIA = RUBRIC.map(c => ({ key: c.key, label: c.label, short: SHORT[c.key] || c.label }));
 
 const SCHOOLS = { ALL: "General", CDU: "CDU", HSU: "HSU", WSU: "WSU", SMU: "SMU", "S. PERRY": "S. Perry" };
 
@@ -830,15 +850,35 @@ let sheetNode = null, midNode = null;    // the sheet and the part of it that is
 const NAMEMAX = 60;
 /* and what it lets a box of prose on a mock run be, cut for the same reason */
 const NOTEMAX = 2000;
+/* and what it lets an attempt's note be. That one is a column on pa_attempts
+   rather than a key inside a mock run's jsonb, so it has the ceiling the notes
+   already on that table have. */
+const ATTEMPTNOTE = 1000;
 
 const uid = () => "a" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
 
 const blank = () => {
-  /* note is the mock's free box. fix() does not carry it, so nothing written
-     in it can reach an attempt row. */
+  /* One note for the question, written while she answers and still there when
+     it is graded. A mock puts it on the run and a graded pass puts it on the
+     attempt, so it is one box either way and is cut to whichever ceiling the
+     table it is going to has. */
   const d = { fillers: 0, seconds: 0, note: "" };
+  for (const c of CRITERIA) d[c.key] = null;
+  /* The old four, blank and staying blank. They are carried so that every
+     attempt in the log has one shape whatever era it is from, and so that an
+     older row has somewhere to land when it comes back through fix(). */
   for (const m of METRICS) { d[m.key] = null; d[m.key + "_note"] = ""; }
   return d;
+};
+
+/* The one note a question carries, on the step where it is written and again
+   on the step where it is scored. Both are the same field, so a note typed
+   while she is answering is the note the grading step opens with and adding to
+   it there does not start a second one. */
+const qnote = (hint, rows) => {
+  const n = notebox(hint, DRAFT.note, v => { DRAFT.note = v; }, ATTEMPTNOTE);
+  n.rows = rows;
+  return n;
 };
 
 function status(msg) { document.getElementById("status").textContent = msg; }
@@ -880,9 +920,15 @@ function fix(a) {
               grader: String(a.grader || ""), mode: MODES[a.mode] ? a.mode : "new" };
   o.fillers = Math.max(0, Math.round(+a.fillers) || 0);
   o.seconds = Math.max(0, Math.round(+a.seconds) || 0);
+  o.note = String(a.note || "").slice(0, ATTEMPTNOTE);
+  const rated1to5 = v => { const n = Math.round(+v); return n >= 1 && n <= 5 ? n : null; };
+  /* Both eras side by side. A row written before the rubric carries the four
+     and nothing on the three; a row written since carries the three and nothing
+     on the four. Neither is filled in from the other: clarity is not
+     communication, and a score nobody gave has no business on the record. */
+  for (const c of CRITERIA) o[c.key] = rated1to5(a[c.key]);
   for (const m of METRICS) {
-    const v = Math.round(+a[m.key]);
-    o[m.key] = v >= 1 && v <= 5 ? v : null;
+    o[m.key] = rated1to5(a[m.key]);
     o[m.key + "_note"] = String(a[m.key + "_note"] || "");
   }
   return o;
@@ -993,14 +1039,20 @@ const ROWS = {
     table: "pa_attempts",
     all: () => ATTEMPTS,
     set: rows => { ATTEMPTS = rows; },
+    /* Both eras go up and both come back. The three categories and the note
+       are what a pass fills in; the four criteria and their notes are empty on
+       every row written since the rubric, and are carried so that an older row
+       survives a round trip through here unchanged. */
     out: a => {
       const o = { id: a.id, qid: a.qid, at: a.at, subject: a.subject, grader: a.grader,
-                  mode: a.mode, fillers: a.fillers, seconds: a.seconds };
+                  mode: a.mode, fillers: a.fillers, seconds: a.seconds, note: a.note };
+      for (const c of CRITERIA) o[c.key] = a[c.key];
       for (const m of METRICS) { o[m.key] = a[m.key]; o[m.key + "_note"] = a[m.key + "_note"]; }
       return o;
     },
     in: r => fix({ id: r.id, qid: r.qid, at: +r.at, subject: r.subject, grader: r.grader,
-                   mode: r.mode, fillers: r.fillers, seconds: r.seconds,
+                   mode: r.mode, fillers: r.fillers, seconds: r.seconds, note: r.note,
+                   ...Object.fromEntries(CRITERIA.map(c => [c.key, r[c.key]])),
                    ...Object.fromEntries(METRICS.flatMap(m =>
                      [[m.key, r[m.key]], [m.key + "_note", r[m.key + "_note"]]])) })
   },
@@ -1195,11 +1247,24 @@ const latestFor = qid => {
   return best;
 };
 
-/* the mean of whichever of the four were actually scored; null if none were */
-function overall(a) {
-  const v = METRICS.map(m => a[m.key]).filter(x => x !== null);
+/* the mean of whichever of a list were actually scored; null if none were */
+function meanOf(a, list) {
+  const v = list.map(m => a[m.key]).filter(x => x !== null && x !== undefined);
   return v.length ? v.reduce((s, x) => s + x, 0) / v.length : null;
 }
+/* What a question came to on the rubric. An attempt from before the rubric is
+   unrated on all three and comes back null, which is what it is: nobody ever
+   judged it on these, and a number here would be one nobody gave. */
+const overall = a => meanOf(a, CRITERIA);
+/* Which vocabulary an attempt was graded in, so it reads back in the words it
+   was given. Anything carrying a score or a note on the old four is from before
+   the rubric; everything else, a row with nothing called on it at all included,
+   is read as a pass of the kind being written now. */
+const criteriaFor = a => METRICS.some(m => a[m.key] !== null || a[m.key + "_note"])
+  ? METRICS : CRITERIA;
+/* and what it came to in those words, for the places that report an attempt
+   rather than rank it */
+const overallAs = a => meanOf(a, criteriaFor(a));
 const scoreOn = (a, key) => key === "overall" ? overall(a) : a[key];
 const fmt = n => n === null ? "" : (Math.round(n * 100) / 100).toString();
 
@@ -1512,9 +1577,9 @@ function step(n) {
   renderPractice();
 }
 
-const allGraded = () => METRICS.every(m => DRAFT[m.key] !== null);
+const allGraded = () => CRITERIA.every(c => DRAFT[c.key] !== null);
 
-/* An attempt goes down with all four called or not at all: a half filled one
+/* An attempt goes down with all three called or not at all: a half filled one
    reads as a low score later rather than as a gap. Walking away without
    grading is what Skip is for.
 
@@ -1526,7 +1591,7 @@ function commit() {
   const q = QUEUE[QI];
   if (!q) return;
   if (MODE === "mock") { mockNext(true); return; }
-  if (!allGraded()) { status("Give all four a score first."); return; }
+  if (!allGraded()) { status("Give all three a score first."); return; }
   freeze();                            /* saving while it runs still records the time */
   const a = fix(Object.assign({ id: uid(), qid: q.id, at: Date.now(), subject: SUBJECT.trim(),
                                grader: GRADER.trim(), mode: MODE }, DRAFT));
@@ -1674,7 +1739,8 @@ function renderModes() {
   box.append(p);
   if (MODE === "review") {
     const s = el("select");
-    const opts = [["overall", "Weakest overall"]].concat(METRICS.map(m => [m.key, "Weakest on " + m.label]));
+    const opts = [["overall", "Weakest overall"]]
+      .concat(CRITERIA.map(c => [c.key, "Weakest on " + c.short]));
     for (const [v, t] of opts) {
       const o = el("option", null, t); o.value = v;
       if (v === SORT) o.selected = true;
@@ -1930,22 +1996,27 @@ function renderPractice() {
   /* ---- answering: clock on top, scores in the middle, taps at the bottom ---- */
   if (PHASE === "answering") {
     sheet.append(block("Answering",
-      "Listen. Take notes if you want them, and save every judgement for the "
+      "Listen. Write down what you notice, and save every judgement for the "
       + "grading step. Tap the filler word button as you hear them, and pause "
       + "the clock if the answer is interrupted.", asked(),
       "Click \u201cFiller word +\u201d every time the interviewee uses a word whose "
       + "only purpose is to fill in time while they think: \u201clike\u201d, "
       + "\u201cummm\u201d, sometimes \u201cI think\u201d. There are no scores on "
-      + "this step on purpose: the notes under each criterion are only there to "
-      + "catch what you would otherwise forget, and nothing has to be written in "
-      + "them. The pause button in the clock box banks the time and the play "
-      + "button adds to it rather than starting the answer over, so an "
+      + "this step on purpose. The box is one note for the whole question and "
+      + "nothing has to be written in it; it is the same box the grading step "
+      + "shows, so what goes into it now is still there to be added to when the "
+      + "answer is scored. The pause button in the clock box banks the time and "
+      + "the play button adds to it rather than starting the answer over, so an "
       + "interruption costs only what it took; the arrow beside them puts the "
       + "clock back to 0:00 if it was started too early. When the answer is "
       + "fully delivered, click \u201cAnswer finished\u201d to move on to "
       + "grading."));
     sheet.append(clockBox());
-    for (const m of METRICS) mid.append(metric(m, false));
+    mid.append(qnote("notes on this answer, for the grading step", 4));
+    /* The standing reminder the mock card carries, and under the box here for
+       the same reason it is under the box there: it is what to listen for all
+       the way through, not an instruction for this step. */
+    mid.append(el("p", "listen", LISTENING));
     if (past) mid.append(past);
 
     const pad = fillerPad();
@@ -2009,22 +2080,28 @@ function renderPractice() {
   /* ---- summary: what it came to, still open to a change of mind ---- */
   if (PHASE === "summary") {
     sheet.append(block("Grading",
-      "Give all four criteria a score, and finalize the reasoning behind each one "
-      + "so it is useful as constructive feedback in the discussion.",
+      "Give all three categories a score, and finish the note on the answer so "
+      + "it is useful as constructive feedback in the discussion.",
       asked(),
-      "The circle beside a criterion turns into a check once it has been called, "
-      + "and all four have to be called before you can go on. \u201cBack\u201d "
-      + "returns to the answering step with the clock where you left it, so if "
-      + "they were cut off mid answer, press play there and pick it up. Grade "
-      + "the answer you heard, not the one you would have given: 3 is a solid "
-      + "answer that does the job, and 5 is one you would repeat to the hiring "
-      + "panel. Nothing is written down until you save at the end of the "
-      + "discussion, so every score here can still change."));
+      "The three are the categories a whole mock interview is scored on, so one "
+      + "answer and a whole interview are judged on the same things. The circle "
+      + "beside a category turns into a check once it has been called, and all "
+      + "three have to be called before you can go on. The note is the one "
+      + "written while she was answering, still open to be added to. "
+      + "\u201cBack\u201d returns to the answering step with the clock where you "
+      + "left it, so if they were cut off mid answer, press play there and pick "
+      + "it up. Grade the answer you heard, not the one you would have given: 3 "
+      + "is a solid answer that does the job, and 5 is one you would repeat to "
+      + "the hiring panel. Nothing is written down until you save at the end of "
+      + "the discussion, so every score here can still change."));
     mid.append(summary());
-    for (const m of METRICS) mid.append(metric(m, true));
+    for (const c of CRITERIA) mid.append(rated(c));
+    /* Under the three rather than beside any one of them: it is a note on the
+       answer, and the answer is what all three are judgements of. */
+    mid.append(qnote("notes on this answer, to talk through in the discussion", 4));
     if (past) mid.append(past);
-    /* Four blanks and a saved attempt is a record that says nothing, so the
-       way on is shut until all four have been called. Skip is still open: not
+    /* Three blanks and a saved attempt is a record that says nothing, so the
+       way on is shut until all three have been called. Skip is still open: not
        grading at all is a different thing from grading badly. */
     const on = step1("go", "Discuss", () => toPhase("discuss"));
     /* Shut, but not dead: a button that does nothing at all when it is pressed
@@ -2032,7 +2109,7 @@ function renderPractice() {
        answers by putting the reason under it. The reason is on the card either
        way and only turns visible, so asking for it moves nothing. */
     const nudge = el("p", NAGGED && !allGraded() ? "nudge" : "nudge quiet",
-                     "Give all four a score to go on.");
+                     "Give all three a score to go on.");
     if (!allGraded()) {
       on.setAttribute("aria-disabled", "true");
       on.onclick = () => { NAGGED = true; renderPractice(); };
@@ -2045,7 +2122,7 @@ function renderPractice() {
 
   /* ---- discuss: the grades read back, and the shape of them ---- */
   sheet.append(block("Discussion",
-    "Review each criterion and offer feedback on why you made the choices you "
+    "Review each category and offer feedback on why you made the choices you "
     + "made. If you have suggestions, now is the time to make them. Make sure to "
     + "save.", asked(),
     "Saving writes the scores and the notes down against this question and moves "
@@ -2257,13 +2334,14 @@ function assessment() {
 }
 
 /* a box of prose that says what it is for, keeps its own ceiling and hands
-   back what is typed in it. The ceiling is the database's, said here rather
-   than found later when the row is cut on the way down. */
-function notebox(hint, value, put) {
+   back what is typed in it. The ceiling is the database's, and which one
+   depends on the table the box is going to; it is said here rather than found
+   later when the row is cut on the way down. */
+function notebox(hint, value, put, cap) {
   const note = el("textarea");
   note.rows = 2;
   note.placeholder = hint;
-  note.maxLength = NOTEMAX;
+  note.maxLength = cap || NOTEMAX;
   note.value = value;
   note.oninput = () => put(note.value);
   return note;
@@ -2425,7 +2503,7 @@ const fillerScore = a => {
   return r === null ? null : Math.max(0, Math.min(5, 5 - r / 3));
 };
 
-const axes = a => METRICS.map(m => ({ label: m.short, v: a[m.key] }))
+const axes = a => CRITERIA.map(c => ({ label: c.short, v: a[c.key] }))
   .concat([{ label: "Filler", v: fillerScore(a) }]);
 
 const NS = "http://www.w3.org/2000/svg";
@@ -2474,67 +2552,61 @@ function bars(a) {
   return box;
 }
 
-/* The grades read back, one row each, with whatever was written against them
-   and the average underneath. A row with nothing called on it carries the same
-   dash the chart above uses rather than a number, and says so in words in the
-   column the reasoning goes in. */
+/* The grades read back, one row each, the average underneath and what was
+   written about the answer under that. A category nobody called carries the
+   same dash the chart above uses rather than a number. The note is one box for
+   the whole question now, so it sits below the table instead of in a column of
+   its own; that column stays, unheaded, to gloss the two numbers that are
+   worked out rather than given. */
 function graded(a) {
+  const box = el("div");
   const t = el("table", "gtable");
   const head = el("thead"), hr = el("tr");
-  hr.append(el("th", null, "Criterion"), el("th", "num", "Score"), el("th", null, "Reasoning"));
+  hr.append(el("th", null, "Category"), el("th", "num", "Score"), el("th", null, ""));
   head.append(hr);
   const body = el("tbody");
   const row = (cls, name, score, why) => {
     const r = el("tr", cls);
     r.append(el("td", null, name),
              el("td", score === null ? "num miss" : "num", score === null ? "\u2013" : fmt(score)),
-             el("td", why === "not scored" ? "reason miss" : "reason", why));
+             el("td", "reason", why));
     body.append(r);
   };
-  for (const m of METRICS) {
-    row(null, m.label, a[m.key],
-        a[m.key + "_note"] || (a[m.key] === null ? "not scored" : ""));
-  }
+  for (const c of CRITERIA) row(null, c.label, a[c.key], "");
   const r = perMin(a);
   row(null, "Filler", fillerScore(a),
       r === null ? "not timed" : a.fillers + (a.fillers === 1 ? " word" : " words")
         + " in " + mmss(a.seconds) + ", " + fmt(r) + " a minute");
-  row("total", "Overall", overall(a), "average of the four criteria");
+  row("total", "Overall", overall(a), "average of the three categories");
   t.append(head, body);
-  return t;
+  box.append(t, el("p", a.note ? "gnote" : "gnote none",
+                   a.note || "Nothing was written about this answer."));
+  return box;
 }
 
-/* One metric: what it is called, whether it has been called yet, the row of
-   five, and somewhere to say why. While the answer is being given there is no
-   row of five and no dot. That step is for listening, and the notes box is
-   there for whoever wants it. The full name is carried alongside the short one
-   so a narrow screen can show the short one and keep the row to a line. */
-function metric(m, scored) {
+/* One rated row of the grading step: what it is called, whether it has been
+   called yet, and the row of five. It is a line of the mock's assessment sheet
+   with a category's name on it rather than one of that category's twenty
+   lines, which is the whole of the change: the same control, the same dot, the
+   same tap the score again to take it back off. The full name is carried
+   alongside the short one so a narrow screen can show the short one and keep
+   the row to a line. */
+function rated(c) {
   const wrap = el("div", "metric");
   const row = el("div", "mrow");
   const name = el("span", "mname");
-  name.append(el("span", "mfull", m.label), el("span", "mshort", m.short));
-  row.append(name);
-  if (scored) {
-    const done = DRAFT[m.key] !== null;
-    row.append(el("span", done ? "mdot done" : "mdot", done ? "\u2713" : "\u00a0"));
-    const scale = el("span", "scale");
-    for (const v of SCALE) {
-      const b = el("button", DRAFT[m.key] === v ? "on" : null, String(v));
-      /* tapping the score already showing takes it back off */
-      b.onclick = () => { DRAFT[m.key] = DRAFT[m.key] === v ? null : v; renderPractice(); };
-      scale.append(b);
-    }
-    row.append(scale);
+  name.append(el("span", "mfull", c.label), el("span", "mshort", c.short));
+  const done = DRAFT[c.key] !== null;
+  row.append(name, el("span", done ? "mdot done" : "mdot", done ? "\u2713" : "\u00a0"));
+  const scale = el("span", "scale");
+  for (const v of SCALE) {
+    const b = el("button", DRAFT[c.key] === v ? "on" : null, String(v));
+    /* tapping the score already showing takes it back off */
+    b.onclick = () => { DRAFT[c.key] = DRAFT[c.key] === v ? null : v; renderPractice(); };
+    scale.append(b);
   }
+  row.append(scale);
   wrap.append(row);
-
-  const note = el("textarea");
-  note.rows = 1;
-  note.placeholder = "notes on " + m.label.toLowerCase();
-  note.value = DRAFT[m.key + "_note"];
-  note.oninput = () => { DRAFT[m.key + "_note"] = note.value; };
-  wrap.append(note);
   return wrap;
 }
 
@@ -2803,13 +2875,19 @@ function summary() {
   return box;
 }
 
-/* how she did on this one last time, if she has had it before */
+/* How she did on this one last time, if she has had it before. An attempt from
+   before the rubric is read back on the four it was actually given, and says
+   which four they were, so it reports what it came to rather than reading as an
+   answer that scored nothing. */
 function history(q) {
   const past = attemptsFor(q.id);
   if (!past.length) return null;
-  return el("p", "empty", past.length === 1
-    ? "Scored once before, most recently " + fmt(overall(past[0])) + " overall."
-    : "Scored " + past.length + " times before, most recently " + fmt(overall(past[0])) + " overall.");
+  const v = overallAs(past[0]);
+  const how = v === null ? "ungraded" : fmt(v) + " overall"
+    + (criteriaFor(past[0]) === METRICS ? " on the four criteria used then" : "");
+  return el("p", "empty", (past.length === 1
+    ? "Scored once before, most recently "
+    : "Scored " + past.length + " times before, most recently ") + how + ".");
 }
 
 function renderStats() {
@@ -2817,9 +2895,14 @@ function renderStats() {
   const log = LOG();
   const scored = qs.filter(q => latestFor(q.id)).length;
   const bits = [];
-  for (const m of METRICS) {
-    const v = log.map(a => a[m.key]).filter(x => x !== null);
-    if (v.length) bits.push(m.label + " " + fmt(v.reduce((s, x) => s + x, 0) / v.length));
+  /* Both eras, and only where there is something to average. The three
+     categories are what a pass is scored on; the four criteria are what the
+     older attempts were scored on and are still theirs to report. Neither is
+     averaged into the other, and a name nobody has been scored under drops off
+     the line rather than reading as a zero. */
+  for (const m of CRITERIA.concat(METRICS)) {
+    const v = log.map(a => a[m.key]).filter(x => x !== null && x !== undefined);
+    if (v.length) bits.push(m.short + " " + fmt(v.reduce((s, x) => s + x, 0) / v.length));
   }
   /* pooled rather than an average of averages: a two minute answer and a ten
      minute one are not the same size of evidence */
@@ -2857,8 +2940,10 @@ function renderTable() {
     row.append(el("span", "arrow", OPEN.has(q.id) ? "▾" : "▸"));
     row.append(el("span", "chip", SCHOOLS[q.tag] || q.tag));
     row.append(rich(el("span", "tw"), q.text));
+    /* the last attempt's scores in the words it was given, so an older row
+       shows its four and a newer one its three */
     row.append(el("span", "sc", past.length
-      ? METRICS.map(m => past[0][m.key] === null ? "·" : past[0][m.key]).join(" ")
+      ? criteriaFor(past[0]).map(m => past[0][m.key] === null ? "·" : past[0][m.key]).join(" ")
       : "never"));
     row.onclick = () => {
       if (OPEN.has(q.id)) OPEN.delete(q.id); else OPEN.add(q.id);
@@ -2895,11 +2980,19 @@ function detail(q, past) {
         + (rate === null ? "" : ", " + fmt(rate) + " a minute")));
       w.append(line);
     }
-    for (const m of METRICS) {
+    /* In the words it was graded in. An attempt from before the rubric has its
+       four with a note under each; one from since has the three and one note
+       for the whole answer. Neither is shown under the other's headings. */
+    for (const m of criteriaFor(a)) {
       const line = el("div", "line");
       line.append(el("b", null, a[m.key] === null ? "-" : String(a[m.key])));
       line.append(el("span", null, m.label));
       if (a[m.key + "_note"]) line.append(el("i", null, "  " + a[m.key + "_note"]));
+      w.append(line);
+    }
+    if (a.note) {
+      const line = el("div", "line");
+      line.append(el("b", null, "\u00a0"), el("i", null, a.note));
       w.append(line);
     }
     const del = el("button", "danger", CONFIRM === a.id ? "Really delete" : "Delete");

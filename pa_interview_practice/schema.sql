@@ -49,6 +49,28 @@ create table if not exists public.pa_attempts (
   seconds         integer not null default 0
                   constraint pa_seconds_sane check (seconds between 0 and 86400),
 
+  -- Two eras of scoring, side by side, and a row from either reads. The four
+  -- below are what a question was scored on before the page moved onto the
+  -- rubric: clarity, motivation, judgement and maturity, each with a note of
+  -- its own. The three above them are what it is scored on since, and they are
+  -- the category keys of pa_mock_runs.ratings, so one answer and a whole
+  -- interview are judged in one vocabulary. An older row has the four filled in
+  -- and the three null; a newer one has the three filled in and the four null.
+  -- Nothing was backfilled either way, because clarity is not communication and
+  -- a score nobody gave has no business on the record. Tell them apart with
+  -- "communication is null", not by date.
+  communication   integer
+                  constraint pa_communication_range check (communication between 1 and 5),
+  presence        integer
+                  constraint pa_presence_range      check (presence      between 1 and 5),
+  self_confidence integer
+                  constraint pa_self_confidence_range
+                  check (self_confidence between 1 and 5),
+  -- one box of prose for the whole answer rather than one under each criterion,
+  -- with the ceiling the notes below it already have
+  note            text    not null default ''
+                  constraint pa_note_len check (length(note) <= 1000),
+
   clarity         integer                        check (clarity    between 1 and 5),
   clarity_note    text    not null default ''    check (length(clarity_note)    <= 1000),
   motivation      integer                        check (motivation between 1 and 5),
@@ -63,11 +85,18 @@ create table if not exists public.pa_attempts (
 
 create index if not exists pa_attempts_qid on public.pa_attempts (qid);
 
--- fillers and seconds arrived after the first version of this file, and subject
--- after those. Running it again is how a table that predates them catches up.
+-- fillers and seconds arrived after the first version of this file, subject
+-- after those, and the three rubric categories with the one note after those.
+-- Running it again is how a table that predates them catches up. Nothing here
+-- touches the four older score columns and nothing backfills the new ones: the
+-- attempts already stored were graded on the four and stay that way.
 alter table public.pa_attempts add column if not exists fillers integer not null default 0;
 alter table public.pa_attempts add column if not exists seconds integer not null default 0;
 alter table public.pa_attempts add column if not exists subject text not null default '';
+alter table public.pa_attempts add column if not exists communication integer;
+alter table public.pa_attempts add column if not exists presence integer;
+alter table public.pa_attempts add column if not exists self_confidence integer;
+alter table public.pa_attempts add column if not exists note text not null default '';
 do $$ begin
   alter table public.pa_attempts
     add constraint pa_fillers_sane check (fillers between 0 and 10000);
@@ -79,6 +108,22 @@ exception when duplicate_object then null; end $$;
 do $$ begin
   alter table public.pa_attempts
     add constraint pa_subject_len check (length(subject) <= 60);
+exception when duplicate_object then null; end $$;
+do $$ begin
+  alter table public.pa_attempts
+    add constraint pa_communication_range check (communication between 1 and 5);
+exception when duplicate_object then null; end $$;
+do $$ begin
+  alter table public.pa_attempts
+    add constraint pa_presence_range check (presence between 1 and 5);
+exception when duplicate_object then null; end $$;
+do $$ begin
+  alter table public.pa_attempts
+    add constraint pa_self_confidence_range check (self_confidence between 1 and 5);
+exception when duplicate_object then null; end $$;
+do $$ begin
+  alter table public.pa_attempts
+    add constraint pa_note_len check (length(note) <= 1000);
 exception when duplicate_object then null; end $$;
 
 -- Indexed below the catch-up rather than beside pa_attempts_qid, because on a
@@ -271,6 +316,21 @@ where jsonb_typeof(k.value) = 'number';
 revoke all on public.pa_mock_lines from anon;   -- read it from the SQL editor
 
 -- ------------------------------------------------------------- reading it --
+-- The three queries that average clarity, motivation, judgement and maturity
+-- read the older era only; on a row graded on the rubric all four are null. For
+-- the newer one, average communication, presence and self_confidence instead:
+--     select qid, count(*) as attempts,
+--            round(avg((communication + presence + self_confidence) / 3.0), 2) as avg_all,
+--            round(avg(communication), 2) as communication,
+--            round(avg(presence), 2) as presence,
+--            round(avg(self_confidence), 2) as self_confidence
+--     from public.pa_attempts where communication is not null
+--     group by qid order by avg_all nulls first limit 20;
+--
+-- Every note written on an answer since the rubric:
+--     select to_timestamp(at/1000.0)::date as day, qid, note
+--     from public.pa_attempts where note <> '' order by at desc;
+--
 -- How she is doing, worst first:
 --     select qid, count(*) as attempts,
 --            round(avg((clarity + motivation + judgement + maturity) / 4.0), 2) as avg_all,
