@@ -9,17 +9,23 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Playfair+Display:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <style>
+    .resume-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      gap: 0.75rem 1rem;
+      margin-top: 1rem;
+    }
     .resume-actions {
       display: flex;
       align-items: center;
       gap: 1rem;
-      margin-top: 0.75rem;
+      margin-left: auto;
     }
-    .resume-actions p { flex: 1 1 14rem; }
     .resume-tabs {
       display: flex;
+      flex: 1 1 16rem;
       gap: 0.5rem;
-      margin-top: 1rem;
       border-bottom: 1px solid var(--border);
     }
     .resume-tab {
@@ -27,7 +33,9 @@
       font-size: 0.95rem;
       letter-spacing: 0.04em;
       text-transform: uppercase;
-      padding: 0.6rem 1.25rem;
+      /* 75% of the earlier height: was line-height 1.7 and 0.6rem padding */
+      line-height: 1.3;
+      padding: 0.43rem 1.25rem;
       border: 1px solid var(--border);
       border-bottom: none;
       border-radius: 4px 4px 0 0;
@@ -47,13 +55,43 @@
       outline-offset: 2px;
     }
     @media (max-width: 480px) {
-      .resume-tab { flex: 1 1 0; padding: 0.6rem 0.5rem; }
+      .resume-tab { flex: 1 1 0; padding: 0.43rem 0.5rem; }
     }
     .pdf-embed {
       width: 100%;
       height: 85vh;
       border: 1px solid var(--border);
       border-radius: 8px;
+    }
+    .pdf-pages canvas {
+      display: block;
+      box-sizing: border-box;
+      width: 100%;
+      height: auto;
+      margin-bottom: 1rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: #fff;
+    }
+    .pdf-pages p { color: var(--text-muted); padding: 1rem 0; }
+    .btn-outline {
+      font: inherit;
+      font-size: 0.95rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      white-space: nowrap;
+      padding: calc(0.75rem - 1px) 1.5rem;
+      border: 1px solid var(--nav-bg);
+      border-radius: 4px;
+      background: transparent;
+      color: var(--text);
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
+    .btn-outline:hover { background: var(--surface); }
+    .btn-outline:focus-visible {
+      outline: 2px solid var(--accent2);
+      outline-offset: 2px;
     }
   </style>
 </head>
@@ -72,23 +110,26 @@
 
   <div class="page-header">
     <h1>Resume</h1>
+    <div class="resume-bar">
     <div class="resume-tabs" role="tablist" aria-label="Resume version">
-      <button type="button" class="resume-tab" role="tab" id="tab-resume" aria-controls="panel-resume" aria-selected="true">Resume</button>
+      <button type="button" class="resume-tab" role="tab" id="tab-resume" aria-controls="panel-resume" aria-selected="true">Streamlined</button>
       <button type="button" class="resume-tab" role="tab" id="tab-technical" aria-controls="panel-technical" aria-selected="false" tabindex="-1">Technical</button>
     </div>
     <div class="resume-actions" style="flex-wrap: wrap;">
-      <p id="resume-blurb" style="color: var(--text-muted);">A concise overview of experience and skills.</p>
       <a id="resume-download" href="resume.pdf" download class="btn-primary" style="white-space: nowrap;">Download PDF</a>
+      <button type="button" id="resume-copy" class="btn-outline"><span id="resume-copy-label" aria-live="polite">Copy link</span></button>
+    </div>
     </div>
     <noscript><p style="margin-top: 0.75rem;"><a href="technical-resume.pdf">Open the technical resume (PDF)</a></p></noscript>
   </div>
 
   <div class="page" style="padding-top: 0;">
     <div id="panel-resume" role="tabpanel" aria-labelledby="tab-resume">
-      <iframe class="pdf-embed" src="resume.pdf" title="David Bean Resume"></iframe>
+      <iframe class="pdf-embed" data-src="resume.pdf" title="David Bean Resume" hidden></iframe>
+      <noscript><iframe class="pdf-embed" src="resume.pdf" title="David Bean Resume"></iframe></noscript>
     </div>
     <div id="panel-technical" role="tabpanel" aria-labelledby="tab-technical" hidden>
-      <iframe class="pdf-embed" data-src="technical-resume.pdf" title="David Bean Technical Resume"></iframe>
+      <iframe class="pdf-embed" data-src="technical-resume.pdf" title="David Bean Technical Resume" hidden></iframe>
     </div>
   </div>
 
@@ -102,18 +143,161 @@
       var TABS = {
         resume: {
           file: 'resume.pdf',
-          download: '',
-          blurb: 'A concise overview of experience and skills.'
+          label: 'Streamlined resume',
+          download: ''
         },
         technical: {
           file: 'technical-resume.pdf',
-          download: 'David_Bean_Technical_Resume.pdf',
-          blurb: 'The full version, with detail on each role.'
+          label: 'Technical resume',
+          download: 'David_Bean_Technical_Resume.pdf'
         }
       };
       var ORDER = ['resume', 'technical'];
       var link = document.getElementById('resume-download');
-      var blurb = document.getElementById('resume-blurb');
+
+      // Each PDF is drawn page by page with PDF.js, fitted to the screen width.
+      // If anything fails, the tab's iframe is shown, as the page worked before.
+      var PDFJS_URL = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+      var PDFJS_WORKER_URL = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      var MAX_CANVAS_PIXELS = 16000000; // phone browsers refuse larger canvases
+      var state = {};
+      var libPromise = null;
+
+      ORDER.forEach(function (key) {
+        state[key] = { status: 'idle', doc: null, box: null, width: 0, token: 0 };
+      });
+
+      function fallback(name) {
+        var st = state[name];
+        var panel = document.getElementById('panel-' + name);
+        var frame = panel.querySelector('iframe');
+        st.status = 'fallback';
+        st.doc = null;
+        st.token++;
+        if (st.box && st.box.parentNode) st.box.parentNode.removeChild(st.box);
+        st.box = null;
+        if (frame) {
+          // The PDF is fetched only the first time the iframe is shown.
+          if (!frame.getAttribute('src')) {
+            frame.setAttribute('src', frame.getAttribute('data-src'));
+          }
+          frame.hidden = false;
+        }
+      }
+
+      function loadLib() {
+        if (libPromise) return libPromise;
+        libPromise = new Promise(function (resolve, reject) {
+          var script = document.createElement('script');
+          var timer = setTimeout(function () { reject(new Error('PDF.js timed out')); }, 10000);
+          script.src = PDFJS_URL;
+          script.onload = function () {
+            clearTimeout(timer);
+            if (window.pdfjsLib) {
+              window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
+              resolve(window.pdfjsLib);
+            } else {
+              reject(new Error('PDF.js missing'));
+            }
+          };
+          script.onerror = function () {
+            clearTimeout(timer);
+            reject(new Error('PDF.js failed to load'));
+          };
+          document.head.appendChild(script);
+        });
+        return libPromise;
+      }
+
+      function drawPage(doc, num, total, width, label) {
+        return doc.getPage(num).then(function (page) {
+          var base = page.getViewport({ scale: 1 });
+          var dpr = Math.min(window.devicePixelRatio || 1, 2);
+          var scale = (width / base.width) * dpr;
+          var pixels = base.width * base.height * scale * scale;
+          if (pixels > MAX_CANVAS_PIXELS) scale *= Math.sqrt(MAX_CANVAS_PIXELS / pixels);
+          var viewport = page.getViewport({ scale: scale });
+          var canvas = document.createElement('canvas');
+          canvas.width = Math.floor(viewport.width);
+          canvas.height = Math.floor(viewport.height);
+          canvas.setAttribute('role', 'img');
+          canvas.setAttribute('aria-label', label + ', page ' + num + ' of ' + total);
+          return page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport })
+            .promise.then(function () { return canvas; });
+        });
+      }
+
+      function draw(name) {
+        var st = state[name];
+        var width = st.box ? st.box.clientWidth : 0;
+        if (!st.doc || !width) return; // hidden tab: drawn when it is next shown
+        var token = ++st.token;
+        var doc = st.doc;
+        var total = doc.numPages;
+        var canvases = [];
+        var chain = Promise.resolve();
+        st.width = width;
+        for (var n = 1; n <= total; n++) {
+          (function (num) {
+            chain = chain.then(function () {
+              if (token !== st.token) return null;
+              return drawPage(doc, num, total, width, TABS[name].label).then(function (canvas) {
+                canvases.push(canvas);
+              });
+            });
+          })(n);
+        }
+        chain.then(function () {
+          if (token !== st.token || !st.box) return;
+          // Swap the finished pages in at once, so a redraw does not flicker.
+          while (st.box.firstChild) st.box.removeChild(st.box.firstChild);
+          canvases.forEach(function (canvas) { st.box.appendChild(canvas); });
+        }).catch(function () {
+          if (token === st.token) fallback(name);
+        });
+      }
+
+      function ensureDrawn(name) {
+        var st = state[name];
+        if (st.status === 'fallback' || st.status === 'loading') return;
+        if (st.status === 'ready') {
+          if (st.box.clientWidth !== st.width) draw(name);
+          return;
+        }
+        if (!window.Promise || !document.createElement('canvas').getContext) {
+          fallback(name);
+          return;
+        }
+        var panel = document.getElementById('panel-' + name);
+        var note = document.createElement('p');
+        note.textContent = 'Loading the PDF.';
+        st.box = document.createElement('div');
+        st.box.className = 'pdf-pages';
+        st.box.appendChild(note);
+        panel.insertBefore(st.box, panel.firstChild);
+        st.status = 'loading';
+        loadLib().then(function (lib) {
+          return lib.getDocument(TABS[name].file).promise;
+        }).then(function (doc) {
+          st.doc = doc;
+          st.status = 'ready';
+          draw(name);
+        }).catch(function () {
+          fallback(name);
+        });
+      }
+
+      var resizeTimer = null;
+      function onResize() {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function () {
+          var st = state[nameFromHash()];
+          // Phones fire resize while scrolling. Redraw only when the width really changed.
+          if (st.status === 'ready' && st.box.clientWidth !== st.width) draw(nameFromHash());
+        }, 200);
+      }
+      window.addEventListener('resize', onResize);
+      window.addEventListener('orientationchange', onResize);
 
       function nameFromHash() {
         var h = window.location.hash.replace('#', '').toLowerCase();
@@ -128,17 +312,11 @@
           tab.setAttribute('aria-selected', active ? 'true' : 'false');
           tab.tabIndex = active ? 0 : -1;
           panel.hidden = !active;
-          if (active) {
-            // The hidden tab's PDF is fetched only the first time it is shown.
-            var frame = panel.querySelector('iframe');
-            if (frame && !frame.getAttribute('src')) {
-              frame.setAttribute('src', frame.getAttribute('data-src'));
-            }
-          }
         });
+        // Each tab's PDF is fetched and drawn only the first time it is shown.
+        ensureDrawn(name);
         link.setAttribute('href', TABS[name].file);
         link.setAttribute('download', TABS[name].download);
-        blurb.textContent = TABS[name].blurb;
       }
 
       function select(name, focus) {
@@ -165,6 +343,27 @@
           }
         });
       });
+
+      // Copy link: the page address, with #technical only on the Technical tab.
+      var copyBtn = document.getElementById('resume-copy');
+      var copyLabel = document.getElementById('resume-copy-label');
+      var copyTimer = null;
+      if (!navigator.clipboard || !navigator.clipboard.writeText) {
+        copyBtn.hidden = true; // no way to copy here, so no button
+      } else {
+        copyBtn.addEventListener('click', function () {
+          var name = nameFromHash();
+          var url = window.location.origin + window.location.pathname +
+            (name === 'resume' ? '' : '#' + name);
+          try {
+            navigator.clipboard.writeText(url).then(function () {
+              copyLabel.textContent = 'Copied';
+              clearTimeout(copyTimer);
+              copyTimer = setTimeout(function () { copyLabel.textContent = 'Copy link'; }, 2000);
+            }, function () { /* copy refused: the label stays as it is */ });
+          } catch (e) { /* same: stay quiet */ }
+        });
+      }
 
       window.addEventListener('hashchange', function () { show(nameFromHash()); });
       show(nameFromHash());
