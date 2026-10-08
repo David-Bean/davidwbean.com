@@ -63,15 +63,41 @@
       border: 1px solid var(--border);
       border-radius: 8px;
     }
+    .pdf-page {
+      position: relative;
+      margin-bottom: 1rem;
+    }
     .pdf-pages canvas {
       display: block;
       box-sizing: border-box;
       width: 100%;
       height: auto;
-      margin-bottom: 1rem;
       border: 1px solid var(--border);
       border-radius: 4px;
       background: #fff;
+    }
+    /* The PDF's own links, laid over the drawn page. Inset by the canvas border. */
+    .pdf-links {
+      position: absolute;
+      top: 1px;
+      right: 1px;
+      bottom: 1px;
+      left: 1px;
+      pointer-events: none;
+    }
+    .pdf-links a {
+      position: absolute;
+      display: block;
+      border-radius: 2px;
+      text-decoration: none;
+      cursor: pointer;
+      pointer-events: auto;
+    }
+    .pdf-links a:hover,
+    .pdf-links a:focus-visible {
+      background: rgba(37, 99, 235, 0.16);
+      outline: 2px solid rgba(37, 99, 235, 0.55);
+      outline-offset: 1px;
     }
     .pdf-pages p { color: var(--text-muted); padding: 1rem 0; }
     .btn-outline {
@@ -209,6 +235,48 @@
         return libPromise;
       }
 
+      // Only web and email addresses become links. Anything else in the PDF is skipped.
+      var SAFE_URL = /^(https?:|mailto:)/i;
+
+      // One <a> per link in the PDF page, placed in percentages of the page so it
+      // stays aligned however CSS sizes the canvas.
+      function buildLinks(page, base) {
+        var layer = document.createElement('div');
+        layer.className = 'pdf-links';
+        return page.getAnnotations().then(function (annotations) {
+          annotations.forEach(function (annotation) {
+            if (annotation.subtype !== 'Link' || !annotation.rect) return;
+            var url = annotation.url;
+            if (!url && /^mailto:/i.test(annotation.unsafeUrl || '')) url = annotation.unsafeUrl;
+            if (!url || !SAFE_URL.test(url)) return;
+            var r = base.convertToViewportRectangle(annotation.rect);
+            var left = Math.min(r[0], r[2]);
+            var top = Math.min(r[1], r[3]);
+            var w = Math.abs(r[2] - r[0]);
+            var h = Math.abs(r[3] - r[1]);
+            if (!w || !h) return;
+            var a = document.createElement('a');
+            var isMail = /^mailto:/i.test(url);
+            a.href = url;
+            if (!isMail) {
+              a.target = '_blank';
+              a.rel = 'noopener';
+            }
+            a.setAttribute('aria-label', isMail
+              ? 'Email ' + url.replace(/^mailto:/i, '').split('?')[0]
+              : 'Open ' + url);
+            a.style.left = (left / base.width * 100) + '%';
+            a.style.top = (top / base.height * 100) + '%';
+            a.style.width = (w / base.width * 100) + '%';
+            a.style.height = (h / base.height * 100) + '%';
+            layer.appendChild(a);
+          });
+          return layer;
+        }, function () {
+          return layer; // links could not be read: the page still shows, without them
+        });
+      }
+
       function drawPage(doc, num, total, width, label) {
         return doc.getPage(num).then(function (page) {
           var base = page.getViewport({ scale: 1 });
@@ -223,7 +291,15 @@
           canvas.setAttribute('role', 'img');
           canvas.setAttribute('aria-label', label + ', page ' + num + ' of ' + total);
           return page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport })
-            .promise.then(function () { return canvas; });
+            .promise.then(function () { return buildLinks(page, base); })
+            .then(function (layer) {
+              // The wrapper holds one page and its links, and is rebuilt on every draw.
+              var wrap = document.createElement('div');
+              wrap.className = 'pdf-page';
+              wrap.appendChild(canvas);
+              wrap.appendChild(layer);
+              return wrap;
+            });
         });
       }
 
