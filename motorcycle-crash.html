@@ -8,6 +8,27 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500&family=Playfair+Display:wght@400;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <style>
+    /* Same PDF styles as resume.html, kept in this page only. */
+    .pdf-embed {
+      width: 100%;
+      height: 85vh;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    .pdf-pages canvas {
+      display: block;
+      box-sizing: border-box;
+      width: 100%;
+      height: auto;
+      margin-bottom: 1rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: #fff;
+    }
+    .pdf-pages p { color: var(--text-muted); padding: 1rem 0; }
+    .paper-actions { margin: 1.25rem 0 1.5rem; }
+  </style>
 </head>
 <body>
 
@@ -28,7 +49,15 @@
   </div>
 
   <div class="page">
-    <p>A statistical analysis of injury severity in 870,000+ federal crash reports. Full write-up coming soon.</p>
+    <p>The full technical write-up. An interactive version is planned.</p>
+    <div class="paper-actions">
+      <a href="motorcycle-crash.pdf" download class="btn-primary" style="white-space: nowrap;">Download PDF</a>
+    </div>
+    <noscript><p><a href="motorcycle-crash.pdf">Open the write-up (PDF)</a></p></noscript>
+    <div id="paper-panel">
+      <iframe class="pdf-embed" data-src="motorcycle-crash.pdf" title="Motorcycle Crash Risk Analysis write-up" hidden></iframe>
+      <noscript><iframe class="pdf-embed" src="motorcycle-crash.pdf" title="Motorcycle Crash Risk Analysis write-up"></iframe></noscript>
+    </div>
   </div>
 
   <footer>
@@ -36,5 +65,140 @@
   </footer>
 
   <script src="nav.js"></script>
+  <script>
+    (function () {
+      // The paper is drawn page by page with PDF.js, fitted to the screen width,
+      // the same way resume.html draws its PDFs. If anything fails, the iframe is shown.
+      var FILE = 'motorcycle-crash.pdf';
+      var LABEL = 'Motorcycle Crash Risk Analysis write-up';
+      var PDFJS_URL = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+      var PDFJS_WORKER_URL = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      var MAX_CANVAS_PIXELS = 16000000; // phone browsers refuse larger canvases
+      var panel = document.getElementById('paper-panel');
+      var st = { status: 'idle', doc: null, box: null, width: 0, token: 0 };
+
+      function fallback() {
+        var frame = panel.querySelector('iframe');
+        st.status = 'fallback';
+        st.doc = null;
+        st.token++;
+        if (st.box && st.box.parentNode) st.box.parentNode.removeChild(st.box);
+        st.box = null;
+        if (frame) {
+          // The PDF is fetched only the first time the iframe is shown.
+          if (!frame.getAttribute('src')) {
+            frame.setAttribute('src', frame.getAttribute('data-src'));
+          }
+          frame.hidden = false;
+        }
+      }
+
+      function loadLib() {
+        return new Promise(function (resolve, reject) {
+          var script = document.createElement('script');
+          var timer = setTimeout(function () { reject(new Error('PDF.js timed out')); }, 10000);
+          script.src = PDFJS_URL;
+          script.onload = function () {
+            clearTimeout(timer);
+            if (window.pdfjsLib) {
+              window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER_URL;
+              resolve(window.pdfjsLib);
+            } else {
+              reject(new Error('PDF.js missing'));
+            }
+          };
+          script.onerror = function () {
+            clearTimeout(timer);
+            reject(new Error('PDF.js failed to load'));
+          };
+          document.head.appendChild(script);
+        });
+      }
+
+      function drawPage(doc, num, total, width) {
+        return doc.getPage(num).then(function (page) {
+          var base = page.getViewport({ scale: 1 });
+          var dpr = Math.min(window.devicePixelRatio || 1, 2);
+          var scale = (width / base.width) * dpr;
+          var pixels = base.width * base.height * scale * scale;
+          if (pixels > MAX_CANVAS_PIXELS) scale *= Math.sqrt(MAX_CANVAS_PIXELS / pixels);
+          var viewport = page.getViewport({ scale: scale });
+          var canvas = document.createElement('canvas');
+          canvas.width = Math.floor(viewport.width);
+          canvas.height = Math.floor(viewport.height);
+          canvas.setAttribute('role', 'img');
+          canvas.setAttribute('aria-label', LABEL + ', page ' + num + ' of ' + total);
+          return page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport })
+            .promise.then(function () { return canvas; });
+        });
+      }
+
+      function draw() {
+        var width = st.box ? st.box.clientWidth : 0;
+        if (!st.doc || !width) return;
+        var token = ++st.token;
+        var doc = st.doc;
+        var total = doc.numPages;
+        var canvases = [];
+        var chain = Promise.resolve();
+        st.width = width;
+        for (var n = 1; n <= total; n++) {
+          (function (num) {
+            chain = chain.then(function () {
+              if (token !== st.token) return null;
+              return drawPage(doc, num, total, width).then(function (canvas) {
+                canvases.push(canvas);
+              });
+            });
+          })(n);
+        }
+        chain.then(function () {
+          if (token !== st.token || !st.box) return;
+          // Swap the finished pages in at once, so a redraw does not flicker.
+          while (st.box.firstChild) st.box.removeChild(st.box.firstChild);
+          canvases.forEach(function (canvas) { st.box.appendChild(canvas); });
+        }).catch(function () {
+          if (token === st.token) fallback();
+        });
+      }
+
+      function start() {
+        if (!panel) return;
+        if (!window.Promise || !document.createElement('canvas').getContext) {
+          fallback();
+          return;
+        }
+        var note = document.createElement('p');
+        note.textContent = 'Loading the PDF.';
+        st.box = document.createElement('div');
+        st.box.className = 'pdf-pages';
+        st.box.appendChild(note);
+        panel.insertBefore(st.box, panel.firstChild);
+        st.status = 'loading';
+        loadLib().then(function (lib) {
+          return lib.getDocument(FILE).promise;
+        }).then(function (doc) {
+          st.doc = doc;
+          st.status = 'ready';
+          draw();
+        }).catch(function () {
+          fallback();
+        });
+      }
+
+      var resizeTimer = null;
+      function onResize() {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(function () {
+          // Phones fire resize while scrolling. Redraw only when the width really changed.
+          if (st.status === 'ready' && st.box && st.box.clientWidth !== st.width) draw();
+        }, 200);
+      }
+      window.addEventListener('resize', onResize);
+      window.addEventListener('orientationchange', onResize);
+
+      start();
+    })();
+  </script>
 </body>
 </html>
