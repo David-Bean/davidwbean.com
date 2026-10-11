@@ -1,0 +1,144 @@
+# Keep Supabase awake, and say so loudly when a database is silent.
+#
+# What this is for: once a day this asks each of David's two Supabase databases
+# one small read query. Two reasons. A free Supabase project is paused after a
+# week with no activity, and a daily query is activity. And if a database ever
+# stops answering, this job fails, and GitHub's failure email says so, instead
+# of an app quietly not syncing.
+#
+# The two keys below are public by design. They are Supabase "publishable"
+# keys, already in the page source of the apps that use them. What a visitor
+# may do is decided by the rules inside each database, not by hiding the key.
+# So they are plain text here, not secrets.
+#
+# This job only reads. It never writes to either database.
+#
+# GitHub turns a scheduled workflow off after 60 days without a commit to this
+# repo. It emails a warning first. If that happens, any commit, or pressing
+# "Enable workflow" on the Actions tab, turns it back on.
+#
+# To test by hand: copy everything under "run: |" into a file and run it with
+# bash. It needs only curl and jq.
+
+name: Keep Supabase awake
+
+on:
+  schedule:
+    # 13:17 UTC every day (early morning in Denver). Not on the hour, because
+    # GitHub delays jobs scheduled on the hour the most.
+    - cron: "17 13 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ask:
+    name: Ask both databases a question
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ask each database one read query
+        shell: bash
+        run: |
+          set -u
+
+          # The rule for "the database answered", used for both projects:
+          #   1. HTTP 200 with a JSON list as the body (Postgres ran the query
+          #      and returned rows, possibly none), or
+          #   2. HTTP 4xx whose JSON body carries a Postgres error code: five
+          #      characters, digits and capitals, for example "code":"42501"
+          #      (permission denied). Postgres refused, so Postgres is up.
+          # Anything else is NO ANSWER: a timeout, a connection error, any
+          # other status (a paused project, a 5xx), or a body that is not from
+          # Postgres. A code that starts with PGRST comes from the layer in
+          # front of the database, not from Postgres, so it does not count.
+
+          TIME_LIMIT=20   # seconds allowed for one request
+          RETRY_WAIT=15   # seconds to wait before the one retry
+
+          body_file="$(mktemp)"
+          trap 'rm -f "$body_file"' EXIT
+          failed=0
+
+          # ask_once NAME URL KEY
+          # Sends one GET. Sets $verdict to the line to print.
+          # Returns 0 if the database answered, 1 if not.
+          ask_once() {
+            local name="$1" url="$2" key="$3" status code
+            : > "$body_file"
+            status="$(curl --silent --show-error --max-time "$TIME_LIMIT" \
+              --request GET \
+              --header "apikey: $key" \
+              --header "Authorization: Bearer $key" \
+              --header "Accept: application/json" \
+              --output "$body_file" \
+              --write-out '%{http_code}' \
+              "$url")" || status="000"
+
+            if [ "$status" = "200" ]; then
+              if jq -e 'type == "array"' "$body_file" > /dev/null 2>&1; then
+                verdict="$name: answered (200)"
+                return 0
+              fi
+              verdict="$name: NO ANSWER (status 200, but the body is not a list of rows)"
+              return 1
+            fi
+
+            code="$(jq -r 'if type == "object" then (.code // "" | tostring) else "" end' "$body_file" 2> /dev/null)" || code=""
+            if [[ "$status" =~ ^4[0-9][0-9]$ && "$code" =~ ^[0-9A-Z]{5}$ ]]; then
+              verdict="$name: answered ($status, Postgres $code)"
+              return 0
+            fi
+
+            if [ "$status" = "000" ]; then
+              verdict="$name: NO ANSWER (no reply within $TIME_LIMIT seconds, or could not connect)"
+            else
+              verdict="$name: NO ANSWER (status $status)"
+            fi
+            return 1
+          }
+
+          # ask NAME URL KEY
+          # Asks once, and once more after a short wait if the first try got
+          # no answer, so one dropped connection is not a false alarm.
+          ask() {
+            local name="$1" url="$2" key="$3"
+            verdict=""
+            if ask_once "$name" "$url" "$key"; then
+              echo "$verdict"
+              return 0
+            fi
+            echo "$name: first try got no answer, trying once more in $RETRY_WAIT seconds"
+            sleep "$RETRY_WAIT"
+            if ask_once "$name" "$url" "$key"; then
+              echo "$verdict"
+              return 0
+            fi
+            echo "$verdict"
+            echo "  what came back: $(head -c 300 "$body_file" | tr '\n' ' ')"
+            if [ -n "${GITHUB_ACTIONS:-}" ]; then
+              echo "::error::$verdict"
+            fi
+            failed=1
+            return 0
+          }
+
+          # SQL practice. A visitor who is not signed in has no rights on
+          # "reviews", so the expected answer is a refusal from Postgres:
+          # status 401 with code 42501.
+          ask "SQL practice" \
+            "https://owwytqfmwrcuqcxymoog.supabase.co/rest/v1/reviews?select=id&limit=1" \
+            "sb_publishable_MrnkVsC-O1XucBE6UGL8tQ_ZFDtVmB7"
+
+          # The site's other apps (thegame and pa_interview_practice share one
+          # project). thegame reads "game_types" with this same key and no
+          # sign in, so the expected answer is status 200.
+          ask "Site apps" \
+            "https://qajfukimikbhmzsosuif.supabase.co/rest/v1/game_types?select=id&limit=1" \
+            "sb_publishable_xptTzZ-QmmdK6CyBj-wySw_Vm7Fxvfr"
+
+          if [ "$failed" -ne 0 ]; then
+            echo "At least one database did not answer. Failing this job so GitHub sends the email."
+            exit 1
+          fi
+          echo "Both databases answered."
