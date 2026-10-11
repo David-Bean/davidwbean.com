@@ -2,3 +2,5 @@
 # Nothing links to it, so there is nothing to index and nothing to follow.
 User-agent: *
 Disallow: /pa_interview_practice/
+# The SQL practice tool is not ready to be found yet. Nothing links to it.
+Disallow: /sql_practice/
