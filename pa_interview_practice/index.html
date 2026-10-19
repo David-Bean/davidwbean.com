@@ -735,9 +735,20 @@ const BANK = [
   { tag: "ALL", text: "How will you pay for this, and what's your backup if the finances get harder than expected?" },
   { tag: "HSU", text: "What does \"compassionate care\" look like when you're exhausted and behind schedule?" },
   { tag: "ALL", text: "Give me three words your closest coworker would use for you, then defend the least flattering one." },
-].map(q => ({ id: "b" + hash(q.text), tag: q.tag, text: q.text, pool: "bank" }));
+].map(q => ({ id: "b" + hash(q.text), tag: q.tag, text: q.text, sets: ["bank"] }));
 
 let MOCK = [];                       // filled by loadMock() if the file is there
+
+/* Sets beyond mock.json: a file apiece beside this page, in the same shape as
+   mock.json plus a name for the set picker, such as a short list chosen for one
+   session out of the long one. A question in one of these that is also in
+   mock.json is the same question, not a copy of it, so it is asked, scored and
+   counted as seen in one place whichever set it was drawn from. That is why a
+   question carries a list of sets rather than one: the sharing is in the list,
+   and the id never has to choose. */
+const EXTRA_FILES = ["mock-2026-10-19.json"];
+let EXTRA = [];                      // { key, name } for each one that loaded, in order
+let EXTRA_ONLY = [];                 // questions in those files and not in mock.json
 
 /* A question is identified by a hash of its own words rather than its position
    in the list, so inserting a question in the middle doesn't silently hand its
@@ -751,23 +762,25 @@ function hash(s) {
 }
 
 /* mock.json may be a list of strings, or of objects with text and an optional
-   school tag. Anything else in the file is ignored rather than thrown. */
-function normalise(raw, pool) {
+   school tag. Anything else in the file is ignored rather than thrown. prefix
+   is the first letter of the id; a set beyond mock.json is given mock's, which
+   is what lets a question it shares with mock.json come out as the same id. */
+function normalise(raw, pool, prefix = pool[0]) {
   const list = Array.isArray(raw) ? raw : (raw && Array.isArray(raw.questions) ? raw.questions : []);
   const out = [], seen = new Set();
   for (const item of list) {
     const text = typeof item === "string" ? item : (item && typeof item.text === "string" ? item.text : "");
     if (!text.trim()) continue;
     const tag = (item && typeof item.tag === "string" && SCHOOLS[item.tag]) ? item.tag : "ALL";
-    const id = pool[0] + hash(text);
+    const id = prefix + hash(text);
     if (seen.has(id)) continue;      // the same question twice is one question
     seen.add(id);
-    out.push({ id, tag, text: text.trim(), pool });
+    out.push({ id, tag, text: text.trim(), sets: [pool] });
   }
   return out;
 }
 
-const QUESTIONS = () => BANK.concat(MOCK);
+const QUESTIONS = () => BANK.concat(MOCK, EXTRA_ONLY);
 const byId = id => QUESTIONS().find(q => q.id === id) || null;
 
 /* ---- state ------------------------------------------------------------ */
@@ -789,7 +802,8 @@ let QUEUE = [], QI = 0;              // the questions this mode lined up, and wh
    run is is a choice about the session in front of you, not about the record. */
 let MOCKN = 10;
 /* Which set each mode has been told to draw from, keyed by mode name: "bank"
-   for the general bank, "mock" for the mock set, "" for both. Not saved either,
+   for the general bank, "mock" for the mock set, an EXTRA set's key for that
+   set, "" for all of them. Not saved either,
    and for the same reason MOCKN is not: which set you are working through is a
    choice about the session in front of you, not about the record.
    A mode nobody has told anything is left out of POOL entirely and works its
@@ -802,7 +816,7 @@ const poolDefault = m => (m === "mock" && MOCK.length) ? "mock" : "bank";
 const poolFor = m => POOL[m] === undefined ? poolDefault(m) : POOL[m];
 /* Every question already says which set it came from, so a mode's source is
    that one filter over the lot of them, and "" is no filter at all. */
-const inPool = m => QUESTIONS().filter(q => !poolFor(m) || q.pool === poolFor(m));
+const inPool = m => QUESTIONS().filter(q => !poolFor(m) || q.sets.includes(poolFor(m)));
 /* The mock in front of you: the questions actually put to her so far, one
    entry apiece; the run being assessed, held here and nowhere else until the
    sheet is saved; the id of the row it went down as once it is, so a run
@@ -1718,15 +1732,16 @@ function renderModes() {
     b.onclick = () => setMode(k);
     box.append(b);
   }
-  /* Which set this mode draws from, drawn in every mode and with all three
-     options in every mode, so where the questions are coming from is answered
+  /* Which set this mode draws from, drawn in every mode and with every set
+     on offer in every mode, so where the questions are coming from is answered
      in the same place whatever you are doing. The mock set stays on the list
      when there is no mock set, carrying the reason in its label, so an empty
      run is read off the option rather than found by choosing it. */
   const p = el("select");
   const pools = [["bank", "General bank"],
-                 ["mock", MOCK.length ? "Mock set" : "Mock set (none loaded)"],
-                 ["", "Both"]];
+                 ["mock", MOCK.length ? "Mock set" : "Mock set (none loaded)"]]
+    .concat(EXTRA.map(s => [s.key, s.name]))
+    .concat([["", EXTRA.length ? "All sets" : "Both"]]);
   for (const [v, t] of pools) {
     const o = el("option", null, t); o.value = v;
     if (v === poolFor(MODE)) o.selected = true;
@@ -2658,9 +2673,13 @@ function mockLength() {
   const sel = el("select");
   sel.id = "mock-n";
   /* A size the set cannot fill is not a size: the whole set is offered once,
-     at the end, and stands in for any round number at or above it. */
+     at the end, and stands in for any round number at or above it. Every count
+     up to twelve, because at one to two minutes an answer the difference of a
+     question or two is the difference that matters in a short session; past
+     that, steps of five and then wider ones, for a long session or a big set. */
   const have = inPool("mock").length;
-  const sizes = [5, 10, 15, 20].filter(k => k < have);
+  const sizes = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 15, 20, 25, 30, 35, 40, 45, 50,
+                 60, 75, 100, 150, 200, 250, 300].filter(k => k < have);
   sizes.push(have);
   const n = mockLen();
   for (const k of sizes) {
@@ -2928,7 +2947,7 @@ function renderTable() {
   const needle = FILTER.text.trim().toLowerCase();
   const shown = QUESTIONS().filter(q =>
     (!FILTER.school || q.tag === FILTER.school) &&
-    (!FILTER.pool || q.pool === FILTER.pool) &&
+    (!FILTER.pool || q.sets.includes(FILTER.pool)) &&
     (!needle || q.text.toLowerCase().includes(needle)));
 
   if (!shown.length) { box.append(el("p", "empty", "Nothing matches that.")); return; }
@@ -3169,11 +3188,23 @@ function buildFilters() {
     for (const [v, t] of pairs) { const o = el("option", null, t); o.value = v; sel.append(o); }
   };
   fill(school, [["", "All schools"]].concat(Object.keys(SCHOOLS).map(k => [k, SCHOOLS[k]])));
-  fill(pool, [["", "Bank and mock"], ["bank", "Bank only"], ["mock", "Mock only"]]);
+  fillPoolFilter();
 
   school.onchange = () => { FILTER.school = school.value; renderTable(); };
   pool.onchange = () => { FILTER.pool = pool.value; renderTable(); };
   text.oninput = () => { FILTER.text = text.value; renderTable(); };
+}
+
+/* Apart from the rest because the sets beyond mock.json are only known once
+   their files are in, so this is filled again then, keeping whatever was
+   picked in the meantime. */
+function fillPoolFilter() {
+  const pool = document.getElementById("f-pool");
+  pool.textContent = "";
+  const pairs = [["", "Bank and mock"], ["bank", "Bank only"], ["mock", "Mock only"]]
+    .concat(EXTRA.map(s => [s.key, s.name + " only"]));
+  for (const [v, t] of pairs) { const o = el("option", null, t); o.value = v; pool.append(o); }
+  pool.value = FILTER.pool;
 }
 
 /* The mock set is a file sitting beside this page rather than anything built
@@ -3188,12 +3219,38 @@ async function loadMock() {
   } catch (e) { /* no mock set yet, or opened straight off the disk */ }
 }
 
+/* Read after mock.json and not alongside it, because finding the questions a
+   set shares with mock.json means mock.json has to be in already. A set that
+   is missing or empty is left off the picker rather than offered with nothing
+   in it. The file's name, less .json, is its key, so two sets never share one. */
+async function loadExtra() {
+  if (typeof fetch !== "function") return;
+  for (const file of EXTRA_FILES) {
+    try {
+      const r = await fetch(file, { cache: "no-store" });
+      if (!r.ok) continue;
+      const raw = await r.json();
+      const key = file.replace(/\.json$/, "");
+      const qs = normalise(raw, key, "m");
+      if (!qs.length) continue;
+      for (const q of qs) {
+        const had = byId(q.id);
+        if (had) had.sets.push(key); else EXTRA_ONLY.push(q);
+      }
+      EXTRA.push({ key, name: (raw && typeof raw.name === "string" && raw.name.trim()) || key });
+    } catch (e) { /* not there, or opened straight off the disk */ }
+  }
+}
+
 buildFilters();
 load();
 wireClear();
 setMode("new");
 
-loadMock().then(() => { if (MOCK.length) setMode(MODE); });
+loadMock().then(loadExtra).then(() => {
+  if (EXTRA.length) fillPoolFilter();
+  if (MOCK.length || EXTRA.length) setMode(MODE);
+});
 
 /* A phone suspends the tab the moment you switch away from it, and 700ms of
    debounce easily outlives that. Leaving sends what is owed straight away. */
