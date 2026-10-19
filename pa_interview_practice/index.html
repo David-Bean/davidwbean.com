@@ -169,9 +169,11 @@
   button.go:hover { background: var(--gold); border-color: var(--navy); color: var(--navy); }
   /* A mock's Answer finished: still the press that moves the pass along, so it
      keeps the shape, but lighter, because it stops the clock rather than
-     leaving the question. White and not gold: gold on this blue is too faint. */
+     leaving the question. White and not gold: gold on this blue is too faint.
+     It stays blue under the pointer, a shade darker, rather than turning gold
+     like the rest. */
   button.go.done { background: var(--done); border-color: var(--done); color: #fff; }
-  button.go.done:hover { background: var(--gold); border-color: var(--navy); color: var(--navy); }
+  button.go.done:hover { background: var(--ask); border-color: var(--ask); color: #fff; }
   button.danger { color: var(--warn); }
 
   /* ---- modes ---- */
@@ -634,7 +636,7 @@ const RUBRIC_METRICS = RUBRIC.flatMap(c => c.metrics);
    on the sheet is reworded here with it and the reminder cannot come to name
    something the assessment does not ask about. */
 const LISTENING = "Listening for: " + RUBRIC.map(c => c.label).join(", ")
-  + ". Note what you notice. It all gets rated at the end.";
+  + ". Notes will be visible during grading.";
 
 /* ---- what one question is scored on -----------------------------------
    The three categories above, one rating of 1 to 5 each, and one note for the
@@ -845,6 +847,8 @@ let DOPEN = new Set();               // and which question rows at the end of a 
                                      // by run and question and held apart from the card that
                                      // reads past interviews, so the two that draw a run's
                                      // questions do not open each other's
+let AOPEN = new Set();               // and on the assessment sheet, apart again, because
+                                     // there they start open and on the readback shut
 let FILTER = { school: "", pool: "", text: "" };
 
 /* One question is worked through in five steps. It stays hidden until the
@@ -1552,6 +1556,7 @@ function clearRun() {
   ASSESSNAG = false;
   NOTHINGASKED = false;
   DOPEN.clear();
+  AOPEN.clear();
 }
 
 function setMode(m) {
@@ -1676,6 +1681,9 @@ function endMock() {
   }
   ASSESSING = fixRun({ at: Date.now(), subject: SUBJECT.trim(),
                        grader: GRADER.trim(), asked: RUN });
+  /* The notes are what the sheet is scored from, so they are on it open and
+     not behind a press each. A row can still be shut to get it out of the way. */
+  for (const a of ASSESSING.asked) AOPEN.add(ASSESSING.id + "/" + a.qid);
 }
 
 /* The sheet is full, so the run goes down with its scores on it and the mock
@@ -2293,6 +2301,9 @@ function assessment() {
   };
 
   const body = el("div", "assess");
+  /* Over the lines rather than under them: what she said is read first and
+     scored after, and it is the one part of the sheet with nothing to fill in. */
+  body.append(questionsAsked(run, AOPEN));
   for (const c of RUBRIC) {
     const score = el("span", "catscore");
     paint.push(() => {
@@ -2430,6 +2441,16 @@ function runReadback(run, open) {
   }
   said(section("The interview as a whole", null), run.note);
 
+  box.append(questionsAsked(run, open));
+
+  return box;
+}
+
+/* The questions a run asked, each with its clock and fillers and opening to
+   the note written while she answered. Drawn by the sheet she is graded on and
+   by every screen that reads a run back, so the notes look the same where they
+   are scored from as where they are talked through. */
+function questionsAsked(run, open) {
   /* The questions off the run's own list rather than off QUEUE. The queue is
      the pool the run was drawn from and can be longer than the interview, so
      walking it would put questions on the screen that were never asked. The
@@ -2437,9 +2458,13 @@ function runReadback(run, open) {
   const asked = run.asked;
   const secs = asked.reduce((n, a) => n + a.seconds, 0);
   const fill = asked.reduce((n, a) => n + a.fillers, 0);
-  const qs = section("Questions asked", asked.length
-    + (asked.length === 1 ? " question \u00b7 " : " questions \u00b7 ")
-    + mmss(secs) + " \u00b7 " + fill + "f");
+  const qs = el("div", "acat");
+  const head = el("div", "cathead");
+  head.append(el("span", "catname", "Questions asked"),
+              el("span", "catscore", asked.length
+                + (asked.length === 1 ? " question \u00b7 " : " questions \u00b7 ")
+                + mmss(secs) + " \u00b7 " + fill + "f"));
+  qs.append(head);
   for (const a of asked) {
     const row = el("button", "qrow");
     const arrow = el("span", "arrow", "");
@@ -2481,8 +2506,7 @@ function runReadback(run, open) {
     mark();
     qs.append(row, note);
   }
-
-  return box;
+  return qs;
 }
 
 /* ---- the end of a mock ------------------------------------------------
