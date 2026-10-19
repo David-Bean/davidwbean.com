@@ -167,13 +167,13 @@
   button.go, .modes button { text-transform: uppercase; letter-spacing: .04em; font-size: 13px; }
   button.go { background: var(--navy); border-color: var(--navy); color: var(--gold); }
   button.go:hover { background: var(--gold); border-color: var(--navy); color: var(--navy); }
-  /* A mock's Answer finished: still the press that moves the pass along, so it
-     keeps the shape, but lighter, because it stops the clock rather than
-     leaving the question. White and not gold: gold on this blue is too faint.
-     It stays blue under the pointer, a shade darker, rather than turning gold
-     like the rest. */
-  button.go.done { background: var(--done); border-color: var(--done); color: #fff; }
-  button.go.done:hover { background: var(--ask); border-color: var(--ask); color: #fff; }
+  /* The button at the foot of a mock card, Answer finished and then Next
+     question: the press that moves the pass along, so it keeps the shape, but
+     a lighter blue, and the same lighter blue whatever it says and wherever the
+     pointer is. On a touch screen a tap leaves the hover style behind, so a
+     hover colour of its own would be the colour it sat in after every press.
+     White and not gold: gold on this blue is too faint. */
+  button.go.done, button.go.done:hover { background: var(--done); border-color: var(--done); color: #fff; }
   button.danger { color: var(--warn); }
 
   /* ---- modes ---- */
@@ -2097,10 +2097,10 @@ function renderPractice() {
     /* While the clock runs, the press that moves on stops it first and moves
        nothing: the end of her answer is the moment to catch, and catching it
        should not also be the moment the card goes. Stopped, it is the press
-       that moves on. A lighter blue so the two are told apart at a glance. */
+       that moves on. The words say which of the two it is. */
     const done = ticking()
       ? step1("go done", "Answer finished", pauseClock)
-      : step1("go", last ? "Finish the interview" : "Next question", commit);
+      : step1("go done", last ? "Finish the interview" : "Next question", commit);
     pad.append(done,
                step1(null, "New card", () => mockNext(false)), back);
     /* Under the notes rather than over the question, and at the foot of the
