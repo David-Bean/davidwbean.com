@@ -38,6 +38,7 @@
     --warn:  #b4372e;
     --ok:    #376c2a;
     --ask:   #2f5d9e;
+    --done:  #4a78bd;
   }
   * { box-sizing: border-box; }
   body {
@@ -166,6 +167,11 @@
   button.go, .modes button { text-transform: uppercase; letter-spacing: .04em; font-size: 13px; }
   button.go { background: var(--navy); border-color: var(--navy); color: var(--gold); }
   button.go:hover { background: var(--gold); border-color: var(--navy); color: var(--navy); }
+  /* A mock's Answer finished: still the press that moves the pass along, so it
+     keeps the shape, but lighter, because it stops the clock rather than
+     leaving the question. White and not gold: gold on this blue is too faint. */
+  button.go.done { background: var(--done); border-color: var(--done); color: #fff; }
+  button.go.done:hover { background: var(--gold); border-color: var(--navy); color: var(--navy); }
   button.danger { color: var(--warn); }
 
   /* ---- modes ---- */
@@ -2059,7 +2065,7 @@ function renderPractice() {
 
     const note = el("textarea");
     note.rows = 4;
-    note.placeholder = "notes on this answer, for the assessment at the end";
+    note.placeholder = "notes";
     /* the database's ceiling, said here rather than found later when the row
        is cut on the way down and the last of the typing is gone */
     note.maxLength = NOTEMAX;
@@ -2080,7 +2086,14 @@ function renderPractice() {
        whatever happens here, so all this can do is deal a different one. Back
        is the change of mind after it, so a card swapped out by accident is one
        press away rather than gone for the rest of the run. */
-    pad.append(step1("go", last ? "Finish the interview" : "Next question", commit),
+    /* While the clock runs, the press that moves on stops it first and moves
+       nothing: the end of her answer is the moment to catch, and catching it
+       should not also be the moment the card goes. Stopped, it is the press
+       that moves on. A lighter blue so the two are told apart at a glance. */
+    const done = ticking()
+      ? step1("go done", "Answer finished", pauseClock)
+      : step1("go", last ? "Finish the interview" : "Next question", commit);
+    pad.append(done,
                step1(null, "New card", () => mockNext(false)), back);
     /* Under the notes rather than over the question, and at the foot of the
        card because the foot is what holds its place when the middle gives. A
